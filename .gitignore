@@ -12,5 +12,5 @@ coverage/
 
 apps/api/src/generated/
 
-# Local assistant workspace rules
-.cursor/rules/bajie-workspace.mdc
+# Local assistant workspace rules and notes
+.cursor/rules/bajie-*.mdc
