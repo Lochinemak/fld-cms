@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   MessagesSquare,
   Network,
+  ScrollText,
   Settings,
   ShieldCheck,
   Store,
@@ -41,7 +42,8 @@ interface MenuPage {
     | '/system/settings'
     | '/system/members'
     | '/system/depts'
-    | '/system/roles';
+    | '/system/roles'
+    | '/system/audit-logs';
   icon: LucideIcon;
   /** The permission that opens the page; its name in the registry titles the menu item. */
   code: PermissionCode;
@@ -73,9 +75,11 @@ const MENU: MenuGroup[] = [
       { to: '/system/tenants', icon: Building2, code: 'system:tenant' },
       { to: '/system/accounts', icon: UserCog, code: 'system:account' },
       { to: '/system/settings', icon: Settings, code: 'system:settings' },
+      { to: '/system/audit-logs', icon: ScrollText, code: 'system:platform-audit' },
       { to: '/system/members', icon: Users, code: 'system:member' },
       { to: '/system/depts', icon: Network, code: 'system:dept' },
       { to: '/system/roles', icon: ShieldCheck, code: 'system:role' },
+      { to: '/system/audit-logs', icon: ScrollText, code: 'system:audit' },
     ],
   },
 ];

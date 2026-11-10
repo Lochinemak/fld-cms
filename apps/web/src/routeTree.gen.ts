@@ -21,6 +21,7 @@ import { Route as AppCrmContactsRouteImport } from './routes/_app/crm/contacts'
 import { Route as AppCrmFollowUpsRouteImport } from './routes/_app/crm/follow-ups'
 import { Route as AppCrmOpportunitiesRouteImport } from './routes/_app/crm/opportunities'
 import { Route as AppSystemAccountsRouteImport } from './routes/_app/system/accounts'
+import { Route as AppSystemAuditLogsRouteImport } from './routes/_app/system/audit-logs'
 import { Route as AppSystemDeptsRouteImport } from './routes/_app/system/depts'
 import { Route as AppSystemMembersRouteImport } from './routes/_app/system/members'
 import { Route as AppSystemRolesRouteImport } from './routes/_app/system/roles'
@@ -88,6 +89,11 @@ const AppSystemAccountsRoute = AppSystemAccountsRouteImport.update({
   path: '/system/accounts',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSystemAuditLogsRoute = AppSystemAuditLogsRouteImport.update({
+  id: '/system/audit-logs',
+  path: '/system/audit-logs',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSystemDeptsRoute = AppSystemDeptsRouteImport.update({
   id: '/system/depts',
   path: '/system/depts',
@@ -137,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/crm/follow-ups': typeof AppCrmFollowUpsRoute
   '/crm/opportunities': typeof AppCrmOpportunitiesRoute
   '/system/accounts': typeof AppSystemAccountsRoute
+  '/system/audit-logs': typeof AppSystemAuditLogsRoute
   '/system/depts': typeof AppSystemDeptsRoute
   '/system/members': typeof AppSystemMembersRoute
   '/system/roles': typeof AppSystemRolesRoute
@@ -157,6 +164,7 @@ export interface FileRoutesByTo {
   '/crm/follow-ups': typeof AppCrmFollowUpsRoute
   '/crm/opportunities': typeof AppCrmOpportunitiesRoute
   '/system/accounts': typeof AppSystemAccountsRoute
+  '/system/audit-logs': typeof AppSystemAuditLogsRoute
   '/system/depts': typeof AppSystemDeptsRoute
   '/system/members': typeof AppSystemMembersRoute
   '/system/roles': typeof AppSystemRolesRoute
@@ -179,6 +187,7 @@ export interface FileRoutesById {
   '/_app/crm/follow-ups': typeof AppCrmFollowUpsRoute
   '/_app/crm/opportunities': typeof AppCrmOpportunitiesRoute
   '/_app/system/accounts': typeof AppSystemAccountsRoute
+  '/_app/system/audit-logs': typeof AppSystemAuditLogsRoute
   '/_app/system/depts': typeof AppSystemDeptsRoute
   '/_app/system/members': typeof AppSystemMembersRoute
   '/_app/system/roles': typeof AppSystemRolesRoute
@@ -201,6 +210,7 @@ export interface FileRouteTypes {
     | '/crm/follow-ups'
     | '/crm/opportunities'
     | '/system/accounts'
+    | '/system/audit-logs'
     | '/system/depts'
     | '/system/members'
     | '/system/roles'
@@ -221,6 +231,7 @@ export interface FileRouteTypes {
     | '/crm/follow-ups'
     | '/crm/opportunities'
     | '/system/accounts'
+    | '/system/audit-logs'
     | '/system/depts'
     | '/system/members'
     | '/system/roles'
@@ -242,6 +253,7 @@ export interface FileRouteTypes {
     | '/_app/crm/follow-ups'
     | '/_app/crm/opportunities'
     | '/_app/system/accounts'
+    | '/_app/system/audit-logs'
     | '/_app/system/depts'
     | '/_app/system/members'
     | '/_app/system/roles'
@@ -346,6 +358,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSystemAccountsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/system/audit-logs': {
+      id: '/_app/system/audit-logs'
+      path: '/system/audit-logs'
+      fullPath: '/system/audit-logs'
+      preLoaderRoute: typeof AppSystemAuditLogsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/system/depts': {
       id: '/_app/system/depts'
       path: '/system/depts'
@@ -405,6 +424,7 @@ interface AppRouteChildren {
   AppCrmFollowUpsRoute: typeof AppCrmFollowUpsRoute
   AppCrmOpportunitiesRoute: typeof AppCrmOpportunitiesRoute
   AppSystemAccountsRoute: typeof AppSystemAccountsRoute
+  AppSystemAuditLogsRoute: typeof AppSystemAuditLogsRoute
   AppSystemDeptsRoute: typeof AppSystemDeptsRoute
   AppSystemMembersRoute: typeof AppSystemMembersRoute
   AppSystemRolesRoute: typeof AppSystemRolesRoute
@@ -421,6 +441,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCrmFollowUpsRoute: AppCrmFollowUpsRoute,
   AppCrmOpportunitiesRoute: AppCrmOpportunitiesRoute,
   AppSystemAccountsRoute: AppSystemAccountsRoute,
+  AppSystemAuditLogsRoute: AppSystemAuditLogsRoute,
   AppSystemDeptsRoute: AppSystemDeptsRoute,
   AppSystemMembersRoute: AppSystemMembersRoute,
   AppSystemRolesRoute: AppSystemRolesRoute,
