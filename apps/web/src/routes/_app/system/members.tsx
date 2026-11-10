@@ -511,7 +511,11 @@ function CreateMemberDialog({
             <AccountChoiceFields
               name="account"
               mode={mode}
-              onModeChange={setMode}
+              onModeChange={(next) => {
+                setMode(next);
+                setErrors({});
+                mutation.reset();
+              }}
               errors={errors}
             />
             <DeptField nodes={nodes} value={deptId} onChange={setDeptId} error={errors['deptId']} />
