@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { AppSidebar } from '@/components/app-sidebar';
 import { RequireSignIn } from '@/components/require-sign-in';
 import { TenantSwitcher } from '@/components/tenant-switcher';
+import { ThemeMenu } from '@/components/theme-menu';
 import { Separator } from '@/components/ui/separator';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { UserMenu } from '@/components/user-menu';
@@ -54,7 +55,8 @@ function AppShell() {
             className="mr-1 data-vertical:h-4 data-vertical:self-center"
           />
           <TenantSwitcher />
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-1">
+            <ThemeMenu />
             <UserMenu />
           </div>
         </header>
