@@ -359,7 +359,7 @@ function MemberRow({ member, self, onAction }: MemberRowProps) {
               )}
               {canReset && member.sharedAccount && (
                 <p className="px-2 pb-1.5 text-xs text-muted-foreground">
-                  该账号还属于其他租户，只能由本人修改密码。
+                  该账号还属于其他租户：可由本人用「忘记密码」重设，或请平台管理员重置。
                 </p>
               )}
               {canRemove && (

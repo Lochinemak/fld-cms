@@ -1,6 +1,6 @@
 import { signInSchema } from '@fld/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { z } from 'zod';
 import { FieldError } from '@/components/field-error';
@@ -85,7 +85,15 @@ function LoginPage() {
               <FieldError message={errors['account']} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">密码</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">密码</Label>
+                <Link
+                  to="/forgot-password"
+                  className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                >
+                  忘记密码？
+                </Link>
+              </div>
               <Input
                 id="password"
                 name="password"

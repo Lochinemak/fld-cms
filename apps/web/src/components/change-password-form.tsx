@@ -91,7 +91,7 @@ interface PasswordFieldProps {
   error: string | undefined;
 }
 
-function PasswordField({ name, label, autoComplete, error }: PasswordFieldProps) {
+export function PasswordField({ name, label, autoComplete, error }: PasswordFieldProps) {
   return (
     <div className="space-y-2">
       <Label htmlFor={name}>{label}</Label>

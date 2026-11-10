@@ -8,8 +8,10 @@ import {
   LayoutDashboard,
   MessagesSquare,
   Network,
+  Settings,
   ShieldCheck,
   Store,
+  UserCog,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -35,6 +37,8 @@ interface MenuPage {
     | '/crm/opportunities'
     | '/files'
     | '/system/tenants'
+    | '/system/accounts'
+    | '/system/settings'
     | '/system/members'
     | '/system/depts'
     | '/system/roles';
@@ -67,6 +71,8 @@ const MENU: MenuGroup[] = [
     code: 'system',
     pages: [
       { to: '/system/tenants', icon: Building2, code: 'system:tenant' },
+      { to: '/system/accounts', icon: UserCog, code: 'system:account' },
+      { to: '/system/settings', icon: Settings, code: 'system:settings' },
       { to: '/system/members', icon: Users, code: 'system:member' },
       { to: '/system/depts', icon: Network, code: 'system:dept' },
       { to: '/system/roles', icon: ShieldCheck, code: 'system:role' },

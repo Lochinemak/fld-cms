@@ -11,16 +11,20 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppFilesRouteImport } from './routes/_app/files'
 import { Route as STokenRouteImport } from './routes/s/$token'
 import { Route as AppCrmContactsRouteImport } from './routes/_app/crm/contacts'
 import { Route as AppCrmFollowUpsRouteImport } from './routes/_app/crm/follow-ups'
 import { Route as AppCrmOpportunitiesRouteImport } from './routes/_app/crm/opportunities'
+import { Route as AppSystemAccountsRouteImport } from './routes/_app/system/accounts'
 import { Route as AppSystemDeptsRouteImport } from './routes/_app/system/depts'
 import { Route as AppSystemMembersRouteImport } from './routes/_app/system/members'
 import { Route as AppSystemRolesRouteImport } from './routes/_app/system/roles'
+import { Route as AppSystemSettingsRouteImport } from './routes/_app/system/settings'
 import { Route as AppSystemTenantsRouteImport } from './routes/_app/system/tenants'
 import { Route as AppCrmCustomersIndexRouteImport } from './routes/_app/crm/customers/index'
 import { Route as AppCrmCustomersCustomerIdRouteImport } from './routes/_app/crm/customers/$customerId'
@@ -34,9 +38,19 @@ const ChangePasswordRoute = ChangePasswordRouteImport.update({
   path: '/change-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -69,6 +83,11 @@ const AppCrmOpportunitiesRoute = AppCrmOpportunitiesRouteImport.update({
   path: '/crm/opportunities',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSystemAccountsRoute = AppSystemAccountsRouteImport.update({
+  id: '/system/accounts',
+  path: '/system/accounts',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSystemDeptsRoute = AppSystemDeptsRouteImport.update({
   id: '/system/depts',
   path: '/system/depts',
@@ -82,6 +101,11 @@ const AppSystemMembersRoute = AppSystemMembersRouteImport.update({
 const AppSystemRolesRoute = AppSystemRolesRouteImport.update({
   id: '/system/roles',
   path: '/system/roles',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSystemSettingsRoute = AppSystemSettingsRouteImport.update({
+  id: '/system/settings',
+  path: '/system/settings',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSystemTenantsRoute = AppSystemTenantsRouteImport.update({
@@ -104,31 +128,39 @@ const AppCrmCustomersCustomerIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/change-password': typeof ChangePasswordRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/files': typeof AppFilesRoute
   '/s/$token': typeof STokenRoute
   '/crm/contacts': typeof AppCrmContactsRoute
   '/crm/follow-ups': typeof AppCrmFollowUpsRoute
   '/crm/opportunities': typeof AppCrmOpportunitiesRoute
+  '/system/accounts': typeof AppSystemAccountsRoute
   '/system/depts': typeof AppSystemDeptsRoute
   '/system/members': typeof AppSystemMembersRoute
   '/system/roles': typeof AppSystemRolesRoute
+  '/system/settings': typeof AppSystemSettingsRoute
   '/system/tenants': typeof AppSystemTenantsRoute
   '/crm/customers/$customerId': typeof AppCrmCustomersCustomerIdRoute
   '/crm/customers/': typeof AppCrmCustomersIndexRoute
 }
 export interface FileRoutesByTo {
   '/change-password': typeof ChangePasswordRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/files': typeof AppFilesRoute
   '/s/$token': typeof STokenRoute
   '/': typeof AppIndexRoute
   '/crm/contacts': typeof AppCrmContactsRoute
   '/crm/follow-ups': typeof AppCrmFollowUpsRoute
   '/crm/opportunities': typeof AppCrmOpportunitiesRoute
+  '/system/accounts': typeof AppSystemAccountsRoute
   '/system/depts': typeof AppSystemDeptsRoute
   '/system/members': typeof AppSystemMembersRoute
   '/system/roles': typeof AppSystemRolesRoute
+  '/system/settings': typeof AppSystemSettingsRoute
   '/system/tenants': typeof AppSystemTenantsRoute
   '/crm/customers/$customerId': typeof AppCrmCustomersCustomerIdRoute
   '/crm/customers': typeof AppCrmCustomersIndexRoute
@@ -137,16 +169,20 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/_app/files': typeof AppFilesRoute
   '/s/$token': typeof STokenRoute
   '/_app/': typeof AppIndexRoute
   '/_app/crm/contacts': typeof AppCrmContactsRoute
   '/_app/crm/follow-ups': typeof AppCrmFollowUpsRoute
   '/_app/crm/opportunities': typeof AppCrmOpportunitiesRoute
+  '/_app/system/accounts': typeof AppSystemAccountsRoute
   '/_app/system/depts': typeof AppSystemDeptsRoute
   '/_app/system/members': typeof AppSystemMembersRoute
   '/_app/system/roles': typeof AppSystemRolesRoute
+  '/_app/system/settings': typeof AppSystemSettingsRoute
   '/_app/system/tenants': typeof AppSystemTenantsRoute
   '/_app/crm/customers/$customerId': typeof AppCrmCustomersCustomerIdRoute
   '/_app/crm/customers/': typeof AppCrmCustomersIndexRoute
@@ -156,31 +192,39 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/change-password'
+    | '/forgot-password'
     | '/login'
+    | '/reset-password'
     | '/files'
     | '/s/$token'
     | '/crm/contacts'
     | '/crm/follow-ups'
     | '/crm/opportunities'
+    | '/system/accounts'
     | '/system/depts'
     | '/system/members'
     | '/system/roles'
+    | '/system/settings'
     | '/system/tenants'
     | '/crm/customers/$customerId'
     | '/crm/customers/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/change-password'
+    | '/forgot-password'
     | '/login'
+    | '/reset-password'
     | '/files'
     | '/s/$token'
     | '/'
     | '/crm/contacts'
     | '/crm/follow-ups'
     | '/crm/opportunities'
+    | '/system/accounts'
     | '/system/depts'
     | '/system/members'
     | '/system/roles'
+    | '/system/settings'
     | '/system/tenants'
     | '/crm/customers/$customerId'
     | '/crm/customers'
@@ -188,16 +232,20 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/change-password'
+    | '/forgot-password'
     | '/login'
+    | '/reset-password'
     | '/_app/files'
     | '/s/$token'
     | '/_app/'
     | '/_app/crm/contacts'
     | '/_app/crm/follow-ups'
     | '/_app/crm/opportunities'
+    | '/_app/system/accounts'
     | '/_app/system/depts'
     | '/_app/system/members'
     | '/_app/system/roles'
+    | '/_app/system/settings'
     | '/_app/system/tenants'
     | '/_app/crm/customers/$customerId'
     | '/_app/crm/customers/'
@@ -206,7 +254,9 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   ChangePasswordRoute: typeof ChangePasswordRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   STokenRoute: typeof STokenRoute
 }
 
@@ -226,11 +276,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChangePasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/': {
@@ -275,6 +339,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCrmOpportunitiesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/system/accounts': {
+      id: '/_app/system/accounts'
+      path: '/system/accounts'
+      fullPath: '/system/accounts'
+      preLoaderRoute: typeof AppSystemAccountsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/system/depts': {
       id: '/_app/system/depts'
       path: '/system/depts'
@@ -294,6 +365,13 @@ declare module '@tanstack/react-router' {
       path: '/system/roles'
       fullPath: '/system/roles'
       preLoaderRoute: typeof AppSystemRolesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/system/settings': {
+      id: '/_app/system/settings'
+      path: '/system/settings'
+      fullPath: '/system/settings'
+      preLoaderRoute: typeof AppSystemSettingsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/system/tenants': {
@@ -326,9 +404,11 @@ interface AppRouteChildren {
   AppCrmContactsRoute: typeof AppCrmContactsRoute
   AppCrmFollowUpsRoute: typeof AppCrmFollowUpsRoute
   AppCrmOpportunitiesRoute: typeof AppCrmOpportunitiesRoute
+  AppSystemAccountsRoute: typeof AppSystemAccountsRoute
   AppSystemDeptsRoute: typeof AppSystemDeptsRoute
   AppSystemMembersRoute: typeof AppSystemMembersRoute
   AppSystemRolesRoute: typeof AppSystemRolesRoute
+  AppSystemSettingsRoute: typeof AppSystemSettingsRoute
   AppSystemTenantsRoute: typeof AppSystemTenantsRoute
   AppCrmCustomersCustomerIdRoute: typeof AppCrmCustomersCustomerIdRoute
   AppCrmCustomersIndexRoute: typeof AppCrmCustomersIndexRoute
@@ -340,9 +420,11 @@ const AppRouteChildren: AppRouteChildren = {
   AppCrmContactsRoute: AppCrmContactsRoute,
   AppCrmFollowUpsRoute: AppCrmFollowUpsRoute,
   AppCrmOpportunitiesRoute: AppCrmOpportunitiesRoute,
+  AppSystemAccountsRoute: AppSystemAccountsRoute,
   AppSystemDeptsRoute: AppSystemDeptsRoute,
   AppSystemMembersRoute: AppSystemMembersRoute,
   AppSystemRolesRoute: AppSystemRolesRoute,
+  AppSystemSettingsRoute: AppSystemSettingsRoute,
   AppSystemTenantsRoute: AppSystemTenantsRoute,
   AppCrmCustomersCustomerIdRoute: AppCrmCustomersCustomerIdRoute,
   AppCrmCustomersIndexRoute: AppCrmCustomersIndexRoute,
@@ -353,7 +435,9 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   ChangePasswordRoute: ChangePasswordRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   STokenRoute: STokenRoute,
 }
 export const routeTree = rootRouteImport

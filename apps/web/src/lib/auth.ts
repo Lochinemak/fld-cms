@@ -1,8 +1,10 @@
 import {
   meSchema,
   type ChangePasswordInput,
+  type ForgotPasswordInput,
   type Me,
   type PermissionCode,
+  type ResetPasswordInput,
   type SignInInput,
 } from '@fld/shared';
 import { queryOptions, useSuspenseQuery, type QueryClient } from '@tanstack/react-query';
@@ -46,6 +48,12 @@ export const switchTenant = (tenantId: string) =>
 
 export const changePassword = (input: ChangePasswordInput) =>
   api('/me/password', { method: 'PUT', json: input, schema: meSchema });
+
+export const forgotPassword = (input: ForgotPasswordInput) =>
+  api('/auth/forgot-password', { method: 'POST', json: input });
+
+export const resetPassword = (input: ResetPasswordInput) =>
+  api('/auth/reset-password', { method: 'POST', json: input });
 
 /**
  * Makes `me` the signed-in state. With `fresh`, drops everything cached for the previous user or
