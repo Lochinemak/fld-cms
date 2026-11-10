@@ -19,6 +19,22 @@ export const envSchema = z.object({
         .map((origin) => origin.trim())
         .filter(Boolean),
     ),
+  /**
+   * Proxies in front of the API whose X-Forwarded-For to believe, in Express `trust proxy` form:
+   * a hop count, addresses and subnets such as `loopback`, or `true`. Prefer the hop count:
+   * `true`, or a subnet the clients themselves are in, lets a client pick its own address. Unset,
+   * the connection's own address is the client's, which behind a proxy puts everyone under one
+   * IP for rate limiting.
+   */
+  TRUST_PROXY: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value): boolean | number | string => {
+      if (!value || value === 'false') return false;
+      if (value === 'true') return true;
+      return /^\d+$/.test(value) ? Number(value) : value;
+    }),
   /** Username of the super admin created with the system tenant on first start. */
   SUPER_ADMIN_USERNAME: usernameSchema.default('superadmin'),
   /** Fixes this instance's snowflake worker id (0–1023) instead of leasing one from Redis. */
