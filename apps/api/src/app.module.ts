@@ -1,22 +1,52 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { envSchema } from './config/env.js';
+import { AuthenticationModule } from '@nestjs/authentication';
+import { AuthorizationModule } from '@nestjs/authorization';
+import { ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard } from '@nestjs/throttler';
+import { AuthModule } from './auth/auth.module.js';
+import { AuthzModule } from './authz/authz.module.js';
+import { AppConfigModule } from './config/app-config.module.js';
+import type { Env } from './config/env.js';
 import { HealthModule } from './health/health.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { RedisModule } from './redis/redis.module.js';
+import { SnowflakeModule } from './snowflake/snowflake.module.js';
+import { TenantsModule } from './tenants/tenants.module.js';
+import { ThrottleModule } from './throttle/throttle.module.js';
 
+// Global guards run in import order, after the root module's own: rate limiting first, then
+// authentication, the tenant check (AuthzModule) and authorization, which must come after
+// authentication.
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      cache: true,
-      // Local development keeps one .env at the repo root; deployed containers receive real env vars.
-      envFilePath: ['.env', '../../.env'],
-      validationSchema: envSchema,
-    }),
+    AppConfigModule,
     PrismaModule,
     RedisModule,
+    SnowflakeModule,
+    ThrottleModule,
+    AuthenticationModule.forRootAsync({
+      isGlobal: true,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) => ({
+        session: {
+          absoluteTtl: '7d',
+          idleTtl: '1d',
+          cookie: { secure: config.get('SESSION_COOKIE_SECURE', { infer: true }) },
+          trustedOrigins: config.get('TRUSTED_ORIGINS', { infer: true }),
+          metadata: (request) => ({
+            userAgent: request.headers['user-agent'],
+            ip: request.ip,
+          }),
+        },
+      }),
+    }),
+    AuthModule,
+    AuthzModule,
+    AuthorizationModule.forRoot(),
     HealthModule,
+    TenantsModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

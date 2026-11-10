@@ -1,8 +1,9 @@
-import { ConsoleLogger, StandardSchemaValidationPipe } from '@nestjs/common';
+import { ConsoleLogger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
+import { configureApp } from './app.setup.js';
 import type { Env } from './config/env.js';
 
 async function bootstrap() {
@@ -11,8 +12,7 @@ async function bootstrap() {
   });
   const config = app.get<ConfigService<Env, true>>(ConfigService);
 
-  app.setGlobalPrefix('api');
-  app.useGlobalPipes(new StandardSchemaValidationPipe());
+  configureApp(app);
   app.enableShutdownHooks();
 
   const swaggerEnabled =

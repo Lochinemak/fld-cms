@@ -1,26 +1,22 @@
 import { healthCheckSchema } from '@fld/shared';
-import { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
+import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { App } from 'supertest/types.js';
-import { AppModule } from '../src/app.module.js';
+import type { App } from 'supertest/types.js';
+import { createTestApp } from './app.js';
 
 // Needs the local Postgres and Redis from compose.yaml (`pnpm infra:up`).
 describe('Health (e2e)', () => {
   let app: INestApplication<App>;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    app = moduleRef.createNestApplication();
-    app.setGlobalPrefix('api');
-    await app.init();
+    app = await createTestApp();
   });
 
   afterAll(async () => {
     await app.close();
   });
 
-  it('GET /api/health reports database and redis as up', async () => {
+  it('GET /api/health reports database and redis as up, without signing in', async () => {
     const res = await request(app.getHttpServer()).get('/api/health').expect(200);
     const body = healthCheckSchema.parse(res.body);
 
