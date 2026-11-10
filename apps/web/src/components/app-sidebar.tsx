@@ -2,9 +2,13 @@ import { permissionDefinition, type PermissionCode } from '@fld/shared';
 import { Link, useMatchRoute } from '@tanstack/react-router';
 import {
   Building2,
+  ContactRound,
+  Handshake,
   LayoutDashboard,
+  MessagesSquare,
   Network,
   ShieldCheck,
+  Store,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -22,25 +26,52 @@ import {
 } from '@/components/ui/sidebar';
 import { hasPermission, useMe } from '@/lib/auth';
 
-interface SystemPage {
-  to: '/system/tenants' | '/system/members' | '/system/depts' | '/system/roles';
+interface MenuPage {
+  to:
+    | '/crm/customers'
+    | '/crm/contacts'
+    | '/crm/follow-ups'
+    | '/crm/opportunities'
+    | '/system/tenants'
+    | '/system/members'
+    | '/system/depts'
+    | '/system/roles';
   icon: LucideIcon;
   /** The permission that opens the page; its name in the registry titles the menu item. */
   code: PermissionCode;
 }
 
-const SYSTEM_PAGES: SystemPage[] = [
-  { to: '/system/tenants', icon: Building2, code: 'system:tenant' },
-  { to: '/system/members', icon: Users, code: 'system:member' },
-  { to: '/system/depts', icon: Network, code: 'system:dept' },
-  { to: '/system/roles', icon: ShieldCheck, code: 'system:role' },
+interface MenuGroup {
+  /** The directory whose name in the registry labels the group. */
+  code: PermissionCode;
+  pages: MenuPage[];
+}
+
+const MENU: MenuGroup[] = [
+  {
+    code: 'crm',
+    pages: [
+      { to: '/crm/customers', icon: Store, code: 'crm:customer' },
+      { to: '/crm/contacts', icon: ContactRound, code: 'crm:contact' },
+      { to: '/crm/follow-ups', icon: MessagesSquare, code: 'crm:follow-up' },
+      { to: '/crm/opportunities', icon: Handshake, code: 'crm:opportunity' },
+    ],
+  },
+  {
+    code: 'system',
+    pages: [
+      { to: '/system/tenants', icon: Building2, code: 'system:tenant' },
+      { to: '/system/members', icon: Users, code: 'system:member' },
+      { to: '/system/depts', icon: Network, code: 'system:dept' },
+      { to: '/system/roles', icon: ShieldCheck, code: 'system:role' },
+    ],
+  },
 ];
 
 /** The menu lists only the pages the user may open in the current tenant. */
 export function AppSidebar() {
   const me = useMe();
   const matchRoute = useMatchRoute();
-  const systemPages = SYSTEM_PAGES.filter(({ code }) => hasPermission(me, code));
 
   return (
     <Sidebar collapsible="icon">
@@ -71,30 +102,36 @@ export function AppSidebar() {
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
-        {systemPages.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel>{permissionDefinition('system').name}</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {systemPages.map(({ to, icon: Icon, code }) => {
-                  const title = permissionDefinition(code).name;
-                  return (
-                    <SidebarMenuItem key={code}>
-                      <SidebarMenuButton
-                        isActive={!!matchRoute({ to, fuzzy: true })}
-                        tooltip={title}
-                        render={<Link to={to} />}
-                      >
-                        <Icon />
-                        <span>{title}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+        {MENU.map((group) => {
+          const pages = group.pages.filter(({ code }) => hasPermission(me, code));
+          if (pages.length === 0) {
+            return null;
+          }
+          return (
+            <SidebarGroup key={group.code}>
+              <SidebarGroupLabel>{permissionDefinition(group.code).name}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {pages.map(({ to, icon: Icon, code }) => {
+                    const title = permissionDefinition(code).name;
+                    return (
+                      <SidebarMenuItem key={code}>
+                        <SidebarMenuButton
+                          isActive={!!matchRoute({ to, fuzzy: true })}
+                          tooltip={title}
+                          render={<Link to={to} />}
+                        >
+                          <Icon />
+                          <span>{title}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          );
+        })}
       </SidebarContent>
       <SidebarRail />
     </Sidebar>

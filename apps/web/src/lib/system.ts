@@ -50,7 +50,8 @@ export interface MemberListParams extends TenantListParams {
 
 const memberPageSchema = pageSchema(memberSchema);
 
-function listPath(path: string, params: object): string {
+/** A list endpoint's path with one page of the given filters; empty filters are left out. */
+export function listPath(path: string, params: object): string {
   const search = new URLSearchParams({ pageSize: String(PAGE_SIZE) });
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== '') {

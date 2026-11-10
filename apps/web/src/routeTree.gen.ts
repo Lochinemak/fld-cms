@@ -13,10 +13,15 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppCrmContactsRouteImport } from './routes/_app/crm/contacts'
+import { Route as AppCrmFollowUpsRouteImport } from './routes/_app/crm/follow-ups'
+import { Route as AppCrmOpportunitiesRouteImport } from './routes/_app/crm/opportunities'
 import { Route as AppSystemDeptsRouteImport } from './routes/_app/system/depts'
 import { Route as AppSystemMembersRouteImport } from './routes/_app/system/members'
 import { Route as AppSystemRolesRouteImport } from './routes/_app/system/roles'
 import { Route as AppSystemTenantsRouteImport } from './routes/_app/system/tenants'
+import { Route as AppCrmCustomersIndexRouteImport } from './routes/_app/crm/customers/index'
+import { Route as AppCrmCustomersCustomerIdRouteImport } from './routes/_app/crm/customers/$customerId'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -35,6 +40,21 @@ const LoginRoute = LoginRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmContactsRoute = AppCrmContactsRouteImport.update({
+  id: '/crm/contacts',
+  path: '/crm/contacts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmFollowUpsRoute = AppCrmFollowUpsRouteImport.update({
+  id: '/crm/follow-ups',
+  path: '/crm/follow-ups',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmOpportunitiesRoute = AppCrmOpportunitiesRouteImport.update({
+  id: '/crm/opportunities',
+  path: '/crm/opportunities',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSystemDeptsRoute = AppSystemDeptsRouteImport.update({
@@ -57,24 +77,45 @@ const AppSystemTenantsRoute = AppSystemTenantsRouteImport.update({
   path: '/system/tenants',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCrmCustomersIndexRoute = AppCrmCustomersIndexRouteImport.update({
+  id: '/crm/customers/',
+  path: '/crm/customers/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmCustomersCustomerIdRoute =
+  AppCrmCustomersCustomerIdRouteImport.update({
+    id: '/crm/customers/$customerId',
+    path: '/crm/customers/$customerId',
+    getParentRoute: () => AppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRoute
+  '/crm/contacts': typeof AppCrmContactsRoute
+  '/crm/follow-ups': typeof AppCrmFollowUpsRoute
+  '/crm/opportunities': typeof AppCrmOpportunitiesRoute
   '/system/depts': typeof AppSystemDeptsRoute
   '/system/members': typeof AppSystemMembersRoute
   '/system/roles': typeof AppSystemRolesRoute
   '/system/tenants': typeof AppSystemTenantsRoute
+  '/crm/customers/$customerId': typeof AppCrmCustomersCustomerIdRoute
+  '/crm/customers/': typeof AppCrmCustomersIndexRoute
 }
 export interface FileRoutesByTo {
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRoute
   '/': typeof AppIndexRoute
+  '/crm/contacts': typeof AppCrmContactsRoute
+  '/crm/follow-ups': typeof AppCrmFollowUpsRoute
+  '/crm/opportunities': typeof AppCrmOpportunitiesRoute
   '/system/depts': typeof AppSystemDeptsRoute
   '/system/members': typeof AppSystemMembersRoute
   '/system/roles': typeof AppSystemRolesRoute
   '/system/tenants': typeof AppSystemTenantsRoute
+  '/crm/customers/$customerId': typeof AppCrmCustomersCustomerIdRoute
+  '/crm/customers': typeof AppCrmCustomersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -82,10 +123,15 @@ export interface FileRoutesById {
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/crm/contacts': typeof AppCrmContactsRoute
+  '/_app/crm/follow-ups': typeof AppCrmFollowUpsRoute
+  '/_app/crm/opportunities': typeof AppCrmOpportunitiesRoute
   '/_app/system/depts': typeof AppSystemDeptsRoute
   '/_app/system/members': typeof AppSystemMembersRoute
   '/_app/system/roles': typeof AppSystemRolesRoute
   '/_app/system/tenants': typeof AppSystemTenantsRoute
+  '/_app/crm/customers/$customerId': typeof AppCrmCustomersCustomerIdRoute
+  '/_app/crm/customers/': typeof AppCrmCustomersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -93,29 +139,44 @@ export interface FileRouteTypes {
     | '/'
     | '/change-password'
     | '/login'
+    | '/crm/contacts'
+    | '/crm/follow-ups'
+    | '/crm/opportunities'
     | '/system/depts'
     | '/system/members'
     | '/system/roles'
     | '/system/tenants'
+    | '/crm/customers/$customerId'
+    | '/crm/customers/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/change-password'
     | '/login'
     | '/'
+    | '/crm/contacts'
+    | '/crm/follow-ups'
+    | '/crm/opportunities'
     | '/system/depts'
     | '/system/members'
     | '/system/roles'
     | '/system/tenants'
+    | '/crm/customers/$customerId'
+    | '/crm/customers'
   id:
     | '__root__'
     | '/_app'
     | '/change-password'
     | '/login'
     | '/_app/'
+    | '/_app/crm/contacts'
+    | '/_app/crm/follow-ups'
+    | '/_app/crm/opportunities'
     | '/_app/system/depts'
     | '/_app/system/members'
     | '/_app/system/roles'
     | '/_app/system/tenants'
+    | '/_app/crm/customers/$customerId'
+    | '/_app/crm/customers/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -154,6 +215,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/crm/contacts': {
+      id: '/_app/crm/contacts'
+      path: '/crm/contacts'
+      fullPath: '/crm/contacts'
+      preLoaderRoute: typeof AppCrmContactsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/crm/follow-ups': {
+      id: '/_app/crm/follow-ups'
+      path: '/crm/follow-ups'
+      fullPath: '/crm/follow-ups'
+      preLoaderRoute: typeof AppCrmFollowUpsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/crm/opportunities': {
+      id: '/_app/crm/opportunities'
+      path: '/crm/opportunities'
+      fullPath: '/crm/opportunities'
+      preLoaderRoute: typeof AppCrmOpportunitiesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/system/depts': {
       id: '/_app/system/depts'
       path: '/system/depts'
@@ -182,23 +264,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSystemTenantsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/crm/customers/': {
+      id: '/_app/crm/customers/'
+      path: '/crm/customers'
+      fullPath: '/crm/customers/'
+      preLoaderRoute: typeof AppCrmCustomersIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/crm/customers/$customerId': {
+      id: '/_app/crm/customers/$customerId'
+      path: '/crm/customers/$customerId'
+      fullPath: '/crm/customers/$customerId'
+      preLoaderRoute: typeof AppCrmCustomersCustomerIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
+  AppCrmContactsRoute: typeof AppCrmContactsRoute
+  AppCrmFollowUpsRoute: typeof AppCrmFollowUpsRoute
+  AppCrmOpportunitiesRoute: typeof AppCrmOpportunitiesRoute
   AppSystemDeptsRoute: typeof AppSystemDeptsRoute
   AppSystemMembersRoute: typeof AppSystemMembersRoute
   AppSystemRolesRoute: typeof AppSystemRolesRoute
   AppSystemTenantsRoute: typeof AppSystemTenantsRoute
+  AppCrmCustomersCustomerIdRoute: typeof AppCrmCustomersCustomerIdRoute
+  AppCrmCustomersIndexRoute: typeof AppCrmCustomersIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
+  AppCrmContactsRoute: AppCrmContactsRoute,
+  AppCrmFollowUpsRoute: AppCrmFollowUpsRoute,
+  AppCrmOpportunitiesRoute: AppCrmOpportunitiesRoute,
   AppSystemDeptsRoute: AppSystemDeptsRoute,
   AppSystemMembersRoute: AppSystemMembersRoute,
   AppSystemRolesRoute: AppSystemRolesRoute,
   AppSystemTenantsRoute: AppSystemTenantsRoute,
+  AppCrmCustomersCustomerIdRoute: AppCrmCustomersCustomerIdRoute,
+  AppCrmCustomersIndexRoute: AppCrmCustomersIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

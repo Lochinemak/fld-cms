@@ -11,6 +11,20 @@ export function fieldErrors(error: z.ZodError): FieldErrors {
   return errors;
 }
 
+/**
+ * Checks a form's values against the schema its endpoint uses. On failure it shows the errors by
+ * field and returns undefined; on success it clears them and returns the input to send.
+ */
+export function parseForm<T>(
+  schema: z.ZodType<T>,
+  values: unknown,
+  setErrors: (errors: FieldErrors) => void,
+): T | undefined {
+  const parsed = schema.safeParse(values);
+  setErrors(parsed.success ? {} : fieldErrors(parsed.error));
+  return parsed.success ? parsed.data : undefined;
+}
+
 /** A form value that may be left empty: empty reads as not given. */
 export function optionalText(value: FormDataEntryValue | null): string | undefined {
   return typeof value === 'string' && value !== '' ? value : undefined;
