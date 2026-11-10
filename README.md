@@ -33,13 +33,15 @@ pnpm db:deploy         # 应用数据库迁移
 pnpm dev               # 同时启动 shared（监听编译）、api（:3000）、web（:5173）
 ```
 
-打开 http://localhost:5173 ，用超级管理员登录（见下一节）。首页是工作台：显示当前租户、你在该租户的页面和按钮权限，以及后端、数据库和 Redis 的状态。
+打开 http://localhost:5173 ，用超级管理员登录（见下一节），会进入「租户管理」。租户里的成员登录后，首页是工作台：显示当前租户、你在该租户的页面和按钮权限，以及后端、数据库和 Redis 的状态。
 
 ## 首次登录
 
 API 第一次连上空数据库时，会创建系统租户（ID 1，编码 `system`）和超级管理员 `superadmin`（可用 `SUPER_ADMIN_USERNAME` 改名）。初始密码随机生成，只在这次启动的日志里打印一次（`SystemBootstrapService` 的 WARN 行），首次登录后必须修改；忘了就用下面的 `reset-password` 命令重置。
 
-账号全局唯一（用户名或邮箱都能登录），可以同时属于多个租户：登录后可以切换租户，下次登录默认进入上次使用的租户。新租户由系统租户的管理员通过 `POST /api/system/tenants` 创建（可在 Swagger 里调用，管理界面在后续阶段加上）。
+账号全局唯一（用户名或邮箱都能登录），可以同时属于多个租户：登录后可以切换租户，下次登录默认进入上次使用的租户。
+
+超级管理员只管平台，不进各租户的业务：在「租户管理」里新建、编辑和停用租户。新建时给租户指定管理员（选已有账号，或者新建账号），之后的部门、角色和成员由租户管理员自己管；管理员离开了，用「重设管理员」换一个。
 
 ## 常用命令
 
@@ -133,3 +135,15 @@ docker compose logs api | grep 'Initial password'   # 首次启动时超级管�
 - 删除、转交和管理类的操作完成后用 `AuditService.record()` 写审计日志，操作先在 `packages/shared/src/audit.ts` 里登记。改动用 `changesOf()` 写成文字，不要放密码、密钥和链接。
 - 表名、字段名用 snake_case，在 Prisma 模型里用 `@map` / `@@map` 映射。
 - 本地开发只用根目录一份 `.env`；部署时由容器环境变量提供同名配置。
+
+## 加一个新模块
+
+可以照着客户模块（`crm`）写，按这个顺序改：
+
+1. 数据格式：在 `packages/shared/src/` 里写接口输入输出的 zod schema，从 `index.ts` 导出。
+2. 权限：在 `packages/shared/src/permissions.ts` 登记页面和按钮的权限码。内置的管理员角色自动拥有全部权限，其他角色在「角色管理」里勾选。
+3. 数据库：在 `apps/api/prisma/schema.prisma` 里加模型，然后 `pnpm db:migrate`。属于租户的表带 `tenant_id`，并把模型名加进 `apps/api/src/authz/tenant-prisma.ts` 的 `TENANT_MODELS`。不加的话 `TENANT_PRISMA` 不会限定租户，会读写到别的租户的数据。
+4. 后端：在 `apps/api/src/<模块>/` 里写 controller、service 和 module，再在 `app.module.ts` 里引入。每个接口用 `@RequirePermission()` 声明权限，删除、转交这类操作写审计日志。
+5. 前端：请求函数放在 `apps/web/src/lib/<模块>.ts`；页面放在 `apps/web/src/routes/_app/` 下，内容用 `<RequirePermission code="页面权限码">` 包住；菜单加在 `apps/web/src/components/app-sidebar.tsx`，带上同一个权限码。
+6. 测试：单元测试和代码放在一起（`*.spec.ts`）。接口的端到端测试放在 `apps/api/test/`（`*.e2e-spec.ts`），用 `createTestApp()` 启动应用、`seedTenant()` 建租户。
+7. 提交前跑 `pnpm format`、`pnpm lint`、`pnpm typecheck`、`pnpm test` 和端到端测试，CI 会再跑一遍。
