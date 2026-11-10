@@ -13,6 +13,10 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppSystemDeptsRouteImport } from './routes/_app/system/depts'
+import { Route as AppSystemMembersRouteImport } from './routes/_app/system/members'
+import { Route as AppSystemRolesRouteImport } from './routes/_app/system/roles'
+import { Route as AppSystemTenantsRouteImport } from './routes/_app/system/tenants'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -33,16 +37,44 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSystemDeptsRoute = AppSystemDeptsRouteImport.update({
+  id: '/system/depts',
+  path: '/system/depts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSystemMembersRoute = AppSystemMembersRouteImport.update({
+  id: '/system/members',
+  path: '/system/members',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSystemRolesRoute = AppSystemRolesRouteImport.update({
+  id: '/system/roles',
+  path: '/system/roles',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSystemTenantsRoute = AppSystemTenantsRouteImport.update({
+  id: '/system/tenants',
+  path: '/system/tenants',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRoute
+  '/system/depts': typeof AppSystemDeptsRoute
+  '/system/members': typeof AppSystemMembersRoute
+  '/system/roles': typeof AppSystemRolesRoute
+  '/system/tenants': typeof AppSystemTenantsRoute
 }
 export interface FileRoutesByTo {
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRoute
   '/': typeof AppIndexRoute
+  '/system/depts': typeof AppSystemDeptsRoute
+  '/system/members': typeof AppSystemMembersRoute
+  '/system/roles': typeof AppSystemRolesRoute
+  '/system/tenants': typeof AppSystemTenantsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -50,13 +82,40 @@ export interface FileRoutesById {
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/system/depts': typeof AppSystemDeptsRoute
+  '/_app/system/members': typeof AppSystemMembersRoute
+  '/_app/system/roles': typeof AppSystemRolesRoute
+  '/_app/system/tenants': typeof AppSystemTenantsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/change-password' | '/login'
+  fullPaths:
+    | '/'
+    | '/change-password'
+    | '/login'
+    | '/system/depts'
+    | '/system/members'
+    | '/system/roles'
+    | '/system/tenants'
   fileRoutesByTo: FileRoutesByTo
-  to: '/change-password' | '/login' | '/'
-  id: '__root__' | '/_app' | '/change-password' | '/login' | '/_app/'
+  to:
+    | '/change-password'
+    | '/login'
+    | '/'
+    | '/system/depts'
+    | '/system/members'
+    | '/system/roles'
+    | '/system/tenants'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/change-password'
+    | '/login'
+    | '/_app/'
+    | '/_app/system/depts'
+    | '/_app/system/members'
+    | '/_app/system/roles'
+    | '/_app/system/tenants'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -95,15 +154,51 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/system/depts': {
+      id: '/_app/system/depts'
+      path: '/system/depts'
+      fullPath: '/system/depts'
+      preLoaderRoute: typeof AppSystemDeptsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/system/members': {
+      id: '/_app/system/members'
+      path: '/system/members'
+      fullPath: '/system/members'
+      preLoaderRoute: typeof AppSystemMembersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/system/roles': {
+      id: '/_app/system/roles'
+      path: '/system/roles'
+      fullPath: '/system/roles'
+      preLoaderRoute: typeof AppSystemRolesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/system/tenants': {
+      id: '/_app/system/tenants'
+      path: '/system/tenants'
+      fullPath: '/system/tenants'
+      preLoaderRoute: typeof AppSystemTenantsRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
+  AppSystemDeptsRoute: typeof AppSystemDeptsRoute
+  AppSystemMembersRoute: typeof AppSystemMembersRoute
+  AppSystemRolesRoute: typeof AppSystemRolesRoute
+  AppSystemTenantsRoute: typeof AppSystemTenantsRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
+  AppSystemDeptsRoute: AppSystemDeptsRoute,
+  AppSystemMembersRoute: AppSystemMembersRoute,
+  AppSystemRolesRoute: AppSystemRolesRoute,
+  AppSystemTenantsRoute: AppSystemTenantsRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

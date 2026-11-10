@@ -1,7 +1,10 @@
-import { Link, Outlet, createFileRoute, redirect } from '@tanstack/react-router';
+import { Outlet, createFileRoute, redirect } from '@tanstack/react-router';
 import { useEffect } from 'react';
+import { AppSidebar } from '@/components/app-sidebar';
 import { RequireSignIn } from '@/components/require-sign-in';
 import { TenantSwitcher } from '@/components/tenant-switcher';
+import { Separator } from '@/components/ui/separator';
+import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { UserMenu } from '@/components/user-menu';
 import { currentTenant, setCurrentTenant } from '@/lib/api';
 import { meQuery, useMe } from '@/lib/auth';
@@ -41,21 +44,24 @@ function AppShell() {
   }, [tenantId]);
 
   return (
-    <div className="flex min-h-svh flex-col">
-      <header className="border-b">
-        <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-4 px-6">
-          <Link to="/" className="shrink-0 font-semibold">
-            FLD CRM
-          </Link>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator
+            orientation="vertical"
+            className="mr-1 data-vertical:h-4 data-vertical:self-center"
+          />
           <TenantSwitcher />
           <div className="ml-auto">
             <UserMenu />
           </div>
+        </header>
+        <div className="mx-auto w-full max-w-6xl flex-1 p-6">
+          <Outlet />
         </div>
-      </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 p-6">
-        <Outlet />
-      </main>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

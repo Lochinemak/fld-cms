@@ -69,7 +69,10 @@ export function useMe(): Me {
 }
 
 /** Whether the user holds the permission in the current tenant. */
-export function useCan(code: PermissionCode): boolean {
-  const me = useMe();
+export function hasPermission(me: Me, code: PermissionCode): boolean {
   return !me.user.mustChangePassword && me.permissions.includes(code);
+}
+
+export function useCan(code: PermissionCode): boolean {
+  return hasPermission(useMe(), code);
 }
