@@ -75,6 +75,7 @@ docker compose logs api | grep 'Initial password'   # 首次启动时超级管�
 - 镜像的可见性跟随仓库：仓库公开时，任何人都能直接拉取。仓库或镜像包改成私有后，先用有 `read:packages` 权限的 GitHub token 执行 `docker login ghcr.io`。
 - 登录 Cookie 只在 HTTPS 下生效（localhost 例外）。正式环境在前面加 HTTPS 反向代理（Caddy、Nginx、云负载均衡等）；只在内网用 http 试用时，在 `.env` 里设 `SESSION_COOKIE_SECURE=false`。
 - 登录限流按客户端 IP 计。后端只相信 web 容器里这一层 nginx 转发的 IP（`TRUST_PROXY=1`），客户端自己伪造的地址不会被采信。前面每多加一层反向代理，就在 `.env` 里把 `TRUST_PROXY` 加 1。
+- 同一个账号连续输错 10 次密码就会被锁定，之后输对密码也登录不了，不会自动解开；登录成功一次，错误次数就清零。解锁：租户管理员在「成员管理」、超级管理员在「账号管理」里点「解锁」，或者本人用「忘记密码」重设；管理员重置密码和下面的命令也会顺带解锁。
 - 重置密码：`docker compose exec api node dist/cli.js reset-password <用户名或邮箱>`。
 
 ### 文件存储
