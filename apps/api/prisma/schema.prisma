@@ -257,6 +257,35 @@ model UserIdentity {
   @@map("user_identities")
 }
 
+/// A link sent by mail, such as a password reset: the authentication module's email token store.
+/// Only the token's SHA-256 is kept; the token itself only exists in the mail.
+model EmailToken {
+  /// SHA-256 of the token, base64url.
+  id          String   @id @db.VarChar(64)
+  purpose     String   @db.VarChar(32)
+  userId      String   @map("user_id")
+  /// The address the link was sent to, the only one it works for.
+  email       String   @db.VarChar(254)
+  /// For a password reset, a hash of the password it replaces: changing the password voids the link.
+  fingerprint String?  @db.VarChar(64)
+  createdAt   DateTime @map("created_at") @db.Timestamptz(3)
+  expiresAt   DateTime @map("expires_at") @db.Timestamptz(3)
+
+  @@index([userId, purpose])
+  @@index([expiresAt])
+  @@map("email_tokens")
+}
+
+/// Platform settings made on the settings page, each overriding its environment variable. A key
+/// without a row is unset.
+model PlatformSetting {
+  key       String   @id @db.VarChar(100)
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("platform_settings")
+}
+
 // CRM. Customers and opportunities belong to an owner (a user) and remember the owner's
 // department at the time, which is what department data scopes go by. Contacts and follow-ups
 // are visible to whoever can see their customer.

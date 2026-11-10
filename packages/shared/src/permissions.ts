@@ -30,6 +30,22 @@ export const PERMISSIONS = {
     platform: true,
   },
 
+  'system:account': { name: '账号管理', kind: 'page', parent: 'system', platform: true },
+  'system:account:reset-password': {
+    name: '重置账号密码',
+    kind: 'element',
+    parent: 'system:account',
+    platform: true,
+  },
+
+  'system:settings': { name: '平台设置', kind: 'page', parent: 'system', platform: true },
+  'system:settings:update': {
+    name: '修改平台设置',
+    kind: 'element',
+    parent: 'system:settings',
+    platform: true,
+  },
+
   'system:member': { name: '成员管理', kind: 'page', parent: 'system' },
   'system:member:create': { name: '添加成员', kind: 'element', parent: 'system:member' },
   'system:member:update': { name: '编辑成员', kind: 'element', parent: 'system:member' },

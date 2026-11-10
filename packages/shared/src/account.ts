@@ -64,6 +64,20 @@ export const changePasswordSchema = z
   });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
+/** How long a password reset link works, in minutes. */
+export const PASSWORD_RESET_MINUTES = 30;
+
+export const forgotPasswordSchema = z.object({
+  account: z.string().trim().min(1, '请输入用户名或邮箱').max(254),
+});
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1).max(128),
+  newPassword: passwordSchema,
+});
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
 export const switchTenantSchema = z.object({ tenantId: idSchema });
 export type SwitchTenantInput = z.infer<typeof switchTenantSchema>;
 

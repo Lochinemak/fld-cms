@@ -1,4 +1,4 @@
-import { usernameSchema } from '@fld/shared';
+import { smtpSecuritySchema, usernameSchema } from '@fld/shared';
 import { z } from 'zod';
 
 export const envSchema = z
@@ -60,6 +60,33 @@ export const envSchema = z
     S3_SIGNED_DOWNLOADS: z.stringbool().default(true),
     /** The largest upload, in MB. The web image sizes nginx's request body limit from the same variable. */
     FILE_MAX_SIZE_MB: z.coerce.number().int().positive().default(100),
+    /**
+     * The mail server that sends password reset links. These mail settings and SITE_URL are
+     * defaults: whatever the platform settings page sets overrides them.
+     */
+    SMTP_HOST: z.string().trim().min(1).optional(),
+    /** Unset, follows SMTP_SECURITY: 465 for ssl, 587 for starttls, 25 for none. */
+    SMTP_PORT: z.coerce.number().int().min(1).max(65535).optional(),
+    /** ssl connects over TLS, starttls upgrades a plain connection, none stays plain. Unset, ssl on port 465 and starttls otherwise. */
+    SMTP_SECURITY: smtpSecuritySchema.optional(),
+    SMTP_USERNAME: z.string().min(1).optional(),
+    SMTP_PASSWORD: z.string().min(1).optional(),
+    MAIL_FROM_ADDRESS: z.email().optional(),
+    MAIL_FROM_NAME: z.string().trim().min(1).optional(),
+    /** The web app's address, which links in mail point to, such as https://crm.example.com. */
+    SITE_URL: z
+      .url({ protocol: /^https?$/ })
+      .transform((url) => url.replace(/\/+$/, ''))
+      .optional(),
+    /**
+     * Encrypts the secrets saved on the platform settings page, such as the SMTP password: 32
+     * random bytes, base64 (`openssl rand -base64 32`). Without it the page can't save them, and
+     * changing it loses the ones saved.
+     */
+    SETTINGS_ENCRYPTION_KEY: z
+      .base64()
+      .refine((key) => Buffer.from(key, 'base64').length === 32, 'Must be 32 bytes, base64')
+      .optional(),
   })
   .superRefine((env, ctx) => {
     if (env.STORAGE_DRIVER === 's3' && !env.S3_BUCKET) {

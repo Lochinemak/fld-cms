@@ -40,6 +40,17 @@ export function testEnv() {
     STORAGE_LOCAL_DIR: join(tmpdir(), 'fld-asset-test-storage'),
     // Small, so that going over it takes a small upload.
     FILE_MAX_SIZE_MB: '1',
+    // Every mail setting, so that none comes from a developer's .env. Nothing is sent: the tests
+    // that mail put an outbox in place of the SMTP transport.
+    SMTP_HOST: 'smtp.fld.test',
+    SMTP_PORT: '2525',
+    SMTP_SECURITY: 'none',
+    SMTP_USERNAME: 'crm-mailer',
+    SMTP_PASSWORD: 'env-smtp-password',
+    MAIL_FROM_ADDRESS: 'crm@fld.test',
+    MAIL_FROM_NAME: 'FLD CRM',
+    SITE_URL: 'http://crm.fld.test',
+    SETTINGS_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
     ...Object.fromEntries(S3_SETTINGS.flatMap((key) => (env[key] ? [[key, env[key]]] : []))),
     S3_BUCKET: TEST_BUCKET,
   };

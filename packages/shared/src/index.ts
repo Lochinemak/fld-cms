@@ -7,5 +7,6 @@ export * from './id.js';
 export * from './member.js';
 export * from './pagination.js';
 export * from './permissions.js';
+export * from './platform.js';
 export * from './role.js';
 export * from './tenant.js';

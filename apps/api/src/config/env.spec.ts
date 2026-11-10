@@ -76,4 +76,32 @@ describe('envSchema', () => {
       expect(both.success).toBe(true);
     });
   });
+
+  describe('mail', () => {
+    it('leaves mail unset by default', () => {
+      const env = envSchema.parse(required);
+
+      expect(env.SMTP_HOST).toBeUndefined();
+      expect(env.SITE_URL).toBeUndefined();
+      expect(env.SETTINGS_ENCRYPTION_KEY).toBeUndefined();
+    });
+
+    it('takes the site address without its trailing slash, over http or https only', () => {
+      const siteUrl = (value: string) => envSchema.safeParse({ ...required, SITE_URL: value });
+
+      expect(siteUrl('https://crm.example.com/').data?.SITE_URL).toBe('https://crm.example.com');
+      expect(siteUrl('ftp://crm.example.com').success).toBe(false);
+    });
+
+    it('takes an encryption key of 32 bytes only', () => {
+      const key = (bytes: number) =>
+        envSchema.safeParse({
+          ...required,
+          SETTINGS_ENCRYPTION_KEY: Buffer.alloc(bytes, 1).toString('base64'),
+        }).success;
+
+      expect(key(32)).toBe(true);
+      expect(key(16)).toBe(false);
+    });
+  });
 });
