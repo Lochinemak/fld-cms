@@ -1,10 +1,12 @@
-# Images build from the repo root; keep local installs, build output and secrets out of the context.
+# Images build from the repo root; keep local installs, build output, uploaded files and secrets out
+# of the context.
 **/node_modules
 **/dist
 **/.turbo
 **/coverage
 **/*.tsbuildinfo
 apps/api/src/generated
+apps/api/storage
 .git
 .github
 .cursor

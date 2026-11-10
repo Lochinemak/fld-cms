@@ -33,6 +33,9 @@ services:
   api:
     image: ${FLD_API_IMAGE:-ghcr.io/lochinemak/fld-cms-api}:${FLD_TAG:-latest}
     restart: unless-stopped
+    # Hands the API every setting in .env, such as the storage ones; those left commented out there
+    # stay unset, as their defaults need.
+    env_file: .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-fld}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-fld_cms}
       REDIS_URL: redis://redis:6379/0
@@ -42,6 +45,9 @@ services:
       TRUST_PROXY: ${TRUST_PROXY:-1}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
       SUPER_ADMIN_USERNAME: ${SUPER_ADMIN_USERNAME:-superadmin}
+    volumes:
+      # Uploaded files, with the default local storage driver.
+      - file-storage:/data/storage
     depends_on:
       postgres:
         condition: service_healthy
@@ -53,6 +59,9 @@ services:
     restart: unless-stopped
     ports:
       - '${WEB_PORT:-8080}:8080'
+    environment:
+      # nginx lets uploads through up to the API's own limit.
+      FILE_MAX_SIZE_MB: ${FILE_MAX_SIZE_MB:-100}
     depends_on:
       api:
         condition: service_healthy
@@ -60,3 +69,4 @@ services:
 volumes:
   postgres-data:
   redis-data:
+  file-storage:

@@ -18,7 +18,7 @@ packages/
   shared/      前后端共用的 zod schema 和类型
 deploy/        单机部署示例（docker compose）
 .github/       CI：检查、测试，并把镜像推到 ghcr.io
-compose.yaml   本地开发用的 Postgres 18 + Redis 8
+compose.yaml   本地开发用的 Postgres 18 + Redis 8，另有可选的 RustFS（本地试 S3 存储，见 .env.example）
 ```
 
 ## 快速开始
@@ -76,6 +76,34 @@ docker compose logs api | grep 'Initial password'   # 首次启动时超级管�
 - 登录 Cookie 只在 HTTPS 下生效（localhost 例外）。正式环境在前面加 HTTPS 反向代理（Caddy、Nginx、云负载均衡等）；只在内网用 http 试用时，在 `.env` 里设 `SESSION_COOKIE_SECURE=false`。
 - 登录限流按客户端 IP 计。后端只相信 web 容器里这一层 nginx 转发的 IP（`TRUST_PROXY=1`），客户端自己伪造的地址不会被采信。前面每多加一层反向代理，就在 `.env` 里把 `TRUST_PROXY` 加 1。
 - 重置密码：`docker compose exec api node dist/cli.js reset-password <用户名或邮箱>`。
+
+### 文件存储
+
+上传的文件默认存在 api 容器的 `/data/storage`，也就是 compose 里的 `file-storage` 卷。这种方式只支持跑一个 api 实例。
+
+要放到 S3 兼容的对象存储（AWS S3、云厂商的对象存储、自建的 RustFS 等），在 `.env` 里设 `STORAGE_DRIVER=s3`，并填上 `S3_*` 各项（说明见 `.env.example`）：
+
+- 自建的存储一般要设 `S3_FORCE_PATH_STYLE=true`。
+- 用户的浏览器访问不到 `S3_ENDPOINT` 时，设 `S3_SIGNED_DOWNLOADS=false`，下载改由后端转发。
+
+其他注意事项：
+
+- 单个文件的上限由 `FILE_MAX_SIZE_MB` 决定，默认 100。web 容器里的 nginx 会自动放宽到这个值再加 1 MB。前面另加的 HTTPS 反向代理也要放行同样的大小，比如 nginx 的 `client_max_body_size`。
+- 删除的文件在页面上立即消失、外链立即失效；存储里的内容保留 30 天后自动清除。
+- 备份时，数据库和文件存储（`file-storage` 卷，或对象存储的桶）要在同一时间点一起备份，否则恢复后文件记录和文件对不上。
+
+### 加密
+
+- 传输：正式环境一定要走 HTTPS（见上面的反向代理）。
+- 本地存储：把 Docker 卷所在的磁盘做成加密盘（云盘加密、LUKS 等）。
+- 云厂商的对象存储：在桶上开启默认加密（SSE-S3 或 KMS），应用不用改。
+- 自建的 RustFS：
+  - 先给 RustFS 配上主密钥。可以用环境变量 `RUSTFS_SSE_S3_MASTER_KEY` 给出：32 字节，base64 编码，用 `openssl rand -base64 32` 生成。也可以接入 KMS（如 Vault）。
+  - 再在控制台给桶开启默认加密，或者调用 S3 的 PutBucketEncryption。
+  - 开启默认加密却没配主密钥时，所有上传都会失败。
+  - 开启前已经存进去的文件不会被加密，所以要在存文件之前开好。
+- 主密钥和数据分开保管，数据备份里不要带主密钥。主密钥丢了，加密的文件就再也读不出来。
+- 备份文件本身也要加密存放。
 
 ## 约定
 

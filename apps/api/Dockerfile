@@ -36,9 +36,14 @@ COPY apps/api/prisma apps/api/prisma
 COPY apps/api/prisma7.config.ts apps/api/
 
 FROM node:${NODE_VERSION}-alpine
-RUN apk add --no-cache openssl tini
+# The local storage driver keeps uploads in /data/storage; mount a volume there to keep them. A new
+# named volume takes this directory's owner, so the API can write to it.
+RUN apk add --no-cache openssl tini \
+ && mkdir -p /data/storage \
+ && chown node:node /data/storage
 ENV NODE_ENV=production \
     PORT=3000 \
+    STORAGE_LOCAL_DIR=/data/storage \
     CHECKPOINT_DISABLE=1 \
     PRISMA_HIDE_UPDATE_MESSAGE=1
 COPY --from=deps /repo /app

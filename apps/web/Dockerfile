@@ -18,9 +18,12 @@ COPY apps/web apps/web
 RUN pnpm --filter @fld/shared build && pnpm --filter @fld/web build
 
 FROM nginxinc/nginx-unprivileged:1.31-alpine
-# The API service, and the DNS server that resolves it (Docker's own by default).
+# The API service, the DNS server that resolves it (Docker's own by default), and the API's upload
+# limit in MB, which nginx's own follows.
 ENV API_UPSTREAM=http://api:3000 \
-    NGINX_RESOLVER=127.0.0.11
+    NGINX_RESOLVER=127.0.0.11 \
+    FILE_MAX_SIZE_MB=100
 COPY apps/web/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY --chmod=755 apps/web/upload-limit.envsh /docker-entrypoint.d/18-upload-limit.envsh
 COPY --from=build /repo/apps/web/dist /usr/share/nginx/html
 EXPOSE 8080
