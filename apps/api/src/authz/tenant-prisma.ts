@@ -1,5 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
 import type { AuthenticationContext } from '@nestjs/authentication';
+import type { Principal } from '../auth/principal.js';
 import { Prisma } from '../generated/prisma/client.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 
@@ -96,19 +97,20 @@ export function tenantScope(currentTenantId: () => bigint) {
   });
 }
 
+/** The id of the tenant the user currently works in. */
+export function tenantIdOf(user: Principal): bigint {
+  const tenant = user.context?.tenant;
+  if (!tenant) {
+    throw new ForbiddenException('你还不是任何租户的成员');
+  }
+  return BigInt(tenant.id);
+}
+
 /** Injection token of the Prisma client limited to the signed-in user's current tenant. */
 export const TENANT_PRISMA = Symbol('TENANT_PRISMA');
 
 export function createTenantPrisma(prisma: PrismaService, auth: AuthenticationContext) {
-  return prisma.$extends(
-    tenantScope(() => {
-      const tenant = auth.requireUser().context?.tenant;
-      if (!tenant) {
-        throw new ForbiddenException('你还不是任何租户的成员');
-      }
-      return BigInt(tenant.id);
-    }),
-  );
+  return prisma.$extends(tenantScope(() => tenantIdOf(auth.requireUser())));
 }
 
 export type TenantPrisma = ReturnType<typeof createTenantPrisma>;

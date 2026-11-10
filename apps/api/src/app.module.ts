@@ -8,9 +8,12 @@ import { AuthModule } from './auth/auth.module.js';
 import { AuthzModule } from './authz/authz.module.js';
 import { AppConfigModule } from './config/app-config.module.js';
 import type { Env } from './config/env.js';
+import { DepartmentsModule } from './departments/departments.module.js';
 import { HealthModule } from './health/health.module.js';
+import { MembersModule } from './members/members.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { RedisModule } from './redis/redis.module.js';
+import { RolesModule } from './roles/roles.module.js';
 import { SnowflakeModule } from './snowflake/snowflake.module.js';
 import { TenantsModule } from './tenants/tenants.module.js';
 import { ThrottleModule } from './throttle/throttle.module.js';
@@ -46,6 +49,9 @@ import { ThrottleModule } from './throttle/throttle.module.js';
     AuthorizationModule.forRoot(),
     HealthModule,
     TenantsModule,
+    DepartmentsModule,
+    RolesModule,
+    MembersModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
