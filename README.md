@@ -31,7 +31,7 @@ pnpm db:deploy         # 应用数据库迁移
 pnpm dev               # 同时启动 shared（监听编译）、api（:3000）、web（:5173）
 ```
 
-打开 http://localhost:5173 ，首页会显示后端、数据库和 Redis 的状态。
+打开 http://localhost:5173 ，用超级管理员登录（见下一节）。首页是工作台：显示当前租户、你在该租户的页面和按钮权限，以及后端、数据库和 Redis 的状态。
 
 ## 首次登录
 
@@ -54,6 +54,7 @@ API 第一次连上空数据库时，会创建系统租户（ID 1，编码 `syst
 
 - 主键使用雪花 ID（数据库 bigint），接口里以字符串传输，避免 JS 数字精度丢失。机器号启动时从 Redis 租用（也可用 `SNOWFLAKE_WORKER_ID` 固定）。
 - 接口默认要求登录并拒绝访问：新接口要用 `@RequirePermission('权限码')` 声明所需权限（或 `@Public()` / `@Can.Anyone()`）。权限码统一在 `packages/shared/src/permissions.ts` 里按「目录 → 页面 → 元素」登记，前端用同一份码控制显示。
+- 前端：登录后的页面放在 `apps/web/src/routes/_app/` 下，自动要求登录；按钮、列等页面元素用 `<Can code="权限码">` 或 `useCan('权限码')` 控制显示。请求统一走 `src/lib/api.ts` 的 `api()`：它带上当前租户，其他标签页切换了租户时会刷新页面。
 - 租户内的数据用注入的 `TENANT_PRISMA` 客户端读写，它自动限定在当前租户；行级数据权限用 `dataScopeWhere(当前用户, { dept, owner })` 生成查询条件。
 - 改了角色、成员、部门或租户状态后调用 `TenantContextCache.invalidate(租户 ID)`，让该租户所有人的权限缓存失效。
 - 表名、字段名用 snake_case，在 Prisma 模型里用 `@map` / `@@map` 映射。
