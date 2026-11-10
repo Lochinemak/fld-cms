@@ -36,7 +36,21 @@ function errorMessage(status: number, body: unknown): string {
   if (Array.isArray(message)) {
     return message.join('；');
   }
-  return typeof message === 'string' ? message : `请求失败（${status}）`;
+  if (typeof message === 'string') {
+    return message;
+  }
+  // The proxy in front of the API refuses an upload over its own limit, without a message.
+  return status === 413 ? '文件太大，超过了上传上限' : `请求失败（${status}）`;
+}
+
+function failure(status: number, body: unknown): ApiError {
+  if (
+    status === 409 &&
+    (body as { error?: unknown } | undefined)?.error === TENANT_SWITCHED_ERROR
+  ) {
+    window.location.reload();
+  }
+  return new ApiError(status, errorMessage(status, body), body);
 }
 
 interface ApiOptions<T> extends Omit<RequestInit, 'body'> {
@@ -62,13 +76,54 @@ export async function api<T = void>(path: string, options: ApiOptions<T> = {}): 
   });
   const body: unknown = res.status === 204 ? undefined : await res.json().catch(() => undefined);
   if (!res.ok) {
-    if (
-      res.status === 409 &&
-      (body as { error?: unknown } | undefined)?.error === TENANT_SWITCHED_ERROR
-    ) {
-      window.location.reload();
-    }
-    throw new ApiError(res.status, errorMessage(res.status, body), body);
+    throw failure(res.status, body);
   }
   return schema ? schema.parse(body) : (body as T);
+}
+
+interface UploadOptions<T> {
+  schema?: z.ZodType<T>;
+  /** Called as the file goes out, with the bytes sent so far. */
+  onProgress?: (sent: number) => void;
+  signal?: AbortSignal;
+}
+
+/** Posts a file as the form field `file`. Unlike `api`, it reports how far the upload has got. */
+export function upload<T = void>(
+  path: string,
+  file: File,
+  { schema, onProgress, signal }: UploadOptions<T> = {},
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `/api${path}`);
+    xhr.setRequestHeader('Accept', 'application/json');
+    if (currentTenantId) {
+      xhr.setRequestHeader(TENANT_HEADER, currentTenantId);
+    }
+    xhr.upload.onprogress = (event) => onProgress?.(event.loaded);
+    xhr.onload = () => {
+      let body: unknown;
+      try {
+        body = xhr.responseText ? JSON.parse(xhr.responseText) : undefined;
+      } catch {
+        body = undefined;
+      }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(failure(xhr.status, body));
+        return;
+      }
+      try {
+        resolve(schema ? schema.parse(body) : (body as T));
+      } catch (error) {
+        reject(error instanceof Error ? error : new Error(String(error)));
+      }
+    };
+    xhr.onerror = () => reject(new Error('网络出错，上传没有完成'));
+    xhr.onabort = () => reject(new DOMException('上传已取消', 'AbortError'));
+    signal?.addEventListener('abort', () => xhr.abort(), { once: true });
+    const form = new FormData();
+    form.append('file', file);
+    xhr.send(form);
+  });
 }

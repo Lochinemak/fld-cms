@@ -13,6 +13,8 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppFilesRouteImport } from './routes/_app/files'
+import { Route as STokenRouteImport } from './routes/s/$token'
 import { Route as AppCrmContactsRouteImport } from './routes/_app/crm/contacts'
 import { Route as AppCrmFollowUpsRouteImport } from './routes/_app/crm/follow-ups'
 import { Route as AppCrmOpportunitiesRouteImport } from './routes/_app/crm/opportunities'
@@ -41,6 +43,16 @@ const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppRoute,
+} as any)
+const AppFilesRoute = AppFilesRouteImport.update({
+  id: '/files',
+  path: '/files',
+  getParentRoute: () => AppRoute,
+} as any)
+const STokenRoute = STokenRouteImport.update({
+  id: '/s/$token',
+  path: '/s/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppCrmContactsRoute = AppCrmContactsRouteImport.update({
   id: '/crm/contacts',
@@ -93,6 +105,8 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRoute
+  '/files': typeof AppFilesRoute
+  '/s/$token': typeof STokenRoute
   '/crm/contacts': typeof AppCrmContactsRoute
   '/crm/follow-ups': typeof AppCrmFollowUpsRoute
   '/crm/opportunities': typeof AppCrmOpportunitiesRoute
@@ -106,6 +120,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRoute
+  '/files': typeof AppFilesRoute
+  '/s/$token': typeof STokenRoute
   '/': typeof AppIndexRoute
   '/crm/contacts': typeof AppCrmContactsRoute
   '/crm/follow-ups': typeof AppCrmFollowUpsRoute
@@ -122,6 +138,8 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRoute
+  '/_app/files': typeof AppFilesRoute
+  '/s/$token': typeof STokenRoute
   '/_app/': typeof AppIndexRoute
   '/_app/crm/contacts': typeof AppCrmContactsRoute
   '/_app/crm/follow-ups': typeof AppCrmFollowUpsRoute
@@ -139,6 +157,8 @@ export interface FileRouteTypes {
     | '/'
     | '/change-password'
     | '/login'
+    | '/files'
+    | '/s/$token'
     | '/crm/contacts'
     | '/crm/follow-ups'
     | '/crm/opportunities'
@@ -152,6 +172,8 @@ export interface FileRouteTypes {
   to:
     | '/change-password'
     | '/login'
+    | '/files'
+    | '/s/$token'
     | '/'
     | '/crm/contacts'
     | '/crm/follow-ups'
@@ -167,6 +189,8 @@ export interface FileRouteTypes {
     | '/_app'
     | '/change-password'
     | '/login'
+    | '/_app/files'
+    | '/s/$token'
     | '/_app/'
     | '/_app/crm/contacts'
     | '/_app/crm/follow-ups'
@@ -183,6 +207,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   ChangePasswordRoute: typeof ChangePasswordRoute
   LoginRoute: typeof LoginRoute
+  STokenRoute: typeof STokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -214,6 +239,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/_app/files': {
+      id: '/_app/files'
+      path: '/files'
+      fullPath: '/files'
+      preLoaderRoute: typeof AppFilesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/s/$token': {
+      id: '/s/$token'
+      path: '/s/$token'
+      fullPath: '/s/$token'
+      preLoaderRoute: typeof STokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_app/crm/contacts': {
       id: '/_app/crm/contacts'
@@ -282,6 +321,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppFilesRoute: typeof AppFilesRoute
   AppIndexRoute: typeof AppIndexRoute
   AppCrmContactsRoute: typeof AppCrmContactsRoute
   AppCrmFollowUpsRoute: typeof AppCrmFollowUpsRoute
@@ -295,6 +335,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppFilesRoute: AppFilesRoute,
   AppIndexRoute: AppIndexRoute,
   AppCrmContactsRoute: AppCrmContactsRoute,
   AppCrmFollowUpsRoute: AppCrmFollowUpsRoute,
@@ -313,6 +354,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   ChangePasswordRoute: ChangePasswordRoute,
   LoginRoute: LoginRoute,
+  STokenRoute: STokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -6,10 +6,18 @@ interface PaginationBarProps {
   page: number;
   pageSize: number;
   total: number;
+  /** What is counted, in place of 「共 N 条」. */
+  summary?: string;
   onPageChange: (page: number) => void;
 }
 
-export function PaginationBar({ page, pageSize, total, onPageChange }: PaginationBarProps) {
+export function PaginationBar({
+  page,
+  pageSize,
+  total,
+  summary,
+  onPageChange,
+}: PaginationBarProps) {
   const pages = Math.max(1, Math.ceil(total / pageSize));
 
   // The page shown may no longer exist: after a removal, or from an old address.
@@ -21,7 +29,7 @@ export function PaginationBar({ page, pageSize, total, onPageChange }: Paginatio
 
   return (
     <div className="flex items-center justify-between gap-4 text-sm text-muted-foreground">
-      <span>共 {total} 条</span>
+      <span>{summary ?? `共 ${total} 条`}</span>
       <div className="flex items-center gap-2">
         <Button
           variant="outline"

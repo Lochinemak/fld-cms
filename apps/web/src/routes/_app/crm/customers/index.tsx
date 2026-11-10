@@ -274,7 +274,7 @@ function CustomersPage() {
       {dialog?.kind === 'delete' && (
         <ConfirmDialog
           title={`删除客户「${dialog.customer.name}」？`}
-          description="联系人和跟进记录会一起删除，无法恢复。还有商机的客户不能删除。"
+          description="联系人和跟进记录会一起删除，无法恢复；附件只是不再挂在客户上，文件仍留在文件库里。还有商机的客户不能删除。"
           confirmLabel="删除"
           destructive
           action={async () => {

@@ -3,6 +3,7 @@ import { Link, useMatchRoute } from '@tanstack/react-router';
 import {
   Building2,
   ContactRound,
+  FolderOpen,
   Handshake,
   LayoutDashboard,
   MessagesSquare,
@@ -32,6 +33,7 @@ interface MenuPage {
     | '/crm/contacts'
     | '/crm/follow-ups'
     | '/crm/opportunities'
+    | '/files'
     | '/system/tenants'
     | '/system/members'
     | '/system/depts'
@@ -56,6 +58,10 @@ const MENU: MenuGroup[] = [
       { to: '/crm/follow-ups', icon: MessagesSquare, code: 'crm:follow-up' },
       { to: '/crm/opportunities', icon: Handshake, code: 'crm:opportunity' },
     ],
+  },
+  {
+    code: 'file',
+    pages: [{ to: '/files', icon: FolderOpen, code: 'file:library' }],
   },
   {
     code: 'system',

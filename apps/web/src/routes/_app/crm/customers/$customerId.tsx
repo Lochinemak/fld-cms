@@ -6,6 +6,7 @@ import { useState, type ReactNode } from 'react';
 import { Can } from '@/components/can';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { CustomerLevelBadge, CustomerStatusBadge } from '@/components/crm/crm-badges';
+import { CustomerAttachments } from '@/components/crm/customer-attachments';
 import { CustomerContacts } from '@/components/crm/customer-contacts';
 import { CustomerFollowUps } from '@/components/crm/customer-follow-ups';
 import { CustomerFormDialog } from '@/components/crm/customer-form-dialog';
@@ -113,6 +114,7 @@ function CustomerDetail({ customer }: { customer: Customer }) {
           <Can code="crm:contact">
             <CustomerContacts customerId={customer.id} />
           </Can>
+          <CustomerAttachments customerId={customer.id} />
         </div>
         <div className="space-y-6">
           <Can code="crm:follow-up">
@@ -135,7 +137,7 @@ function CustomerDetail({ customer }: { customer: Customer }) {
       {dialog === 'delete' && (
         <ConfirmDialog
           title={`删除客户「${customer.name}」？`}
-          description="联系人和跟进记录会一起删除，无法恢复。还有商机的客户不能删除。"
+          description="联系人和跟进记录会一起删除，无法恢复；附件只是不再挂在客户上，文件仍留在文件库里。还有商机的客户不能删除。"
           confirmLabel="删除"
           destructive
           action={async () => {
