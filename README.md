@@ -16,6 +16,8 @@ apps/
   web/         React 前端（开发时 /api 代理到 :3000）
 packages/
   shared/      前后端共用的 zod schema 和类型
+deploy/        单机部署示例（docker compose）
+.github/       CI：检查、测试，并把镜像推到 ghcr.io
 compose.yaml   本地开发用的 Postgres 18 + Redis 8
 ```
 
@@ -49,6 +51,31 @@ API 第一次连上空数据库时，会创建系统租户（ID 1，编码 `syst
 - `pnpm --filter @fld/api reset-password <用户名或邮箱>`：重置密码（先 `pnpm build`），新密码打印在终端，下次登录必须修改，该账号所有登录立即失效。镜像里用 `node dist/cli.js reset-password <用户名或邮箱>`
 - `pnpm format`：用根目录的 Prettier 配置格式化全部代码
 - `pnpm infra:down`：停止本地容器（数据保留在 Docker 卷里）
+
+## 部署
+
+推到 `main` 后，GitHub Actions 先跑格式、lint、类型检查、单元测试、端到端测试和构建，全部通过后才构建并推送两个镜像（amd64 + arm64）：
+
+- `ghcr.io/lochinemak/fld-cms-api`：后端。启动时自动执行数据库迁移（`RUN_MIGRATIONS=false` 可关闭），以非 root 用户运行。
+- `ghcr.io/lochinemak/fld-cms-web`：nginx 提供前端页面，并把 `/api` 转发给后端（`API_UPSTREAM`，默认 `http://api:3000`）。
+
+镜像标签是 `latest` 和 `sha-<提交号>`；推送 `v1.2.3` 这样的 git tag 时，再加上 `1.2.3` 和 `1.2`。PR 只构建、不推送。
+
+单机部署用 `deploy/` 下的示例：
+
+```bash
+cd deploy
+cp .env.example .env     # 填上 POSTGRES_PASSWORD
+docker login ghcr.io     # 镜像默认私有：用有 read:packages 权限的 GitHub token 登录
+docker compose up -d
+docker compose logs api | grep 'Initial password'   # 首次启动时超级管理员的初始密码
+```
+
+然后访问 `http://服务器:8080`。注意：
+
+- 登录 Cookie 只在 HTTPS 下生效（localhost 例外）。正式环境在前面加 HTTPS 反向代理（Caddy、Nginx、云负载均衡等）；只在内网用 http 试用时，在 `.env` 里设 `SESSION_COOKIE_SECURE=false`。
+- 登录限流按客户端 IP 计。后端只相信 web 容器里这一层 nginx 转发的 IP（`TRUST_PROXY=1`），客户端自己伪造的地址不会被采信。前面每多加一层反向代理，就在 `.env` 里把 `TRUST_PROXY` 加 1。
+- 重置密码：`docker compose exec api node dist/cli.js reset-password <用户名或邮箱>`。
 
 ## 约定
 

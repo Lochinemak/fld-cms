@@ -1,0 +1,62 @@
+# Runs a released FLD CRM on one host. In this directory: cp .env.example .env, edit it, then
+# docker compose up -d
+name: fld-cms
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fld}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-fld_cms}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    image: ${FLD_API_IMAGE:-ghcr.io/lochinemak/fld-cms-api}:${FLD_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-fld}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-fld_cms}
+      REDIS_URL: redis://redis:6379/0
+      # Proxy hops to believe X-Forwarded-For through: the web container's nginx, plus one for each
+      # proxy in front of it (an HTTPS terminator, say). Counting hops, rather than trusting private
+      # addresses, keeps clients on the office network from choosing their own address.
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+      SUPER_ADMIN_USERNAME: ${SUPER_ADMIN_USERNAME:-superadmin}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    image: ${FLD_WEB_IMAGE:-ghcr.io/lochinemak/fld-cms-web}:${FLD_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - '${WEB_PORT:-8080}:8080'
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  redis-data:

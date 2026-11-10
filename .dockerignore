@@ -1,0 +1,15 @@
+# Images build from the repo root; keep local installs, build output and secrets out of the context.
+**/node_modules
+**/dist
+**/.turbo
+**/coverage
+**/*.tsbuildinfo
+apps/api/src/generated
+.git
+.github
+.cursor
+.env
+.env.*
+!.env.example
+**/*.md
+deploy
