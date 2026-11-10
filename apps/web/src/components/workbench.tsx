@@ -79,13 +79,16 @@ export function Workbench({ userId, tenantId, description, cards }: WorkbenchPro
   );
 
   const titleOf = (id: UniqueIdentifier) => cards[id as WorkbenchCardId].title;
+  // Over is the dragged card itself when it is picked up, so name places rather than cards.
+  const placeOf = (id: UniqueIdentifier) =>
+    `第 ${shown.findIndex((card) => card.id === id) + 1} 个位置，共 ${shown.length} 个`;
   const announcements: Announcements = {
-    onDragStart: ({ active }) => `拿起了「${titleOf(active.id)}」`,
+    onDragStart: ({ active }) => `拿起了「${titleOf(active.id)}」，在${placeOf(active.id)}`,
     onDragOver: ({ active, over }) =>
-      over ? `「${titleOf(active.id)}」移到了「${titleOf(over.id)}」的位置` : undefined,
+      over ? `「${titleOf(active.id)}」现在在${placeOf(over.id)}` : undefined,
     onDragEnd: ({ active, over }) =>
       over
-        ? `「${titleOf(active.id)}」放在了「${titleOf(over.id)}」的位置`
+        ? `「${titleOf(active.id)}」放在了${placeOf(over.id)}`
         : `放下了「${titleOf(active.id)}」`,
     onDragCancel: ({ active }) => `取消拖动，「${titleOf(active.id)}」回到原位`,
   };
