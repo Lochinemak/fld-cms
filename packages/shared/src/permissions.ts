@@ -45,6 +45,33 @@ export const PERMISSIONS = {
   'system:role:create': { name: '新建角色', kind: 'element', parent: 'system:role' },
   'system:role:update': { name: '编辑角色', kind: 'element', parent: 'system:role' },
   'system:role:delete': { name: '删除角色', kind: 'element', parent: 'system:role' },
+
+  crm: { name: '客户关系', kind: 'directory' },
+
+  'crm:customer': { name: '客户', kind: 'page', parent: 'crm' },
+  'crm:customer:create': { name: '新建客户', kind: 'element', parent: 'crm:customer' },
+  'crm:customer:update': { name: '编辑客户', kind: 'element', parent: 'crm:customer' },
+  'crm:customer:transfer': { name: '转移客户', kind: 'element', parent: 'crm:customer' },
+  'crm:customer:delete': { name: '删除客户', kind: 'element', parent: 'crm:customer' },
+
+  'crm:contact': { name: '联系人', kind: 'page', parent: 'crm' },
+  'crm:contact:create': { name: '新建联系人', kind: 'element', parent: 'crm:contact' },
+  'crm:contact:update': { name: '编辑联系人', kind: 'element', parent: 'crm:contact' },
+  'crm:contact:delete': { name: '删除联系人', kind: 'element', parent: 'crm:contact' },
+
+  'crm:follow-up': { name: '跟进记录', kind: 'page', parent: 'crm' },
+  'crm:follow-up:create': { name: '写跟进', kind: 'element', parent: 'crm:follow-up' },
+  'crm:follow-up:delete': { name: '删除跟进', kind: 'element', parent: 'crm:follow-up' },
+
+  'crm:opportunity': { name: '商机', kind: 'page', parent: 'crm' },
+  'crm:opportunity:create': { name: '新建商机', kind: 'element', parent: 'crm:opportunity' },
+  'crm:opportunity:update': { name: '编辑商机', kind: 'element', parent: 'crm:opportunity' },
+  'crm:opportunity:transfer': {
+    name: '转移商机',
+    kind: 'element',
+    parent: 'crm:opportunity',
+  },
+  'crm:opportunity:delete': { name: '删除商机', kind: 'element', parent: 'crm:opportunity' },
 } as const satisfies Record<string, PermissionDefinition>;
 
 export type PermissionCode = keyof typeof PERMISSIONS;

@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { AuthzModule } from './authz/authz.module.js';
 import { AppConfigModule } from './config/app-config.module.js';
 import type { Env } from './config/env.js';
+import { CrmModule } from './crm/crm.module.js';
 import { DepartmentsModule } from './departments/departments.module.js';
 import { HealthModule } from './health/health.module.js';
 import { MembersModule } from './members/members.module.js';
@@ -52,6 +53,7 @@ import { ThrottleModule } from './throttle/throttle.module.js';
     DepartmentsModule,
     RolesModule,
     MembersModule,
+    CrmModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

@@ -11,6 +11,10 @@ export const TENANT_MODELS: ReadonlySet<string> = new Set([
   'Role',
   'MemberRole',
   'RoleDepartment',
+  'Customer',
+  'Contact',
+  'FollowUp',
+  'Opportunity',
 ]);
 
 const FILTERED = new Set([

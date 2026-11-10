@@ -28,6 +28,10 @@ model Tenant {
   roles           Role[]
   sessions        Session[]
   lastUsedByUsers User[]
+  customers       Customer[]
+  contacts        Contact[]
+  followUps       FollowUp[]
+  opportunities   Opportunity[]
 
   @@map("tenants")
 }
@@ -57,9 +61,13 @@ model User {
   createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  lastTenant  Tenant?        @relation(fields: [lastTenantId], references: [id], onDelete: SetNull)
-  memberships TenantMember[]
-  identities  UserIdentity[]
+  lastTenant         Tenant?        @relation(fields: [lastTenantId], references: [id], onDelete: SetNull)
+  memberships        TenantMember[]
+  identities         UserIdentity[]
+  ownedCustomers     Customer[]     @relation("CustomerOwner")
+  createdCustomers   Customer[]     @relation("CustomerCreator")
+  ownedOpportunities Opportunity[]
+  followUps          FollowUp[]
 
   @@map("users")
 }
@@ -111,11 +119,13 @@ model Department {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  tenant     Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  parent     Department?      @relation("DepartmentTree", fields: [parentId], references: [id], onDelete: Restrict)
-  children   Department[]     @relation("DepartmentTree")
-  members    TenantMember[]
-  roleScopes RoleDepartment[]
+  tenant        Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent        Department?      @relation("DepartmentTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children      Department[]     @relation("DepartmentTree")
+  members       TenantMember[]
+  roleScopes    RoleDepartment[]
+  customers     Customer[]
+  opportunities Opportunity[]
 
   @@unique([tenantId, id])
   @@index([parentId])
@@ -231,4 +241,180 @@ model UserIdentity {
   @@unique([provider, subject])
   @@index([userId])
   @@map("user_identities")
+}
+
+// CRM. Customers and opportunities belong to an owner (a user) and remember the owner's
+// department at the time, which is what department data scopes go by. Contacts and follow-ups
+// are visible to whoever can see their customer.
+
+/// A company or person the tenant sells to.
+model Customer {
+  id             BigInt          @id
+  tenantId       BigInt          @map("tenant_id")
+  name           String          @db.VarChar(128)
+  industry       String?         @db.VarChar(64)
+  source         CustomerSource?
+  level          CustomerLevel   @default(B)
+  status         CustomerStatus  @default(POTENTIAL)
+  phone          String?         @db.VarChar(32)
+  address        String?         @db.VarChar(255)
+  remark         String?         @db.VarChar(1000)
+  ownerId        BigInt          @map("owner_id")
+  /// The owner's department when the customer was created or last transferred.
+  deptId         BigInt?         @map("dept_id")
+  creatorId      BigInt          @map("creator_id")
+  /// Copied from the latest follow-up.
+  lastFollowUpAt DateTime?       @map("last_follow_up_at") @db.Timestamptz(3)
+  /// Copied from the latest follow-up.
+  nextFollowUpAt DateTime?       @map("next_follow_up_at") @db.Timestamptz(3)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner         User          @relation("CustomerOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  creator       User          @relation("CustomerCreator", fields: [creatorId], references: [id], onDelete: Restrict)
+  department    Department?   @relation(fields: [deptId], references: [id], onDelete: SetNull)
+  contacts      Contact[]
+  followUps     FollowUp[]
+  opportunities Opportunity[]
+
+  @@unique([tenantId, id])
+  @@index([ownerId])
+  @@index([deptId])
+  @@index([creatorId])
+  @@index([tenantId, nextFollowUpAt])
+  @@map("customers")
+}
+
+enum CustomerSource {
+  ONLINE
+  REFERRAL
+  EVENT
+  OUTBOUND
+  OTHER
+
+  @@map("customer_source")
+}
+
+enum CustomerLevel {
+  A
+  B
+  C
+
+  @@map("customer_level")
+}
+
+enum CustomerStatus {
+  POTENTIAL
+  WON
+  LOST
+
+  @@map("customer_status")
+}
+
+/// A person at a customer.
+model Contact {
+  id         BigInt   @id
+  tenantId   BigInt   @map("tenant_id")
+  customerId BigInt   @map("customer_id")
+  name       String   @db.VarChar(64)
+  title      String?  @db.VarChar(64)
+  phone      String?  @db.VarChar(32)
+  email      String?  @db.VarChar(254)
+  /// The customer's main contact; the service keeps at most one per customer.
+  primary    Boolean  @default(false) @map("is_primary")
+  remark     String?  @db.VarChar(500)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer  Customer   @relation(fields: [tenantId, customerId], references: [tenantId, id], onDelete: Cascade)
+  followUps FollowUp[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, customerId])
+  @@map("contacts")
+}
+
+/// A record of reaching out to a customer: a call, a visit, a meeting. Never edited.
+model FollowUp {
+  id            BigInt         @id
+  tenantId      BigInt         @map("tenant_id")
+  customerId    BigInt         @map("customer_id")
+  contactId     BigInt?        @map("contact_id")
+  opportunityId BigInt?        @map("opportunity_id")
+  method        FollowUpMethod
+  content       String         @db.VarChar(2000)
+  followedAt    DateTime       @map("followed_at") @db.Timestamptz(3)
+  /// When to follow up next.
+  nextAt        DateTime?      @map("next_at") @db.Timestamptz(3)
+  authorId      BigInt         @map("author_id")
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer    Customer     @relation(fields: [tenantId, customerId], references: [tenantId, id], onDelete: Cascade)
+  contact     Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  author      User         @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, customerId, followedAt])
+  @@index([contactId])
+  @@index([opportunityId])
+  @@index([authorId])
+  @@map("follow_ups")
+}
+
+enum FollowUpMethod {
+  CALL
+  VISIT
+  WECHAT
+  EMAIL
+  MEETING
+  OTHER
+
+  @@map("follow_up_method")
+}
+
+/// A possible sale to a customer.
+model Opportunity {
+  id                BigInt           @id
+  tenantId          BigInt           @map("tenant_id")
+  customerId        BigInt           @map("customer_id")
+  name              String           @db.VarChar(128)
+  amount            Decimal          @db.Decimal(14, 2)
+  expectedCloseDate DateTime?        @map("expected_close_date") @db.Date
+  stage             OpportunityStage @default(QUALIFY)
+  ownerId           BigInt           @map("owner_id")
+  /// The owner's department when the opportunity was created or last transferred.
+  deptId            BigInt?          @map("dept_id")
+  remark            String?          @db.VarChar(1000)
+  /// When it was won or lost; cleared when reopened.
+  closedAt          DateTime?        @map("closed_at") @db.Timestamptz(3)
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  /// A customer with opportunities cannot be deleted.
+  customer   Customer    @relation(fields: [tenantId, customerId], references: [tenantId, id], onDelete: Restrict)
+  owner      User        @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  department Department? @relation(fields: [deptId], references: [id], onDelete: SetNull)
+  followUps  FollowUp[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, customerId])
+  @@index([ownerId])
+  @@index([deptId])
+  @@map("opportunities")
+}
+
+enum OpportunityStage {
+  QUALIFY
+  NEEDS
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+
+  @@map("opportunity_stage")
 }

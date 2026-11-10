@@ -1,12 +1,21 @@
+import { createHash } from 'node:crypto';
+import { PERMISSIONS } from '@fld/shared';
 import { Injectable, Logger } from '@nestjs/common';
 import { RedisService } from '../redis/redis.service.js';
 import type { TenantContext } from './principal.js';
 
 const TTL_SECONDS = 600;
 
+// Built-in roles hold every permission in the registry, so a release that changes it must not
+// serve contexts cached by the previous one.
+const REGISTRY = createHash('sha256')
+  .update(JSON.stringify(PERMISSIONS))
+  .digest('hex')
+  .slice(0, 12);
+
 const versionKey = (tenantId: bigint) => `fld:tenant-ctx:ver:${tenantId}`;
 const entryKey = (tenantId: bigint, version: string, userId: bigint) =>
-  `fld:tenant-ctx:${tenantId}:${version}:${userId}`;
+  `fld:tenant-ctx:${REGISTRY}:${tenantId}:${version}:${userId}`;
 
 /**
  * Caches each member's tenant context (permissions, data scope) per tenant version. Bumping the
