@@ -37,6 +37,12 @@ export const PERMISSIONS = {
     parent: 'system:account',
     platform: true,
   },
+  'system:account:unlock': {
+    name: '解锁账号',
+    kind: 'element',
+    parent: 'system:account',
+    platform: true,
+  },
 
   'system:settings': { name: '平台设置', kind: 'page', parent: 'system', platform: true },
   'system:settings:update': {
@@ -53,6 +59,7 @@ export const PERMISSIONS = {
   'system:member:update': { name: '编辑成员', kind: 'element', parent: 'system:member' },
   'system:member:remove': { name: '移出成员', kind: 'element', parent: 'system:member' },
   'system:member:reset-password': { name: '重置密码', kind: 'element', parent: 'system:member' },
+  'system:member:unlock': { name: '解锁账号', kind: 'element', parent: 'system:member' },
 
   'system:dept': { name: '部门管理', kind: 'page', parent: 'system' },
   'system:dept:create': { name: '新建部门', kind: 'element', parent: 'system:dept' },

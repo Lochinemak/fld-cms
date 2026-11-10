@@ -60,6 +60,10 @@ model User {
   passwordHash       String?    @map("password_hash") @db.VarChar(255)
   mustChangePassword Boolean    @default(false) @map("must_change_password")
   status             UserStatus @default(ACTIVE)
+  /// Wrong passwords in a row since the last sign-in; too many lock the account.
+  failedSignIns      Int        @default(0) @map("failed_sign_ins")
+  /// Locked accounts can't sign in until an administrator unlocks them or the password is reset.
+  lockedAt           DateTime?  @map("locked_at") @db.Timestamptz(3)
   /// Where the next sign-in lands.
   lastTenantId       BigInt?    @map("last_tenant_id")
   lastSignInAt       DateTime?  @map("last_sign_in_at") @db.Timestamptz(3)

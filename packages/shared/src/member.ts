@@ -15,6 +15,8 @@ export const memberSchema = z.object({
   displayName: z.string(),
   email: z.string().nullable(),
   status: memberStatusSchema,
+  /** Too many wrong passwords in a row locked the account, in every tenant it belongs to. */
+  locked: z.boolean(),
   dept: z.object({ id: idSchema, name: z.string() }).nullable(),
   roles: z.array(z.object({ id: idSchema, name: z.string(), builtin: z.boolean() })),
   /** The account belongs to other tenants too, so its password can't be reset from this one. */

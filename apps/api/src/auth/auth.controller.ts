@@ -26,11 +26,11 @@ import {
 import { Can } from '@nestjs/authorization';
 import { ApiTags } from '@nestjs/swagger';
 import { minutes, Throttle } from '@nestjs/throttler';
-import { AuditService } from '../audit/audit.service.js';
+import { AuditService, changesOf } from '../audit/audit.service.js';
 import { AccountRoute } from '../authz/account-route.decorator.js';
 import { normalizeAccount } from './account-name.js';
 import { AccountService } from './account.service.js';
-import { CredentialsService, type SignInRefusal } from './credentials.service.js';
+import { CredentialsService, SIGN_IN_ATTEMPTS, type SignInRefusal } from './credentials.service.js';
 import { PasswordRecoveryService } from './password-recovery.service.js';
 import type { Principal } from './principal.js';
 
@@ -38,6 +38,7 @@ const REFUSALS: Record<SignInRefusal, string> = {
   'unknown-account': '账号不存在',
   'wrong-password': '密码错误',
   disabled: '账号已停用',
+  locked: '账号已锁定',
 };
 
 @ApiTags('auth')
@@ -64,17 +65,30 @@ export class AuthController {
   async signInWithPassword(@Body({ schema: signInSchema }) input: SignInInput): Promise<Me> {
     const verification = await this.credentials.verify(input.account, input.password);
     if (!verification.ok) {
+      const { refusal, lockedNow = false } = verification;
+      const account = verification.account ?? {
+        id: null,
+        username: normalizeAccount(input.account),
+        displayName: '',
+      };
       await this.audit.record({
         action: 'auth.sign-in',
         success: false,
-        reason: REFUSALS[verification.refusal],
-        account: verification.account ?? {
-          id: null,
-          username: normalizeAccount(input.account),
-          displayName: '',
-        },
+        reason: REFUSALS[lockedNow ? 'wrong-password' : refusal],
+        account,
       });
-      throw new UnauthorizedException('用户名、邮箱或密码不正确');
+      if (lockedNow) {
+        await this.audit.record({
+          action: 'auth.lock',
+          account,
+          changes: changesOf([['连续输错密码', null, `${SIGN_IN_ATTEMPTS} 次`]]),
+        });
+      }
+      throw new UnauthorizedException(
+        refusal === 'locked'
+          ? '账号已锁定，请联系管理员解锁，或用忘记密码重设'
+          : '用户名、邮箱或密码不正确',
+      );
     }
     const { user } = verification;
     await this.signIn.signIn(user.id, { method: 'password' });
@@ -129,9 +143,11 @@ export class AuthController {
       });
       throw new BadRequestException('链接无效或已过期，请重新申请');
     }
+    const unlocked = await this.credentials.unlock(BigInt(result.userId));
     await this.audit.record({
       action: 'auth.reset-password',
       account: await this.audit.account(result.userId),
+      changes: unlocked ? changesOf([['账号', '已锁定', '已解锁']]) : [],
     });
   }
 }

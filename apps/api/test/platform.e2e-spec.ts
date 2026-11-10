@@ -1,6 +1,9 @@
 import {
+  auditLogPageSchema,
   mailTemplateSchema,
+  memberSchema,
   meSchema,
+  pageSchema,
   platformAccountPageSchema,
   platformSettingsViewSchema,
   resetAccountPasswordResultSchema,
@@ -10,6 +13,7 @@ import { PasswordHasher } from '@nestjs/authentication';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { z } from 'zod';
+import { SIGN_IN_ATTEMPTS } from '../src/auth/credentials.service.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { RedisService } from '../src/redis/redis.service.js';
 import {
@@ -449,5 +453,122 @@ describe('Platform accounts, settings and password reset (e2e)', () => {
     expect(outbox.sent.slice(sent).map(({ message }) => message.to)).toEqual([
       'plat-alice@fld.test',
     ]);
+  });
+
+  const LOCKED = '账号已锁定，请联系管理员解锁，或用忘记密码重设';
+  const refusedSignIn = (account: string, password: string) =>
+    request(app.getHttpServer()).post('/api/auth/sign-in').send({ account, password }).expect(401);
+  const lockOf = (username: string) =>
+    prisma.user.findUniqueOrThrow({
+      where: { id: BigInt(ids[username]!) },
+      select: { failedSignIns: true, lockedAt: true },
+    });
+  const lock = (username: string) =>
+    prisma.user.update({
+      where: { id: BigInt(ids[username]!) },
+      data: { failedSignIns: SIGN_IN_ATTEMPTS, lockedAt: new Date() },
+    });
+  const memberOf = async (username: string) => {
+    const res = await tenantAdmin
+      .get('/api/system/members')
+      .query({ keyword: username })
+      .expect(200);
+    const [member] = pageSchema(memberSchema).parse(res.body).items;
+    return member!;
+  };
+  const auditLogs = async (agent: TestAgent, query: Record<string, string>) => {
+    const res = await agent.get('/api/system/audit-logs').query(query).expect(200);
+    return auditLogPageSchema.parse(res.body).items;
+  };
+
+  it('locks an account after ten wrong passwords in a row, then refuses even the right one', async () => {
+    await refusedSignIn('plat-bob', 'plat-wrong-password');
+    expect(await lockOf('plat-bob')).toEqual({ failedSignIns: 1, lockedAt: null });
+    await signIn('plat-bob', PASSWORD);
+    expect(await lockOf('plat-bob')).toEqual({ failedSignIns: 0, lockedAt: null });
+
+    // The throttle lets an account try five times in a quarter of an hour, so start near the end.
+    await prisma.user.update({
+      where: { id: BigInt(ids['plat-bob']!) },
+      data: { failedSignIns: SIGN_IN_ATTEMPTS - 2 },
+    });
+    const ninth = await refusedSignIn('plat-bob', 'plat-wrong-password');
+    expect(ninth.body).toMatchObject({ message: '用户名、邮箱或密码不正确' });
+    const tenth = await refusedSignIn('plat-bob', 'plat-wrong-password');
+    expect(tenth.body).toMatchObject({ message: LOCKED });
+    const right = await refusedSignIn('plat-bob', PASSWORD);
+    expect(right.body).toMatchObject({ message: LOCKED });
+    expect(await lockOf('plat-bob')).toEqual({
+      failedSignIns: SIGN_IN_ATTEMPTS,
+      lockedAt: expect.any(Date),
+    });
+
+    expect(await memberOf('plat-bob')).toMatchObject({ locked: true });
+    expect(await auditLogs(tenantAdmin, { actor: 'plat-bob', action: 'auth.lock' })).toMatchObject([
+      { success: true, changes: [{ field: '连续输错密码', from: null, to: '10 次' }] },
+    ]);
+    const signIns = await auditLogs(tenantAdmin, { actor: 'plat-bob', action: 'auth.sign-in' });
+    expect(signIns.slice(0, 2)).toMatchObject([
+      { success: false, reason: '账号已锁定' },
+      { success: false, reason: '密码错误' },
+    ]);
+  });
+
+  it('lets an administrator of a tenant the account is in unlock it', async () => {
+    const bob = await memberOf('plat-bob');
+    const carol = await signIn('plat-carol', PASSWORD);
+    await carol.post(`/api/system/members/${bob.id}/unlock`).expect(403);
+
+    const res = await tenantAdmin.post(`/api/system/members/${bob.id}/unlock`).expect(200);
+    expect(memberSchema.parse(res.body)).toMatchObject({ id: bob.id, locked: false });
+    expect(await lockOf('plat-bob')).toEqual({ failedSignIns: 0, lockedAt: null });
+    await signIn('plat-bob', PASSWORD);
+    const again = await tenantAdmin.post(`/api/system/members/${bob.id}/unlock`).expect(400);
+    expect(again.body).toMatchObject({ message: '该账号没有被锁定' });
+    expect(
+      await auditLogs(tenantAdmin, { actor: 'plat-boss', action: 'member.unlock' }),
+    ).toMatchObject([{ target: { type: 'member', name: '鲍勃（plat-bob）' } }]);
+  });
+
+  it('lets the platform unlock any account', async () => {
+    await lock('plat-carol');
+    const listed = await admin
+      .get('/api/system/accounts')
+      .query({ keyword: 'plat-carol' })
+      .expect(200);
+    expect(platformAccountPageSchema.parse(listed.body).items).toMatchObject([
+      { username: 'plat-carol', locked: true },
+    ]);
+    await tenantAdmin.post(`/api/system/accounts/${ids['plat-carol']}/unlock`).expect(403);
+
+    const res = await admin.post(`/api/system/accounts/${ids['plat-carol']}/unlock`).expect(200);
+    expect(res.body).toMatchObject({ username: 'plat-carol', locked: false });
+    expect(await lockOf('plat-carol')).toEqual({ failedSignIns: 0, lockedAt: null });
+    await admin.post(`/api/system/accounts/${ids['plat-carol']}/unlock`).expect(400);
+    await admin.post('/api/system/accounts/1/unlock').expect(404);
+    expect(await auditLogs(admin, { actor: 'plat-admin', action: 'account.unlock' })).toMatchObject(
+      [{ target: { type: 'account', name: '卡罗尔（plat-carol）' } }],
+    );
+  });
+
+  it('unlocks an account when an administrator resets its password, or a mailed link sets one', async () => {
+    await lock('plat-bob');
+    const bob = await memberOf('plat-bob');
+    await tenantAdmin.post(`/api/system/members/${bob.id}/reset-password`).expect(200);
+    expect(await lockOf('plat-bob')).toEqual({ failedSignIns: 0, lockedAt: null });
+    const [reset] = await auditLogs(tenantAdmin, {
+      actor: 'plat-boss',
+      action: 'member.reset-password',
+    });
+    expect(reset).toMatchObject({ changes: [{ field: '账号', from: '已锁定', to: '已解锁' }] });
+
+    await lock('plat-alice');
+    const sent = outbox.sent.length;
+    await forgotPassword('plat-alice');
+    const token = tokenIn(await outbox.next('plat-alice@fld.test', sent));
+    await resetPassword(token, 'alice-unlocked-password').expect(204);
+    expect(await lockOf('plat-alice')).toEqual({ failedSignIns: 0, lockedAt: null });
+    alicePassword = 'alice-unlocked-password';
+    await signIn('plat-alice', alicePassword);
   });
 });

@@ -34,4 +34,11 @@ export class AccountsController {
   ): Promise<ResetAccountPasswordResult> {
     return this.accounts.resetPassword(user, id);
   }
+
+  @RequirePermission('system:account:unlock')
+  @Post(':id/unlock')
+  @HttpCode(200)
+  unlock(@Param('id', { schema: idSchema }) id: string): Promise<PlatformAccount> {
+    return this.accounts.unlock(id);
+  }
 }

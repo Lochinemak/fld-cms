@@ -3,6 +3,7 @@ import type { INestApplication } from '@nestjs/common';
 import { PasswordHasher } from '@nestjs/authentication';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
+import { SIGN_IN_ATTEMPTS } from '../src/auth/credentials.service.js';
 import { resetPassword } from '../src/auth/reset-password.js';
 import { generatePassword } from '../src/common/password.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
@@ -73,6 +74,7 @@ describe('Sign-in, tenants and permissions (e2e)', () => {
     expect(me.permissions).toEqual([
       'system:account',
       'system:account:reset-password',
+      'system:account:unlock',
       'system:platform-audit',
       'system:settings',
       'system:settings:update',
@@ -306,7 +308,11 @@ describe('Sign-in, tenants and permissions (e2e)', () => {
     await signIn(request.agent(app.getHttpServer()), 'superadmin', superAdminPassword).expect(429);
   });
 
-  it('resets a password from the command line, signing the account out everywhere', async () => {
+  it('resets a password from the command line, unlocking the account and signing it out everywhere', async () => {
+    await prisma.user.updateMany({
+      where: { username: 'superadmin' },
+      data: { failedSignIns: SIGN_IN_ATTEMPTS, lockedAt: new Date() },
+    });
     const reset = await resetPassword(prisma, new PasswordHasher(), 'superadmin');
     await superAdmin.get('/api/me').expect(401);
 

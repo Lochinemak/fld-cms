@@ -2,10 +2,11 @@ import type { PasswordHasher } from '@nestjs/authentication';
 import { generatePassword } from '../common/password.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { normalizeAccount } from './account-name.js';
+import { UNLOCKED } from './credentials.service.js';
 
 /**
- * Gives the account a generated password, which must be changed at the next sign-in, and signs
- * it out everywhere. Null when no account has that username or email.
+ * Gives the account a generated password, which must be changed at the next sign-in, unlocks it,
+ * and signs it out everywhere. Null when no account has that username or email.
  */
 export async function resetPassword(
   prisma: PrismaService,
@@ -25,7 +26,7 @@ export async function resetPassword(
   await prisma.$transaction([
     prisma.user.update({
       where: { id: user.id },
-      data: { passwordHash, mustChangePassword: true },
+      data: { passwordHash, mustChangePassword: true, ...UNLOCKED },
     }),
     prisma.session.deleteMany({ where: { userId: user.id.toString() } }),
   ]);

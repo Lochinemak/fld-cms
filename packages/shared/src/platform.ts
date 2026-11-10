@@ -10,6 +10,8 @@ export const platformAccountSchema = z.object({
   displayName: z.string(),
   email: z.string().nullable(),
   status: z.enum(['ACTIVE', 'DISABLED']),
+  /** Too many wrong passwords in a row locked it. */
+  locked: z.boolean(),
   lastSignInAt: z.iso.datetime().nullable(),
   /** The tenants it is an active member of. */
   tenants: z.array(z.object({ id: idSchema, name: z.string() })),

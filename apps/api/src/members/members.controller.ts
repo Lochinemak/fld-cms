@@ -70,4 +70,14 @@ export class MembersController {
   ): Promise<ResetMemberPasswordResult> {
     return this.members.resetPassword(user, id);
   }
+
+  @RequirePermission('system:member:unlock')
+  @Post(':id/unlock')
+  @HttpCode(200)
+  unlock(
+    @CurrentUser() user: Principal,
+    @Param('id', { schema: idSchema }) id: string,
+  ): Promise<Member> {
+    return this.members.unlock(user, id);
+  }
 }

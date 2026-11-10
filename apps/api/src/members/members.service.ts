@@ -18,7 +18,7 @@ import {
 } from '@nestjs/common';
 import { accountName, AuditService, changesOf } from '../audit/audit.service.js';
 import { AccountProvisioning, type ProvisionedAccount } from '../auth/account-provisioning.js';
-import { CredentialsService } from '../auth/credentials.service.js';
+import { CredentialsService, UNLOCKED } from '../auth/credentials.service.js';
 import type { Principal } from '../auth/principal.js';
 import { TenantContextCache } from '../auth/tenant-context.cache.js';
 import { dataScopeWhere } from '../authz/data-scope.js';
@@ -39,6 +39,7 @@ const memberSelect = {
       username: true,
       displayName: true,
       email: true,
+      lockedAt: true,
       _count: { select: { memberships: true } },
     },
   },
@@ -57,6 +58,7 @@ function toMember(row: Prisma.TenantMemberGetPayload<{ select: typeof memberSele
     displayName: row.user.displayName,
     email: row.user.email,
     status: row.status,
+    locked: row.user.lockedAt !== null,
     dept: row.department ? { id: row.department.id.toString(), name: row.department.name } : null,
     roles: row.roles.map(({ role }) => ({
       id: role.id.toString(),
@@ -256,15 +258,30 @@ export class MembersService {
     await this.db.$transaction([
       this.db.user.update({
         where: { id: member.userId },
-        data: { passwordHash, mustChangePassword: true },
+        data: { passwordHash, mustChangePassword: true, ...UNLOCKED },
       }),
       this.db.session.deleteMany({ where: { userId: member.userId.toString() } }),
     ]);
     await this.audit.record({
       action: 'member.reset-password',
       target: memberTarget(await this.get(member.id)),
+      changes: member.locked ? changesOf([['账号', '已锁定', '已解锁']]) : [],
     });
     return { password };
+  }
+
+  /**
+   * Lets the account sign in again after too many wrong passwords locked it. Unlike resetting the
+   * password, this hands the administrator nothing, so it also serves accounts of other tenants.
+   */
+  async unlock(user: Principal, id: string): Promise<Member> {
+    const member = await this.findManageable(user, id);
+    if (!(await this.credentials.unlock(member.userId))) {
+      throw new BadRequestException('该账号没有被锁定');
+    }
+    const unlocked = await this.get(member.id);
+    await this.audit.record({ action: 'member.unlock', target: memberTarget(unlocked) });
+    return unlocked;
   }
 
   private visibleTo(user: Principal): Prisma.TenantMemberWhereInput {
@@ -290,7 +307,7 @@ export class MembersService {
       select: {
         id: true,
         userId: true,
-        user: { select: { _count: { select: { memberships: true } } } },
+        user: { select: { lockedAt: true, _count: { select: { memberships: true } } } },
         roles: { select: { roleId: true, role: { select: { builtin: true } } } },
       },
     });
@@ -307,6 +324,7 @@ export class MembersService {
       id: row.id,
       userId: row.userId,
       sharedAccount: row.user._count.memberships > 1,
+      locked: row.user.lockedAt !== null,
       roleIds: new Set(row.roles.map(({ roleId }) => roleId.toString())),
     };
   }
