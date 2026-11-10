@@ -34,16 +34,25 @@ export const createTenantSchema = z.object({
 });
 export type CreateTenantInput = z.infer<typeof createTenantSchema>;
 
+export const tenantAdminSchema = z.object({
+  id: idSchema,
+  username: z.string(),
+  /** Present only when the account was created with a generated password. */
+  initialPassword: z.string().optional(),
+});
+export type TenantAdmin = z.infer<typeof tenantAdminSchema>;
+
 export const createTenantResultSchema = z.object({
   tenant: tenantSchema,
-  admin: z.object({
-    id: idSchema,
-    username: z.string(),
-    /** Present only when the account was created with a generated password. */
-    initialPassword: z.string().optional(),
-  }),
+  admin: tenantAdminSchema,
 });
 export type CreateTenantResult = z.infer<typeof createTenantResultSchema>;
+
+export const resetTenantAdminSchema = z.object({
+  /** Becomes an administrator of the tenant; the ones it has keep their role. */
+  admin: accountChoiceSchema,
+});
+export type ResetTenantAdminInput = z.infer<typeof resetTenantAdminSchema>;
 
 export const updateTenantSchema = z
   .object({ name: tenantNameSchema, status: tenantStatusSchema })

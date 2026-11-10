@@ -6,6 +6,7 @@ import {
   pageSchema,
   resetMemberPasswordResultSchema,
   roleSchema,
+  tenantAdminSchema,
   tenantPageSchema,
   type CreateDepartmentInput,
   type CreateMemberInput,
@@ -13,6 +14,7 @@ import {
   type CreateTenantInput,
   type DataScope,
   type MemberStatus,
+  type ResetTenantAdminInput,
   type UpdateDepartmentInput,
   type UpdateMemberInput,
   type UpdateRoleInput,
@@ -100,6 +102,9 @@ export const createTenant = (input: CreateTenantInput) =>
 
 export const updateTenant = (id: string, input: UpdateTenantInput) =>
   api(`/system/tenants/${id}`, { method: 'PATCH', json: input });
+
+export const resetTenantAdmin = (id: string, input: ResetTenantAdminInput) =>
+  api(`/system/tenants/${id}/admin`, { method: 'POST', json: input, schema: tenantAdminSchema });
 
 export const createDept = (input: CreateDepartmentInput) =>
   api('/system/depts', { method: 'POST', json: input });

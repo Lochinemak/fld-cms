@@ -11,6 +11,8 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import type { DataScopeGrant, SessionUser, TenantContext } from './principal.js';
 import { TenantContextCache } from './tenant-context.cache.js';
 
+const SYSTEM_TENANT = BigInt(SYSTEM_TENANT_ID);
+
 interface RoleGrant {
   builtin: boolean;
   dataScope: DataScope;
@@ -44,25 +46,37 @@ export class TenantContextService {
         return context;
       }
     }
-    const first = await this.prisma.tenantMember.findFirst({
-      where: { userId, status: 'ACTIVE', tenant: { status: 'ACTIVE' } },
-      orderBy: { createdAt: 'asc' },
-      select: { tenantId: true },
-    });
-    return first ? this.load(userId, first.tenantId) : null;
+    const [first] = await this.listTenants(userId);
+    return first ? this.load(userId, BigInt(first.id)) : null;
   }
 
   /** The active tenants the user may switch to. */
   async listTenants(userId: bigint): Promise<TenantSummary[]> {
+    const platform = await this.isPlatformAccount(userId);
     const memberships = await this.prisma.tenantMember.findMany({
-      where: { userId, status: 'ACTIVE', tenant: { status: 'ACTIVE' } },
+      where: {
+        userId,
+        status: 'ACTIVE',
+        tenant: { status: 'ACTIVE' },
+        ...(platform ? { tenantId: SYSTEM_TENANT } : {}),
+      },
       orderBy: { createdAt: 'asc' },
       select: { tenant: { select: { id: true, code: true, name: true } } },
     });
     return memberships.map(({ tenant }) => toTenantSummary(tenant));
   }
 
+  /** Members of the system tenant manage tenants from there and never work inside another one. */
+  private async isPlatformAccount(userId: bigint): Promise<boolean> {
+    return (
+      (await this.prisma.tenantMember.count({ where: { tenantId: SYSTEM_TENANT, userId } })) > 0
+    );
+  }
+
   private async compute(userId: bigint, tenantId: bigint): Promise<TenantContext | null> {
+    if (tenantId !== SYSTEM_TENANT && (await this.isPlatformAccount(userId))) {
+      return null;
+    }
     const member = await this.prisma.tenantMember.findUnique({
       where: { tenantId_userId: { tenantId, userId } },
       select: {

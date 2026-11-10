@@ -1,4 +1,4 @@
-import { createTenantResultSchema, meSchema } from '@fld/shared';
+import { createTenantResultSchema, meSchema, tenantAdminSchema } from '@fld/shared';
 import type { INestApplication } from '@nestjs/common';
 import { PasswordHasher } from '@nestjs/authentication';
 import request from 'supertest';
@@ -7,6 +7,7 @@ import { resetPassword } from '../src/auth/reset-password.js';
 import { generatePassword } from '../src/common/password.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { RedisService } from '../src/redis/redis.service.js';
+import { SnowflakeService } from '../src/snowflake/snowflake.service.js';
 import { SystemBootstrapService } from '../src/tenants/system-bootstrap.service.js';
 import { createTestApp } from './app.js';
 
@@ -68,7 +69,12 @@ describe('Sign-in, tenants and permissions (e2e)', () => {
     const me = meSchema.parse(res.body);
     expect(me.user.mustChangePassword).toBe(true);
     expect(me.tenant).toMatchObject({ id: '1', code: 'system', isSystem: true });
-    expect(me.permissions).toContain('system:tenant:create');
+    // The system tenant only manages tenants.
+    expect(me.permissions).toEqual([
+      'system:tenant',
+      'system:tenant:create',
+      'system:tenant:update',
+    ]);
 
     await superAdmin.get('/api/system/tenants').expect(403);
   });
@@ -113,7 +119,7 @@ describe('Sign-in, tenants and permissions (e2e)', () => {
     acmeId = created.tenant.id;
     acmeAdminPassword = created.admin.initialPassword!;
 
-    const existingAdmin = { mode: 'existing', account: 'superadmin' };
+    const existingAdmin = { mode: 'existing', account: 'acme.admin' };
     await superAdmin
       .post('/api/system/tenants')
       .send({ code: 'acme', name: 'Taken', admin: existingAdmin })
@@ -149,30 +155,124 @@ describe('Sign-in, tenants and permissions (e2e)', () => {
     expect(me.permissions.filter((code) => code.startsWith('system:tenant'))).toEqual([]);
   });
 
+  it("resets a tenant's administrator, keeping the ones it has", async () => {
+    const reset = (tenantId: string, admin: object) =>
+      superAdmin.post(`/api/system/tenants/${tenantId}/admin`).send({ admin });
+
+    const res = await reset(acmeId, {
+      mode: 'new',
+      username: 'acme.boss',
+      displayName: 'Acme 新管理员',
+    }).expect(201);
+    const boss = tenantAdminSchema.parse(res.body);
+    expect(boss.initialPassword).toEqual(expect.any(String));
+    for (const [account, password] of [
+      ['acme.boss', boss.initialPassword!],
+      ['acme.admin', acmeAdminPassword],
+    ] as const) {
+      const signedIn = await signIn(request.agent(app.getHttpServer()), account, password).expect(
+        200,
+      );
+      const me = meSchema.parse(signedIn.body);
+      expect(me.tenant?.id).toBe(acmeId);
+      expect(me.permissions).toContain('system:role:create');
+    }
+
+    // A member the tenant disabled is enabled again.
+    const membership = { tenantId_userId: { tenantId: BigInt(acmeId), userId: BigInt(boss.id) } };
+    await prisma.tenantMember.update({ where: membership, data: { status: 'DISABLED' } });
+    await reset(acmeId, { mode: 'existing', account: 'acme.boss' }).expect(201);
+    const member = await prisma.tenantMember.findUniqueOrThrow({
+      where: membership,
+      include: { roles: true },
+    });
+    expect(member).toMatchObject({ status: 'ACTIVE', roles: [expect.anything()] });
+
+    await reset('1', { mode: 'existing', account: 'acme.boss' }).expect(400);
+    await reset('999', { mode: 'existing', account: 'acme.boss' }).expect(404);
+    await reset(acmeId, { mode: 'new', username: 'acme.admin', displayName: 'X' }).expect(409);
+  });
+
   it('switches tenants per session, refuses stale tabs, and signs in to the last tenant next time', async () => {
     const created = await superAdmin
       .post('/api/system/tenants')
-      .send({ code: 'beta', name: 'Beta 公司', admin: { mode: 'existing', account: 'superadmin' } })
+      .send({
+        code: 'beta',
+        name: 'Beta 公司',
+        admin: { mode: 'new', username: 'beta.admin', displayName: 'Beta 管理员' },
+      })
       .expect(201);
-    const betaId = createTenantResultSchema.parse(created.body).tenant.id;
+    const { tenant: beta, admin } = createTenantResultSchema.parse(created.body);
+    await superAdmin
+      .post(`/api/system/tenants/${acmeId}/admin`)
+      .send({ admin: { mode: 'existing', account: 'beta.admin' } })
+      .expect(201);
 
-    await superAdmin.put('/api/me/tenant').send({ tenantId: acmeId }).expect(403);
-    const switched = await superAdmin.put('/api/me/tenant').send({ tenantId: betaId }).expect(200);
+    const betaAdmin = request.agent(app.getHttpServer());
+    const password = generatePassword();
+    await signIn(betaAdmin, 'beta.admin', admin.initialPassword!).expect(200);
+    await betaAdmin
+      .put('/api/me/password')
+      .send({ currentPassword: admin.initialPassword, newPassword: password })
+      .expect(200);
+
+    await betaAdmin.put('/api/me/tenant').send({ tenantId: '1' }).expect(403);
+    const switched = await betaAdmin.put('/api/me/tenant').send({ tenantId: acmeId }).expect(200);
     const me = meSchema.parse(switched.body);
-    expect(me.tenant?.id).toBe(betaId);
-    expect(me.tenants.map((tenant) => tenant.code)).toEqual(['system', 'beta']);
+    expect(me.tenant?.id).toBe(acmeId);
+    expect(me.tenants.map((tenant) => tenant.code)).toEqual(['beta', 'acme']);
 
-    const stale = await superAdmin.get('/api/system/tenants').set('x-tenant-id', '1').expect(409);
+    const stale = await betaAdmin
+      .get('/api/system/members')
+      .set('x-tenant-id', beta.id)
+      .expect(409);
     expect(stale.body).toMatchObject({ error: 'tenant_switched' });
     // Tenant management is granted in the system tenant only.
-    await superAdmin.get('/api/system/tenants').set('x-tenant-id', betaId).expect(403);
+    await betaAdmin.get('/api/system/tenants').set('x-tenant-id', acmeId).expect(403);
+    // The super admin joins no tenant, whoever adds it.
+    const root = await prisma.department.findFirstOrThrow({
+      where: { tenantId: BigInt(acmeId), parentId: null },
+    });
+    await betaAdmin
+      .post('/api/system/members')
+      .send({ account: { mode: 'existing', account: 'superadmin' }, deptId: root.id.toString() })
+      .expect(400);
 
-    await superAdmin.post('/api/auth/sign-out').expect(204);
-    await superAdmin.get('/api/me').expect(401);
-    const again = await signIn(superAdmin, 'superadmin', superAdminPassword).expect(200);
-    expect(meSchema.parse(again.body).tenant?.id).toBe(betaId);
+    await betaAdmin.post('/api/auth/sign-out').expect(204);
+    await betaAdmin.get('/api/me').expect(401);
+    const again = await signIn(betaAdmin, 'beta.admin', password).expect(200);
+    expect(meSchema.parse(again.body).tenant?.id).toBe(acmeId);
+  });
 
-    await superAdmin.put('/api/me/tenant').send({ tenantId: '1' }).expect(200);
+  it('keeps the super admin to managing tenants', async () => {
+    const superAdminAccount = { mode: 'existing', account: 'superadmin' };
+    const refused = await superAdmin
+      .post('/api/system/tenants')
+      .send({ code: 'gamma', name: 'Gamma 公司', admin: superAdminAccount })
+      .expect(400);
+    expect(refused.body).toMatchObject({ message: '超级管理员不能加入租户' });
+    await superAdmin
+      .post(`/api/system/tenants/${acmeId}/admin`)
+      .send({ admin: superAdminAccount })
+      .expect(400);
+
+    // A membership it was given before the system tenant only managed tenants stays out of reach.
+    const { id: userId } = await prisma.user.findUniqueOrThrow({
+      where: { username: 'superadmin' },
+    });
+    await prisma.tenantMember.create({
+      data: { id: app.get(SnowflakeService).next(), tenantId: BigInt(acmeId), userId },
+    });
+    await prisma.user.update({ where: { id: userId }, data: { lastTenantId: BigInt(acmeId) } });
+    await superAdmin.put('/api/me/tenant').send({ tenantId: acmeId }).expect(403);
+    const res = await signIn(
+      request.agent(app.getHttpServer()),
+      'superadmin',
+      superAdminPassword,
+    ).expect(200);
+    const me = meSchema.parse(res.body);
+    expect(me.tenant?.id).toBe('1');
+    expect(me.tenants.map((tenant) => tenant.code)).toEqual(['system']);
   });
 
   it('disables a tenant for its members, but never the system tenant', async () => {

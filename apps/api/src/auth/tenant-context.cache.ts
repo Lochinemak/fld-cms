@@ -1,15 +1,15 @@
 import { createHash } from 'node:crypto';
-import { PERMISSIONS } from '@fld/shared';
+import { grantablePermissions, PERMISSIONS } from '@fld/shared';
 import { Injectable, Logger } from '@nestjs/common';
 import { RedisService } from '../redis/redis.service.js';
 import type { TenantContext } from './principal.js';
 
 const TTL_SECONDS = 600;
 
-// Built-in roles hold every permission in the registry, so a release that changes it must not
-// serve contexts cached by the previous one.
+// Built-in roles hold every permission their tenant may grant, so a release that changes the
+// registry or what a tenant may grant must not serve contexts cached by the previous one.
 const REGISTRY = createHash('sha256')
-  .update(JSON.stringify(PERMISSIONS))
+  .update(JSON.stringify([PERMISSIONS, grantablePermissions(true), grantablePermissions(false)]))
   .digest('hex')
   .slice(0, 12);
 

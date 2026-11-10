@@ -4,7 +4,9 @@ import {
   type CreateTenantResult,
   type Page,
   type PageQuery,
+  type ResetTenantAdminInput,
   type Tenant,
+  type TenantAdmin,
   type UpdateTenantInput,
 } from '@fld/shared';
 import {
@@ -132,5 +134,62 @@ export class TenantsService {
       select: tenantSelect,
     });
     return toTenant(tenant);
+  }
+
+  /**
+   * Makes an account an administrator of a tenant, say when its administrator has left: an
+   * existing account, or a new one as when creating a tenant. A member it already has is enabled
+   * again; the other administrators keep their role.
+   */
+  async resetAdmin(id: string, input: ResetTenantAdminInput): Promise<TenantAdmin> {
+    if (id === SYSTEM_TENANT_ID) {
+      throw new BadRequestException('系统租户的管理员不能重设');
+    }
+    const tenantId = BigInt(id);
+    const prepared = await this.accounts.prepare(input.admin);
+
+    try {
+      const admin = await this.prisma.$transaction(async (tx) => {
+        const tenant = await tx.tenant.findUnique({
+          where: { id: tenantId },
+          select: {
+            roles: { where: { builtin: true }, select: { id: true } },
+            departments: { where: { parentId: null }, select: { id: true } },
+          },
+        });
+        const [role] = tenant?.roles ?? [];
+        if (!role) {
+          throw new NotFoundException('租户不存在');
+        }
+        const account = await this.accounts.provision(tx, prepared);
+        const member = await tx.tenantMember.upsert({
+          where: { tenantId_userId: { tenantId, userId: account.id } },
+          update: { status: 'ACTIVE' },
+          create: {
+            id: this.snowflake.next(),
+            tenantId,
+            userId: account.id,
+            deptId: tenant?.departments[0]?.id ?? null,
+          },
+          select: { id: true },
+        });
+        await tx.memberRole.createMany({
+          data: [{ tenantId, memberId: member.id, roleId: role.id }],
+          skipDuplicates: true,
+        });
+        return {
+          id: account.id.toString(),
+          username: account.username,
+          ...(account.initialPassword ? { initialPassword: account.initialPassword } : {}),
+        };
+      });
+      await this.tenantContexts.invalidate(tenantId);
+      return admin;
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('用户名或邮箱已被使用');
+      }
+      throw error;
+    }
   }
 }

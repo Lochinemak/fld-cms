@@ -1,13 +1,20 @@
 import { grantablePermissions, permissionDefinition, type PermissionCode } from '@fld/shared';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 import { Can } from '@/components/can';
 import { ServiceStatusCard } from '@/components/service-status-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useMe } from '@/lib/auth';
+import { meQuery, useMe } from '@/lib/auth';
 
 export const Route = createFileRoute('/_app/')({
+  beforeLoad: async ({ context }) => {
+    // The system tenant has no workbench: it only manages tenants.
+    const me = await context.queryClient.ensureQueryData(meQuery);
+    if (me?.tenant?.isSystem) {
+      throw redirect({ to: '/system/tenants', replace: true });
+    }
+  },
   component: HomePage,
 });
 

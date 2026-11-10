@@ -1,7 +1,9 @@
 import {
   SYSTEM_TENANT_ID,
   createTenantSchema,
+  resetTenantAdminSchema,
   updateTenantSchema,
+  type ResetTenantAdminInput,
   type Tenant,
   type TenantStatus,
   type UpdateTenantInput,
@@ -52,6 +54,7 @@ import {
   createTenant,
   formatDate,
   refreshSystem,
+  resetTenantAdmin,
   tenantsQuery,
   updateTenant,
 } from '@/lib/system';
@@ -70,7 +73,8 @@ export const Route = createFileRoute('/_app/system/tenants')({
   ),
 });
 
-type DialogState = { kind: 'create' } | { kind: 'edit'; tenant: Tenant };
+type DialogState =
+  { kind: 'create' } | { kind: 'edit'; tenant: Tenant } | { kind: 'admin'; tenant: Tenant };
 
 function TenantsPage() {
   const search = Route.useSearch();
@@ -135,13 +139,24 @@ function TenantsPage() {
                 <TableCell>{formatDate(tenant.createdAt)}</TableCell>
                 <TableCell>
                   <Can code="system:tenant:update">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setDialog({ kind: 'edit', tenant })}
-                    >
-                      编辑
-                    </Button>
+                    <div className="flex justify-end gap-1">
+                      {tenant.id !== SYSTEM_TENANT_ID && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDialog({ kind: 'admin', tenant })}
+                        >
+                          重设管理员
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDialog({ kind: 'edit', tenant })}
+                      >
+                        编辑
+                      </Button>
+                    </div>
                   </Can>
                 </TableCell>
               </TableRow>
@@ -162,6 +177,13 @@ function TenantsPage() {
       )}
       {dialog?.kind === 'edit' && (
         <EditTenantDialog tenant={dialog.tenant} onClosed={() => setDialog(null)} />
+      )}
+      {dialog?.kind === 'admin' && (
+        <ResetAdminDialog
+          tenant={dialog.tenant}
+          onReset={setSecret}
+          onClosed={() => setDialog(null)}
+        />
       )}
       {secret && <OneTimePasswordDialog secret={secret} onClosed={() => setSecret(null)} />}
     </div>
@@ -313,6 +335,76 @@ function EditTenantDialog({ tenant, onClosed }: { tenant: Tenant; onClosed: () =
             </DialogClose>
             <Button type="submit" disabled={mutation.isPending}>
               {mutation.isPending ? '保存中…' : '保存'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface ResetAdminDialogProps {
+  tenant: Tenant;
+  /** A new administrator's generated password, to show once. */
+  onReset: (secret: OneTimePassword) => void;
+  onClosed: () => void;
+}
+
+function ResetAdminDialog({ tenant, onReset, onClosed }: ResetAdminDialogProps) {
+  const queryClient = useQueryClient();
+  const dialog = useMountedDialog(onClosed);
+  const [mode, setMode] = useState<AccountMode>('new');
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const mutation = useMutation({
+    mutationFn: (input: ResetTenantAdminInput) => resetTenantAdmin(tenant.id, input),
+    onSuccess: async (admin) => {
+      await refreshSystem(queryClient);
+      if (admin.initialPassword) {
+        onReset({
+          title: `「${tenant.name}」的管理员已重设`,
+          username: admin.username,
+          password: admin.initialPassword,
+        });
+      }
+      dialog.close();
+    },
+  });
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const parsed = resetTenantAdminSchema.safeParse({
+      admin: readAccountChoice(form, 'admin', mode),
+    });
+    setErrors(parsed.success ? {} : fieldErrors(parsed.error));
+    if (parsed.success) {
+      mutation.mutate(parsed.data);
+    }
+  }
+
+  return (
+    <Dialog {...dialog.rootProps(mutation.isPending)}>
+      <DialogContent className="sm:max-w-lg">
+        <form onSubmit={handleSubmit} noValidate className="grid gap-4">
+          <DialogHeader>
+            <DialogTitle>重设管理员</DialogTitle>
+            <DialogDescription>
+              让下面的账号成为「{tenant.name}
+              」的管理员，比如原来的管理员离开了。原有的管理员不受影响；这个账号在租户里被停用过的，会重新启用。
+            </DialogDescription>
+          </DialogHeader>
+          {mutation.error && (
+            <Alert variant="destructive">
+              <AlertDescription>{mutation.error.message}</AlertDescription>
+            </Alert>
+          )}
+          <AccountChoiceFields name="admin" mode={mode} onModeChange={setMode} errors={errors} />
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />} disabled={mutation.isPending}>
+              取消
+            </DialogClose>
+            <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending ? '重设中…' : '重设'}
             </Button>
           </DialogFooter>
         </form>

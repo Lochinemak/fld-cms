@@ -9,7 +9,7 @@ export interface PermissionDefinition {
   readonly name: string;
   readonly kind: PermissionKind;
   readonly parent?: string;
-  /** Grantable only in the system tenant. */
+  /** Grantable in the system tenant, which grants nothing else. */
   readonly platform?: boolean;
 }
 
@@ -96,10 +96,13 @@ export function permissionDefinition(code: PermissionCode): PermissionDefinition
   return PERMISSIONS[code];
 }
 
-/** The codes a role may hold in a tenant: no directories, and platform codes only in the system tenant. */
+/**
+ * The codes a role may hold in a tenant, never directories. The system tenant only manages
+ * tenants: it holds the platform codes, which no other tenant may.
+ */
 export function grantablePermissions(isSystemTenant: boolean): PermissionCode[] {
   return PERMISSION_CODES.filter((code) => {
     const definition = permissionDefinition(code);
-    return definition.kind !== 'directory' && (isSystemTenant || definition.platform !== true);
+    return definition.kind !== 'directory' && (definition.platform === true) === isSystemTenant;
   });
 }

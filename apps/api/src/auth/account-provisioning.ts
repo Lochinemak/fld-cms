@@ -1,10 +1,12 @@
-import type { AccountChoice } from '@fld/shared';
+import { SYSTEM_TENANT_ID, type AccountChoice } from '@fld/shared';
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { generatePassword } from '../common/password.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { SnowflakeService } from '../snowflake/snowflake.service.js';
 import { normalizeAccount } from './account-name.js';
 import { CredentialsService } from './credentials.service.js';
+
+const SYSTEM_TENANT = BigInt(SYSTEM_TENANT_ID);
 
 export type PreparedAccount =
   | { mode: 'existing'; account: string }
@@ -60,6 +62,10 @@ export class AccountProvisioning {
     };
   }
 
+  /**
+   * Returns the account that joins a tenant other than the system tenant. The system tenant's own
+   * accounts never do: they only manage tenants.
+   */
   async provision(
     tx: Prisma.TransactionClient,
     prepared: PreparedAccount,
@@ -70,12 +76,19 @@ export class AccountProvisioning {
           OR: [{ username: prepared.account }, { email: prepared.account }],
           status: 'ACTIVE',
         },
-        select: { id: true, username: true },
+        select: {
+          id: true,
+          username: true,
+          memberships: { where: { tenantId: SYSTEM_TENANT }, select: { id: true } },
+        },
       });
       if (!found) {
         throw new BadRequestException('找不到该账号，或账号已停用');
       }
-      return found;
+      if (found.memberships.length > 0) {
+        throw new BadRequestException('超级管理员不能加入租户');
+      }
+      return { id: found.id, username: found.username };
     }
     const { username, email } = prepared.data;
     const taken = await tx.user.count({

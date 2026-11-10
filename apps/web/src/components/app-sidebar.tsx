@@ -94,20 +94,22 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                isActive={!!matchRoute({ to: '/' })}
-                tooltip="工作台"
-                render={<Link to="/" />}
-              >
-                <LayoutDashboard />
-                <span>工作台</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
+        {!me.tenant?.isSystem && (
+          <SidebarGroup>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={!!matchRoute({ to: '/' })}
+                  tooltip="工作台"
+                  render={<Link to="/" />}
+                >
+                  <LayoutDashboard />
+                  <span>工作台</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+        )}
         {MENU.map((group) => {
           const pages = group.pages.filter(({ code }) => hasPermission(me, code));
           if (pages.length === 0) {

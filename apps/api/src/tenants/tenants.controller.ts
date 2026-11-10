@@ -2,12 +2,15 @@ import {
   createTenantSchema,
   idSchema,
   pageQuerySchema,
+  resetTenantAdminSchema,
   updateTenantSchema,
   type CreateTenantInput,
   type CreateTenantResult,
   type Page,
   type PageQuery,
+  type ResetTenantAdminInput,
   type Tenant,
+  type TenantAdmin,
   type UpdateTenantInput,
 } from '@fld/shared';
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
@@ -42,5 +45,14 @@ export class TenantsController {
     @Body({ schema: updateTenantSchema }) input: UpdateTenantInput,
   ): Promise<Tenant> {
     return this.tenants.update(id, input);
+  }
+
+  @RequirePermission('system:tenant:update')
+  @Post(':id/admin')
+  resetAdmin(
+    @Param('id', { schema: idSchema }) id: string,
+    @Body({ schema: resetTenantAdminSchema }) input: ResetTenantAdminInput,
+  ): Promise<TenantAdmin> {
+    return this.tenants.resetAdmin(id, input);
   }
 }
