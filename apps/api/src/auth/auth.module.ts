@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthenticationStorage } from '@nestjs/authentication';
+import { AccountProvisioning } from './account-provisioning.js';
 import { AccountService } from './account.service.js';
 import { AuthController } from './auth.controller.js';
 import { CredentialsService } from './credentials.service.js';
@@ -18,8 +19,9 @@ import { TenantContextService } from './tenant-context.service.js';
     TenantContextService,
     CredentialsService,
     AccountService,
+    AccountProvisioning,
   ],
-  exports: [TenantContextCache, CredentialsService],
+  exports: [TenantContextCache, CredentialsService, AccountProvisioning],
 })
 export class AuthModule {
   constructor(storage: AuthenticationStorage, sessions: PrismaSessionStore) {

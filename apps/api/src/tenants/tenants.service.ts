@@ -5,7 +5,6 @@ import {
   type Page,
   type PageQuery,
   type Tenant,
-  type TenantAdminInput,
   type UpdateTenantInput,
 } from '@fld/shared';
 import {
@@ -14,16 +13,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { normalizeAccount } from '../auth/account-name.js';
-import { CredentialsService } from '../auth/credentials.service.js';
+import { AccountProvisioning } from '../auth/account-provisioning.js';
 import { TenantContextCache } from '../auth/tenant-context.cache.js';
-import { generatePassword } from '../common/password.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SnowflakeService } from '../snowflake/snowflake.service.js';
 import { seedTenant } from './tenant-seed.js';
-
-type NewTenantAdmin = Extract<TenantAdminInput, { mode: 'new' }>;
 
 const tenantSelect = {
   id: true,
@@ -50,7 +45,7 @@ export class TenantsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly snowflake: SnowflakeService,
-    private readonly credentials: CredentialsService,
+    private readonly accounts: AccountProvisioning,
     private readonly tenantContexts: TenantContextCache,
   ) {}
 
@@ -84,42 +79,14 @@ export class TenantsService {
   async create(input: CreateTenantInput): Promise<CreateTenantResult> {
     const nextId = () => this.snowflake.next();
     const tenantId = nextId();
-    const admin =
-      input.admin.mode === 'new'
-        ? await this.prepareNewAdmin(input.admin, nextId())
-        : { mode: 'existing' as const, account: normalizeAccount(input.admin.account) };
+    const admin = await this.accounts.prepare(input.admin);
 
     try {
       return await this.prisma.$transaction(async (tx) => {
         if (await tx.tenant.count({ where: { code: input.code } })) {
           throw new ConflictException('租户编码已被使用');
         }
-        let adminUser: { id: bigint; username: string };
-        if (admin.mode === 'new') {
-          const { username, email } = admin.data;
-          const taken = await tx.user.count({
-            where: { OR: [{ username }, ...(email ? [{ email }] : [])] },
-          });
-          if (taken) {
-            throw new ConflictException('用户名或邮箱已被使用');
-          }
-          adminUser = await tx.user.create({
-            data: admin.data,
-            select: { id: true, username: true },
-          });
-        } else {
-          const found = await tx.user.findFirst({
-            where: {
-              OR: [{ username: admin.account }, { email: admin.account }],
-              status: 'ACTIVE',
-            },
-            select: { id: true, username: true },
-          });
-          if (!found) {
-            throw new BadRequestException('找不到该账号，或账号已停用');
-          }
-          adminUser = found;
-        }
+        const adminUser = await this.accounts.provision(tx, admin);
         await seedTenant(tx, nextId, {
           id: tenantId,
           code: input.code,
@@ -136,9 +103,7 @@ export class TenantsService {
           admin: {
             id: adminUser.id.toString(),
             username: adminUser.username,
-            ...(admin.mode === 'new' && admin.initialPassword
-              ? { initialPassword: admin.initialPassword }
-              : {}),
+            ...(adminUser.initialPassword ? { initialPassword: adminUser.initialPassword } : {}),
           },
         };
       });
@@ -149,22 +114,6 @@ export class TenantsService {
       }
       throw error;
     }
-  }
-
-  private async prepareNewAdmin(admin: NewTenantAdmin, id: bigint) {
-    const password = admin.password ?? generatePassword();
-    return {
-      mode: 'new' as const,
-      initialPassword: admin.password ? undefined : password,
-      data: {
-        id,
-        username: admin.username,
-        email: admin.email ?? null,
-        displayName: admin.displayName,
-        passwordHash: await this.credentials.hash(password),
-        mustChangePassword: true,
-      } satisfies Prisma.UserUncheckedCreateInput,
-    };
   }
 
   async update(id: string, input: UpdateTenantInput): Promise<Tenant> {

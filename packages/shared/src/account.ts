@@ -28,6 +28,24 @@ export const emailSchema = z.string().trim().toLowerCase().max(254).pipe(z.email
 
 export const displayNameSchema = z.string().trim().min(1, '请输入姓名').max(64);
 
+/** An account to give access to: one that already exists, or a new one. */
+export const accountChoiceSchema = z.discriminatedUnion('mode', [
+  z.object({
+    mode: z.literal('existing'),
+    /** Username or email of the existing account. */
+    account: z.string().trim().min(1, '请输入用户名或邮箱').max(254),
+  }),
+  z.object({
+    mode: z.literal('new'),
+    username: usernameSchema,
+    displayName: displayNameSchema,
+    email: emailSchema.optional(),
+    /** Generated (and returned once) when left out. */
+    password: passwordSchema.optional(),
+  }),
+]);
+export type AccountChoice = z.infer<typeof accountChoiceSchema>;
+
 export const signInSchema = z.object({
   /** Username or email. */
   account: z.string().trim().min(1, '请输入用户名或邮箱').max(254),

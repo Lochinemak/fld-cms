@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { displayNameSchema, emailSchema, passwordSchema, usernameSchema } from './account.js';
+import { accountChoiceSchema } from './account.js';
 import { idSchema } from './id.js';
 import { pageSchema } from './pagination.js';
 
@@ -26,28 +26,11 @@ export type Tenant = z.infer<typeof tenantSchema>;
 
 export const tenantPageSchema = pageSchema(tenantSchema);
 
-/** The tenant's first administrator: an account that already exists, or a new one. */
-export const tenantAdminInputSchema = z.discriminatedUnion('mode', [
-  z.object({
-    mode: z.literal('existing'),
-    /** Username or email of the existing account. */
-    account: z.string().trim().min(1).max(254),
-  }),
-  z.object({
-    mode: z.literal('new'),
-    username: usernameSchema,
-    displayName: displayNameSchema,
-    email: emailSchema.optional(),
-    /** Generated (and returned once) when left out. */
-    password: passwordSchema.optional(),
-  }),
-]);
-export type TenantAdminInput = z.infer<typeof tenantAdminInputSchema>;
-
 export const createTenantSchema = z.object({
   code: tenantCodeSchema,
   name: tenantNameSchema,
-  admin: tenantAdminInputSchema,
+  /** The tenant's first administrator. */
+  admin: accountChoiceSchema,
 });
 export type CreateTenantInput = z.infer<typeof createTenantSchema>;
 
