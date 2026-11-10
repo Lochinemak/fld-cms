@@ -1,0 +1,268 @@
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type Announcements,
+  type DragEndEvent,
+  type UniqueIdentifier,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  rectSortingStrategy,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { GripVertical, LayoutDashboard, Plus, X } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { PageHeader } from '@/components/page-header';
+import { Button, buttonVariants } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
+import {
+  CARD_SIZES,
+  DEFAULT_LAYOUT,
+  WORKBENCH_CARDS,
+  useWorkbenchLayout,
+  type CardSize,
+  type WorkbenchCard,
+  type WorkbenchCardId,
+  type WorkbenchLayout,
+} from '@/lib/workbench';
+
+const SIZE_CLASSES: Record<CardSize, string> = {
+  sm: 'lg:col-span-1',
+  md: 'lg:col-span-2',
+  lg: 'lg:col-span-3',
+};
+
+const SIZE_NAMES: Record<CardSize, string> = { sm: '小', md: '中', lg: '大' };
+
+export type WorkbenchCardContent = { title: string; content: ReactNode };
+
+type WorkbenchProps = {
+  userId: string;
+  tenantId: string;
+  description: string;
+  cards: Record<WorkbenchCardId, WorkbenchCardContent>;
+};
+
+function defaultSize(id: WorkbenchCardId): CardSize {
+  return DEFAULT_LAYOUT.find((card) => card.id === id)?.size ?? 'md';
+}
+
+function isDefault(layout: WorkbenchLayout): boolean {
+  return JSON.stringify(layout) === JSON.stringify(DEFAULT_LAYOUT);
+}
+
+/**
+ * The home page's cards, which each account arranges for itself: which to show, in what order
+ * and how wide. Changes are made on a draft and kept only when the user is done.
+ */
+export function Workbench({ userId, tenantId, description, cards }: WorkbenchProps) {
+  const [layout, save] = useWorkbenchLayout(userId, tenantId);
+  const [draft, setDraft] = useState<WorkbenchLayout | null>(null);
+  const shown = draft ?? layout;
+  const hidden = WORKBENCH_CARDS.filter((id) => !shown.some((card) => card.id === id));
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const titleOf = (id: UniqueIdentifier) => cards[id as WorkbenchCardId].title;
+  const announcements: Announcements = {
+    onDragStart: ({ active }) => `拿起了「${titleOf(active.id)}」`,
+    onDragOver: ({ active, over }) =>
+      over ? `「${titleOf(active.id)}」移到了「${titleOf(over.id)}」的位置` : undefined,
+    onDragEnd: ({ active, over }) =>
+      over
+        ? `「${titleOf(active.id)}」放在了「${titleOf(over.id)}」的位置`
+        : `放下了「${titleOf(active.id)}」`,
+    onDragCancel: ({ active }) => `取消拖动，「${titleOf(active.id)}」回到原位`,
+  };
+
+  const update = (change: (draft: WorkbenchLayout) => WorkbenchLayout) =>
+    setDraft((current) => current && change(current));
+
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) {
+      return;
+    }
+    update((current) =>
+      arrayMove(
+        current,
+        current.findIndex((card) => card.id === active.id),
+        current.findIndex((card) => card.id === over.id),
+      ),
+    );
+  };
+
+  const finish = () => {
+    if (draft) {
+      save(isDefault(draft) ? null : draft);
+    }
+    setDraft(null);
+  };
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="工作台"
+        description={description}
+        actions={
+          draft ? (
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className={buttonVariants({ variant: 'outline' })}
+                  disabled={hidden.length === 0}
+                >
+                  <Plus />
+                  添加卡片
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {hidden.map((id) => (
+                    <DropdownMenuItem
+                      key={id}
+                      onClick={() =>
+                        update((current) => [...current, { id, size: defaultSize(id) }])
+                      }
+                    >
+                      {cards[id].title}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button variant="ghost" onClick={() => setDraft(DEFAULT_LAYOUT)}>
+                恢复默认
+              </Button>
+              <Button variant="outline" onClick={() => setDraft(null)}>
+                取消
+              </Button>
+              <Button onClick={finish}>完成</Button>
+            </>
+          ) : (
+            <Button variant="outline" onClick={() => setDraft(layout)}>
+              <LayoutDashboard />
+              编辑工作台
+            </Button>
+          )
+        }
+      />
+
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+        accessibility={{
+          announcements,
+          screenReaderInstructions: {
+            draggable:
+              '按空格键或回车键拿起卡片，用方向键移动，再按空格键或回车键放下，按 Esc 取消。',
+          },
+        }}
+      >
+        <SortableContext items={shown.map((card) => card.id)} strategy={rectSortingStrategy}>
+          <div className="grid items-start gap-6 lg:grid-cols-3">
+            {shown.map((card) => (
+              <SortableCard
+                key={card.id}
+                card={card}
+                title={cards[card.id].title}
+                editing={draft !== null}
+                onResize={(size) =>
+                  update((current) =>
+                    current.map((item) => (item.id === card.id ? { ...item, size } : item)),
+                  )
+                }
+                onRemove={() => update((current) => current.filter((item) => item.id !== card.id))}
+              >
+                {cards[card.id].content}
+              </SortableCard>
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+
+      {shown.length === 0 && (
+        <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+          {draft
+            ? '工作台上没有卡片了，点「添加卡片」加回来。'
+            : '工作台上没有卡片，点「编辑工作台」添加。'}
+        </div>
+      )}
+    </div>
+  );
+}
+
+type SortableCardProps = {
+  card: WorkbenchCard;
+  title: string;
+  editing: boolean;
+  onResize: (size: CardSize) => void;
+  onRemove: () => void;
+  children: ReactNode;
+};
+
+function SortableCard({ card, title, editing, onResize, onRemove, children }: SortableCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: card.id, disabled: !editing });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
+      className={cn(SIZE_CLASSES[card.size], isDragging && 'relative z-10 opacity-80')}
+    >
+      {editing && (
+        <div className="mb-2 flex items-center gap-1 rounded-lg border border-dashed bg-muted/40 p-1">
+          <Button
+            ref={setActivatorNodeRef}
+            variant="ghost"
+            size="icon-sm"
+            className="cursor-grab touch-none"
+            aria-label={`拖动「${title}」`}
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical />
+          </Button>
+          <span className="min-w-0 flex-1 truncate text-sm font-medium">{title}</span>
+          <div role="group" aria-label={`「${title}」的大小`} className="flex">
+            {CARD_SIZES.map((size) => (
+              <Button
+                key={size}
+                variant={card.size === size ? 'secondary' : 'ghost'}
+                size="sm"
+                aria-pressed={card.size === size}
+                onClick={() => onResize(size)}
+              >
+                {SIZE_NAMES[size]}
+              </Button>
+            ))}
+          </div>
+          <Button variant="ghost" size="icon-sm" aria-label={`移除「${title}」`} onClick={onRemove}>
+            <X />
+          </Button>
+        </div>
+      )}
+      <div inert={editing}>{children}</div>
+    </div>
+  );
+}

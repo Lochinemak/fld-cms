@@ -1,11 +1,24 @@
 import { grantablePermissions, permissionDefinition, type PermissionCode } from '@fld/shared';
 import { createFileRoute, redirect } from '@tanstack/react-router';
+import { ChevronDown } from 'lucide-react';
+import { useState } from 'react';
 import { Can } from '@/components/can';
+import { PageHeader } from '@/components/page-header';
 import { ServiceStatusCard } from '@/components/service-status-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { meQuery, useMe } from '@/lib/auth';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Workbench } from '@/components/workbench';
+import { hasPermission, meQuery, useMe } from '@/lib/auth';
+import { cn } from '@/lib/utils';
 
 export const Route = createFileRoute('/_app/')({
   beforeLoad: async ({ context }) => {
@@ -19,61 +32,79 @@ export const Route = createFileRoute('/_app/')({
 });
 
 function HomePage() {
-  const { tenant } = useMe();
+  const me = useMe();
+  const { tenant } = me;
 
-  return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold">工作台</h1>
-        <p className="text-sm text-muted-foreground">
-          {tenant ? `当前租户：${tenant.name}` : '你还没有可用的租户'}
-        </p>
-      </div>
-
-      {!tenant && (
+  if (!tenant) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="工作台" description="你还没有可用的租户" />
         <Alert>
           <AlertTitle>暂时不能使用业务功能</AlertTitle>
           <AlertDescription>
             你的账号还不是任何租户的成员，或所在租户已停用。请联系租户管理员把你加入租户。
           </AlertDescription>
         </Alert>
-      )}
-
-      <div className="grid items-start gap-6 lg:grid-cols-3">
-        {tenant && <PermissionsCard isSystemTenant={tenant.isSystem} className="lg:col-span-2" />}
-        <ServiceStatusCard />
+        <div className="grid items-start gap-6 lg:grid-cols-3">
+          <ServiceStatusCard />
+        </div>
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <Workbench
+      key={`${me.user.id}:${tenant.id}`}
+      userId={me.user.id}
+      tenantId={tenant.id}
+      description={`当前租户：${tenant.name}`}
+      cards={{
+        permissions: {
+          title: '我的权限',
+          content: <PermissionsCard isSystemTenant={tenant.isSystem} />,
+        },
+        'service-status': { title: '服务状态', content: <ServiceStatusCard /> },
+      }}
+    />
   );
 }
 
-function PermissionsCard({
-  isSystemTenant,
-  className,
-}: {
-  isSystemTenant: boolean;
-  className?: string;
-}) {
+/** Folded to a count at first: the full list is long, and most days nobody needs it. */
+function PermissionsCard({ isSystemTenant }: { isSystemTenant: boolean }) {
+  const me = useMe();
+  const [open, setOpen] = useState(false);
   const codes = grantablePermissions(isSystemTenant);
   const pages = codes.filter((code) => permissionDefinition(code).kind === 'page');
+  const granted = (kind: 'page' | 'element') =>
+    codes.filter((code) => permissionDefinition(code).kind === kind && hasPermission(me, code))
+      .length;
 
   return (
-    <Card className={className}>
+    <Card>
       <CardHeader>
         <CardTitle>我的权限</CardTitle>
         <CardDescription>
-          你在当前租户能访问的页面和能使用的操作。页面上的按钮也按同样的权限显示或隐藏。
+          你在当前租户能访问 {granted('page')} 个页面、使用 {granted('element')}{' '}
+          个操作。页面上的按钮也按同样的权限显示或隐藏。
         </CardDescription>
+        <CardAction>
+          <Button variant="ghost" size="sm" aria-expanded={open} onClick={() => setOpen(!open)}>
+            {open ? '收起' : '展开'}
+            <ChevronDown className={cn('transition-transform', open && 'rotate-180')} />
+          </Button>
+        </CardAction>
       </CardHeader>
-      <CardContent className="divide-y">
-        {pages.map((page) => (
-          <PermissionRow
-            key={page}
-            page={page}
-            elements={codes.filter((code) => permissionDefinition(code).parent === page)}
-          />
-        ))}
-      </CardContent>
+      {open && (
+        <CardContent className="divide-y">
+          {pages.map((page) => (
+            <PermissionRow
+              key={page}
+              page={page}
+              elements={codes.filter((code) => permissionDefinition(code).parent === page)}
+            />
+          ))}
+        </CardContent>
+      )}
     </Card>
   );
 }
