@@ -11,6 +11,8 @@ coverage/
 !.env.example
 
 apps/api/src/generated/
+# Uploaded files of the local storage driver (STORAGE_LOCAL_DIR)
+/apps/api/storage/
 
 # Local assistant workspace rules and notes
 .cursor/rules/bajie-*.mdc

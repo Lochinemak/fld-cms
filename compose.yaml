@@ -34,6 +34,28 @@ services:
       timeout: 3s
       retries: 20
 
+  # S3-compatible storage for STORAGE_DRIVER=s3 and its tests. Starts only with the s3 profile:
+  # docker compose --profile s3 up -d. Console at http://localhost:19001.
+  rustfs:
+    image: rustfs/rustfs:1.0.4
+    profiles: [s3]
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY_ID:-fld-dev}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_ACCESS_KEY:-fld-dev-secret}
+      RUSTFS_CONSOLE_ENABLE: 'true'
+    ports:
+      - '127.0.0.1:${RUSTFS_PORT:-19000}:9000'
+      - '127.0.0.1:${RUSTFS_CONSOLE_PORT:-19001}:9001'
+    volumes:
+      - rustfs-data:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:9000/health']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
 volumes:
   postgres-data:
   redis-data:
+  rustfs-data:

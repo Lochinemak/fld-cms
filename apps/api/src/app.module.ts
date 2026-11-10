@@ -16,6 +16,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { RedisModule } from './redis/redis.module.js';
 import { RolesModule } from './roles/roles.module.js';
 import { SnowflakeModule } from './snowflake/snowflake.module.js';
+import { StorageModule } from './storage/storage.module.js';
 import { TenantsModule } from './tenants/tenants.module.js';
 import { ThrottleModule } from './throttle/throttle.module.js';
 
@@ -28,6 +29,7 @@ import { ThrottleModule } from './throttle/throttle.module.js';
     PrismaModule,
     RedisModule,
     SnowflakeModule,
+    StorageModule,
     ThrottleModule,
     AuthenticationModule.forRootAsync({
       isGlobal: true,

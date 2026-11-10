@@ -34,9 +34,23 @@ jobs:
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 5s --health-timeout 3s --health-retries 20
+      rustfs:
+        image: rustfs/rustfs:1.0.4
+        env:
+          # Throwaway credentials for a server that only this job can reach.
+          RUSTFS_ACCESS_KEY: fld-ci
+          RUSTFS_SECRET_KEY: fld-ci-secret
+        ports: ['9000:9000']
+        options: >-
+          --health-cmd "curl -fsS http://127.0.0.1:9000/health"
+          --health-interval 5s --health-timeout 3s --health-retries 20
     env:
       DATABASE_URL: postgresql://fld@localhost:5432/fld_asset
       REDIS_URL: redis://localhost:6379/0
+      S3_ENDPOINT: http://localhost:9000
+      S3_FORCE_PATH_STYLE: 'true'
+      S3_ACCESS_KEY_ID: fld-ci
+      S3_SECRET_ACCESS_KEY: fld-ci-secret
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6

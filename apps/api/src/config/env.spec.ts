@@ -46,4 +46,34 @@ describe('envSchema', () => {
       expect(trustProxy(' loopback, uniquelocal ')).toBe('loopback, uniquelocal');
     });
   });
+
+  describe('storage', () => {
+    const s3 = { STORAGE_DRIVER: 's3', S3_BUCKET: 'files' };
+
+    it('keeps files on local disk by default', () => {
+      const env = envSchema.parse(required);
+
+      expect(env.STORAGE_DRIVER).toBe('local');
+      expect(env.STORAGE_LOCAL_DIR).toBe('storage');
+      expect(env.FILE_MAX_SIZE_MB).toBe(100);
+    });
+
+    it('needs a bucket for the s3 driver', () => {
+      expect(envSchema.safeParse({ ...required, STORAGE_DRIVER: 's3' }).success).toBe(false);
+      expect(envSchema.parse({ ...required, ...s3 }).S3_SIGNED_DOWNLOADS).toBe(true);
+    });
+
+    it('takes the access key id and secret together or not at all', () => {
+      const keyOnly = envSchema.safeParse({ ...required, ...s3, S3_ACCESS_KEY_ID: 'id' });
+      const both = envSchema.safeParse({
+        ...required,
+        ...s3,
+        S3_ACCESS_KEY_ID: 'id',
+        S3_SECRET_ACCESS_KEY: 'secret',
+      });
+
+      expect(keyOnly.success).toBe(false);
+      expect(both.success).toBe(true);
+    });
+  });
 });
