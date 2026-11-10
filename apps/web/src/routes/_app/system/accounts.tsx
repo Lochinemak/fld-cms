@@ -1,5 +1,5 @@
 import type { PlatformAccount } from '@fld/shared';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { z } from 'zod';
@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/table';
 import { useMe } from '@/lib/auth';
 import { formatDateTime } from '@/lib/crm';
-import { accountsQuery, resetAccountPassword } from '@/lib/platform';
+import { accountsQuery, resetAccountPassword, unlockAccount } from '@/lib/platform';
 import { PAGE_SIZE } from '@/lib/system';
 
 const searchSchema = z.object({
@@ -48,8 +48,12 @@ function AccountsPage() {
   const navigate = Route.useNavigate();
   const page = search.page ?? 1;
   const { data, error, isPending } = useQuery(accountsQuery({ page, keyword: search.keyword }));
+  const queryClient = useQueryClient();
   const [resetting, setResetting] = useState<PlatformAccount | null>(null);
+  const [unlocking, setUnlocking] = useState<PlatformAccount | null>(null);
   const [secret, setSecret] = useState<OneTimePassword | null>(null);
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['system', 'accounts'] });
 
   return (
     <div className="space-y-6">
@@ -108,19 +112,31 @@ function AccountsPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <StatusBadge status={account.status} />
+                    <div className="flex flex-wrap gap-1">
+                      <StatusBadge status={account.status} />
+                      {account.locked && <Badge variant="destructive">已锁定</Badge>}
+                    </div>
                   </TableCell>
                   <TableCell>
                     {account.lastSignInAt ? formatDateTime(account.lastSignInAt) : '—'}
                   </TableCell>
                   <TableCell>
-                    {!self && (
-                      <Can code="system:account:reset-password">
-                        <Button variant="ghost" size="sm" onClick={() => setResetting(account)}>
-                          重置密码
-                        </Button>
-                      </Can>
-                    )}
+                    <div className="flex justify-end gap-1">
+                      {account.locked && (
+                        <Can code="system:account:unlock">
+                          <Button variant="ghost" size="sm" onClick={() => setUnlocking(account)}>
+                            解锁
+                          </Button>
+                        </Can>
+                      )}
+                      {!self && (
+                        <Can code="system:account:reset-password">
+                          <Button variant="ghost" size="sm" onClick={() => setResetting(account)}>
+                            重置密码
+                          </Button>
+                        </Can>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               );
@@ -144,8 +160,21 @@ function AccountsPage() {
           action={async () => {
             const { password } = await resetAccountPassword(resetting.id);
             setSecret({ title: '密码已重置', username: resetting.username, password });
+            await refresh();
           }}
           onClosed={() => setResetting(null)}
+        />
+      )}
+      {unlocking && (
+        <ConfirmDialog
+          title={`解锁「${unlocking.displayName}」？`}
+          description="连续输错密码太多次，这个账号已被锁定。解锁后本人就能用原来的密码登录，在它所属的每个租户都一样。"
+          confirmLabel="解锁"
+          action={async () => {
+            await unlockAccount(unlocking.id);
+            await refresh();
+          }}
+          onClosed={() => setUnlocking(null)}
         />
       )}
       {secret && <OneTimePasswordDialog secret={secret} onClosed={() => setSecret(null)} />}

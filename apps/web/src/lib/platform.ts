@@ -1,6 +1,7 @@
 import {
   mailTemplateSchema,
   platformAccountPageSchema,
+  platformAccountSchema,
   platformSettingsViewSchema,
   resetAccountPasswordResultSchema,
   type MailTemplateKey,
@@ -25,6 +26,9 @@ export const resetAccountPassword = (id: string) =>
     method: 'POST',
     schema: resetAccountPasswordResultSchema,
   });
+
+export const unlockAccount = (id: string) =>
+  api(`/system/accounts/${id}/unlock`, { method: 'POST', schema: platformAccountSchema });
 
 export const platformSettingsQuery = queryOptions({
   queryKey: ['system', 'settings'],

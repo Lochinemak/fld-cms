@@ -8,7 +8,7 @@ import {
 } from '@fld/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { Ellipsis, KeyRound, Pencil, UserMinus, UserPlus } from 'lucide-react';
+import { Ellipsis, KeyRound, LockOpen, Pencil, UserMinus, UserPlus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { z } from 'zod';
 import {
@@ -76,6 +76,7 @@ import {
   removeMember,
   resetMemberPassword,
   rolesQuery,
+  unlockMember,
   updateMember,
   useDeptTree,
 } from '@/lib/system';
@@ -101,6 +102,7 @@ type DialogState =
   | { kind: 'create' }
   | { kind: 'edit'; member: Member }
   | { kind: 'reset'; member: Member }
+  | { kind: 'unlock'; member: Member }
   | { kind: 'remove'; member: Member };
 
 const STATUS_FILTER = [
@@ -232,6 +234,21 @@ function MembersPage() {
           action={async () => {
             const { password } = await resetMemberPassword(dialog.member.id);
             setSecret({ title: '密码已重置', username: dialog.member.username, password });
+            await refreshSystem(queryClient);
+          }}
+          onClosed={closeDialog}
+        />
+      )}
+      {dialog?.kind === 'unlock' && (
+        <ConfirmDialog
+          title={`解锁「${dialog.member.displayName}」的账号？`}
+          description={`连续输错密码太多次，这个账号已被锁定。解锁后本人就能用原来的密码登录${
+            dialog.member.sharedAccount ? '，在它所属的其他租户也一样' : ''
+          }。`}
+          confirmLabel="解锁"
+          action={async () => {
+            await unlockMember(dialog.member.id);
+            await refreshSystem(queryClient);
           }}
           onClosed={closeDialog}
         />
@@ -303,6 +320,7 @@ interface MemberRowProps {
 function MemberRow({ member, self, onAction }: MemberRowProps) {
   const canUpdate = useCan('system:member:update');
   const canReset = useCan('system:member:reset-password');
+  const canUnlock = useCan('system:member:unlock') && member.locked;
   const canRemove = useCan('system:member:remove');
 
   return (
@@ -329,11 +347,14 @@ function MemberRow({ member, self, onAction }: MemberRowProps) {
         </div>
       </TableCell>
       <TableCell>
-        <StatusBadge status={member.status} />
+        <div className="flex flex-wrap gap-1">
+          <StatusBadge status={member.status} />
+          {member.locked && <Badge variant="destructive">已锁定</Badge>}
+        </div>
       </TableCell>
       <TableCell>{formatDate(member.joinedAt)}</TableCell>
       <TableCell>
-        {!self && (canUpdate || canReset || canRemove) && (
+        {!self && (canUpdate || canReset || canUnlock || canRemove) && (
           <DropdownMenu>
             <DropdownMenuTrigger
               className={buttonVariants({ variant: 'ghost', size: 'icon-sm' })}
@@ -346,6 +367,12 @@ function MemberRow({ member, self, onAction }: MemberRowProps) {
                 <DropdownMenuItem onClick={() => onAction({ kind: 'edit', member })}>
                   <Pencil />
                   编辑
+                </DropdownMenuItem>
+              )}
+              {canUnlock && (
+                <DropdownMenuItem onClick={() => onAction({ kind: 'unlock', member })}>
+                  <LockOpen />
+                  解锁
                 </DropdownMenuItem>
               )}
               {canReset && (
