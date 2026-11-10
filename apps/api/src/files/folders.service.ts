@@ -12,6 +12,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { AuditService, changesOf } from '../audit/audit.service.js';
 import type { Principal } from '../auth/principal.js';
 import { TENANT_PRISMA, tenantIdOf, type TenantPrisma } from '../authz/tenant-prisma.js';
 import { toNamedRef } from '../crm/crm-scope.js';
@@ -43,6 +44,7 @@ export class FoldersService {
     @Inject(TENANT_PRISMA) private readonly db: TenantPrisma,
     private readonly snowflake: SnowflakeService,
     private readonly refs: FileRefsService,
+    private readonly audit: AuditService,
   ) {}
 
   async list(user: Principal, { parentId }: FileFolderQuery): Promise<FileFolder[]> {
@@ -146,9 +148,9 @@ export class FoldersService {
   async remove(user: Principal, id: string): Promise<void> {
     const folderId = BigInt(id);
     const tenantId = tenantIdOf(user);
-    await this.db.$transaction(async (tx) => {
+    const removed = await this.db.$transaction(async (tx) => {
       await lockFolderTree(tx, tenantId);
-      await requireVisibleFolder(tx, user, folderId);
+      const folder = await requireVisibleFolder(tx, user, folderId);
       const folders = await tx.$queryRaw<{ id: bigint }[]>`
         ${folderTree(tenantId, folderId)}
         SELECT id FROM file_folders
@@ -168,6 +170,12 @@ export class FoldersService {
       });
       await tx.storedFile.updateMany({ where: { id: { in: fileIds } }, data: { deletedAt } });
       await tx.fileShare.deleteMany({ where: { fileId: { in: fileIds } } });
+      return { name: folder.name, files: fileIds.length };
+    });
+    await this.audit.record({
+      action: 'folder.delete',
+      target: { type: 'folder', id: folderId, name: removed.name },
+      changes: changesOf([['里面的文件', `${removed.files} 个`, null]]),
     });
   }
 

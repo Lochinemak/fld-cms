@@ -1,5 +1,6 @@
 import type { CreateFollowUpInput, FollowUp, FollowUpQuery, Page } from '@fld/shared';
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { AuditService, changesOf } from '../audit/audit.service.js';
 import type { Principal } from '../auth/principal.js';
 import { TENANT_PRISMA, tenantIdOf, type TenantPrisma } from '../authz/tenant-prisma.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -63,6 +64,7 @@ export class FollowUpsService {
   constructor(
     @Inject(TENANT_PRISMA) private readonly db: TenantPrisma,
     private readonly snowflake: SnowflakeService,
+    private readonly audit: AuditService,
   ) {}
 
   async list(user: Principal, query: FollowUpQuery): Promise<Page<FollowUp>> {
@@ -142,7 +144,7 @@ export class FollowUpsService {
   async remove(user: Principal, id: string): Promise<void> {
     const followUp = await this.db.followUp.findFirst({
       where: { id: BigInt(id), customer: visibleCustomers(user) },
-      select: { id: true, customerId: true },
+      select: { id: true, customerId: true, content: true, customer: { select: { name: true } } },
     });
     if (!followUp) {
       throw new NotFoundException('跟进记录不存在');
@@ -152,6 +154,14 @@ export class FollowUpsService {
       await lockCustomer(tx, tenantId, followUp.customerId);
       await tx.followUp.delete({ where: { id: followUp.id }, select: { id: true } });
       await syncFollowUpTimes(tx, tenantId, followUp.customerId);
+    });
+    const content = followUp.content;
+    await this.audit.record({
+      action: 'follow-up.delete',
+      target: { type: 'follow-up', id: followUp.id, name: followUp.customer.name },
+      changes: changesOf([
+        ['内容', content.length > 100 ? `${content.slice(0, 100)}…` : content, null],
+      ]),
     });
   }
 }

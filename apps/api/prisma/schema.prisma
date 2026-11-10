@@ -286,6 +286,38 @@ model PlatformSetting {
   @@map("platform_settings")
 }
 
+/// Something the audit log keeps: a sign-in, an administrative change, data deleted or handed
+/// over. Never changed, and removed after the retention period. Without foreign keys, so the
+/// record outlives what it names; names are copied as they were at the time.
+model AuditLog {
+  id            BigInt   @id
+  /// The tenant it happened in. Null for events of an account itself.
+  tenantId      BigInt?  @map("tenant_id")
+  /// For events of an account itself (its sign-ins and password), the account: every tenant it
+  /// belongs to sees them. With both null, an attempt that named no account, which the platform sees.
+  accountId     BigInt?  @map("account_id")
+  actorId       BigInt?  @map("actor_id")
+  /// What a failed sign-in typed when it matched no account.
+  actorUsername String?  @map("actor_username") @db.VarChar(254)
+  actorName     String?  @map("actor_name") @db.VarChar(64)
+  action        String   @db.VarChar(64)
+  targetType    String?  @map("target_type") @db.VarChar(32)
+  targetId      BigInt?  @map("target_id")
+  targetName    String?  @map("target_name") @db.VarChar(255)
+  success       Boolean
+  reason        String?  @db.VarChar(255)
+  /// The changed fields in words: [{ field, from, to }].
+  changes       Json?
+  ip            String?  @db.VarChar(64)
+  userAgent     String?  @map("user_agent") @db.VarChar(500)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([tenantId, createdAt])
+  @@index([accountId, createdAt])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
 // CRM. Customers and opportunities belong to an owner (a user) and remember the owner's
 // department at the time, which is what department data scopes go by. Contacts and follow-ups
 // are visible to whoever can see their customer.

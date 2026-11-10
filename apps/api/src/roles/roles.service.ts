@@ -1,5 +1,7 @@
 import {
   grantablePermissions,
+  isPermissionCode,
+  permissionDefinition,
   type CreateRoleInput,
   type DataScope,
   type PermissionCode,
@@ -13,6 +15,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { AuditService, changesOf } from '../audit/audit.service.js';
 import type { Principal } from '../auth/principal.js';
 import { TenantContextCache } from '../auth/tenant-context.cache.js';
 import { assertWithinOwnGrant } from '../authz/grants.js';
@@ -33,6 +36,22 @@ const roleSelect = {
 } satisfies Prisma.RoleSelect;
 
 type RoleRow = Prisma.RoleGetPayload<{ select: typeof roleSelect }>;
+
+const SCOPE_WORDS: Record<DataScope, string> = {
+  ALL: '全部数据',
+  DEPT_AND_CHILDREN: '本部门及下级',
+  DEPT: '仅本部门',
+  SELF: '仅本人',
+  CUSTOM: '自定义部门',
+};
+
+/** A permission as people find it in the role editor: 「客户·删除客户」 for a control on a page. */
+function permissionWords(code: PermissionCode): string {
+  const { name, kind, parent } = permissionDefinition(code);
+  return kind === 'element' && parent && isPermissionCode(parent)
+    ? `${permissionDefinition(parent).name}·${name}`
+    : name;
+}
 
 function grantableIn(user: Principal): Set<PermissionCode> {
   return new Set(grantablePermissions(user.context?.tenant.isSystem ?? false));
@@ -64,6 +83,7 @@ export class RolesService {
     @Inject(TENANT_PRISMA) private readonly db: TenantPrisma,
     private readonly snowflake: SnowflakeService,
     private readonly tenantContexts: TenantContextCache,
+    private readonly audit: AuditService,
   ) {}
 
   /** Every role of the current tenant, the built-in ones first. */
@@ -101,7 +121,18 @@ export class RolesService {
       }
       throw error;
     }
-    return this.get(user, id);
+    const role = await this.get(user, id);
+    const deptWords = await this.deptWords(role.deptIds);
+    await this.audit.record({
+      action: 'role.create',
+      target: { type: 'role', id: role.id, name: role.name },
+      changes: changesOf([
+        ['数据范围', null, SCOPE_WORDS[role.dataScope]],
+        ['自定义部门', null, deptWords(role.deptIds)],
+        ['权限', null, role.permissions.map(permissionWords)],
+      ]),
+    });
+    return role;
   }
 
   async update(user: Principal, id: string, input: UpdateRoleInput): Promise<Role> {
@@ -139,13 +170,41 @@ export class RolesService {
       ...this.writeGrants(user, role.id, permissions, deptIds),
     ]);
     await this.tenantContexts.invalidate(tenantIdOf(user));
-    return this.get(user, role.id);
+    const before = toRole(role, grantableIn(user));
+    const after = await this.get(user, role.id);
+    const held = new Set(before.permissions);
+    const kept = new Set(after.permissions);
+    const deptWords = await this.deptWords([...before.deptIds, ...after.deptIds]);
+    const changes = changesOf([
+      ['名称', before.name, after.name],
+      ['描述', before.description, after.description],
+      ['数据范围', SCOPE_WORDS[before.dataScope], SCOPE_WORDS[after.dataScope]],
+      ['自定义部门', deptWords(before.deptIds), deptWords(after.deptIds)],
+      [
+        '增加的权限',
+        null,
+        after.permissions.filter((code) => !held.has(code)).map(permissionWords),
+      ],
+      [
+        '去掉的权限',
+        null,
+        before.permissions.filter((code) => !kept.has(code)).map(permissionWords),
+      ],
+    ]);
+    if (changes.length > 0) {
+      await this.audit.record({
+        action: 'role.update',
+        target: { type: 'role', id: after.id, name: after.name },
+        changes,
+      });
+    }
+    return after;
   }
 
   async remove(user: Principal, id: string): Promise<void> {
     const role = await this.db.role.findUnique({
       where: { id: BigInt(id) },
-      select: { id: true, builtin: true },
+      select: { id: true, name: true, builtin: true },
     });
     if (!role) {
       throw new NotFoundException('角色不存在');
@@ -155,6 +214,25 @@ export class RolesService {
     }
     await this.db.role.delete({ where: { id: role.id } });
     await this.tenantContexts.invalidate(tenantIdOf(user));
+    await this.audit.record({
+      action: 'role.delete',
+      target: { type: 'role', id: role.id, name: role.name },
+    });
+  }
+
+  /** Names the departments, sorted, for the audit log. */
+  private async deptWords(ids: string[]): Promise<(deptIds: string[]) => string[]> {
+    const rows = ids.length
+      ? await this.db.department.findMany({
+          where: { id: { in: ids.map((deptId) => BigInt(deptId)) } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const names = new Map(rows.map((row) => [row.id.toString(), row.name]));
+    return (deptIds) =>
+      deptIds
+        .map((deptId) => names.get(deptId) ?? '已删除的部门')
+        .sort((a, b) => a.localeCompare(b, 'zh'));
   }
 
   private async get(user: Principal, id: bigint): Promise<Role> {

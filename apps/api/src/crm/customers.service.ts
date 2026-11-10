@@ -7,6 +7,7 @@ import type {
   UpdateCustomerInput,
 } from '@fld/shared';
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { AuditService, changesOf } from '../audit/audit.service.js';
 import type { Principal } from '../auth/principal.js';
 import { TENANT_PRISMA, tenantIdOf, type TenantPrisma } from '../authz/tenant-prisma.js';
 import { Prisma } from '../generated/prisma/client.js';
@@ -74,6 +75,7 @@ export class CustomersService {
     private readonly snowflake: SnowflakeService,
     private readonly owners: OwnersService,
     private readonly refs: FileRefsService,
+    private readonly audit: AuditService,
   ) {}
 
   async list(user: Principal, query: CustomerQuery): Promise<Page<Customer>> {
@@ -152,12 +154,22 @@ export class CustomersService {
   async transfer(user: Principal, id: string, { ownerId }: TransferInput): Promise<Customer> {
     const customerId = await requireVisibleCustomer(this.db, user, id);
     const owner = await this.owners.resolve(user, ownerId);
+    const before = await this.read(customerId);
     await this.db.customer.update({
       where: { id: customerId },
       data: { ownerId: owner.userId, deptId: owner.deptId },
       select: { id: true },
     });
-    return this.read(customerId);
+    const after = await this.read(customerId);
+    await this.audit.record({
+      action: 'customer.transfer',
+      target: { type: 'customer', id: after.id, name: after.name },
+      changes: changesOf([
+        ['负责人', before.owner.displayName, after.owner.displayName],
+        ['所属部门', before.dept?.name, after.dept?.name],
+      ]),
+    });
+    return after;
   }
 
   /**
@@ -170,6 +182,10 @@ export class CustomersService {
     if (opportunities > 0) {
       throw new ConflictException(`该客户还有 ${opportunities} 个商机，不能删除`);
     }
+    const { name } = await this.db.customer.findUniqueOrThrow({
+      where: { id: customerId },
+      select: { name: true },
+    });
     try {
       await this.db.$transaction(async (tx) => {
         // After any attaching under way, so that no attachment outlives the customer.
@@ -184,6 +200,10 @@ export class CustomersService {
       }
       throw error;
     }
+    await this.audit.record({
+      action: 'customer.delete',
+      target: { type: 'customer', id: customerId, name },
+    });
   }
 
   // Writes select only the id: selecting relations makes Prisma load them concurrently within

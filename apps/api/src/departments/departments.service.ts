@@ -6,6 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { AuditService, changesOf } from '../audit/audit.service.js';
 import type { Principal } from '../auth/principal.js';
 import { TenantContextCache } from '../auth/tenant-context.cache.js';
 import { TENANT_PRISMA, tenantIdOf, type TenantPrisma } from '../authz/tenant-prisma.js';
@@ -41,6 +42,7 @@ export class DepartmentsService {
     @Inject(TENANT_PRISMA) private readonly db: TenantPrisma,
     private readonly snowflake: SnowflakeService,
     private readonly tenantContexts: TenantContextCache,
+    private readonly audit: AuditService,
   ) {}
 
   /** Every department of the current tenant, siblings in display order. */
@@ -75,6 +77,11 @@ export class DepartmentsService {
     });
     // Data scopes that cover the parent's subtree now cover this department too.
     await this.tenantContexts.invalidate(tenantIdOf(user));
+    await this.audit.record({
+      action: 'dept.create',
+      target: { type: 'dept', id: row.id, name: row.name },
+      changes: changesOf([['上级部门', null, parent.name]]),
+    });
     return toDepartment(row);
   }
 
@@ -90,6 +97,7 @@ export class DepartmentsService {
         data: fields,
         select: departmentSelect,
       });
+      await this.recordUpdate(dept, row, dept.parent?.name);
       return toDepartment(row);
     }
 
@@ -122,6 +130,7 @@ export class DepartmentsService {
     });
     // Data scopes over the old and the new parent's subtrees changed.
     await this.tenantContexts.invalidate(tenantId);
+    await this.recordUpdate(dept, row, parent.name);
     return toDepartment(row);
   }
 
@@ -146,12 +155,42 @@ export class DepartmentsService {
     await this.db.department.delete({ where: { id: dept.id } });
     // Custom data scopes that listed it no longer do.
     await this.tenantContexts.invalidate(tenantIdOf(user));
+    await this.audit.record({
+      action: 'dept.delete',
+      target: { type: 'dept', id: dept.id, name: dept.name },
+    });
   }
 
   private find(id: string) {
     return this.db.department.findUnique({
       where: { id: BigInt(id) },
-      select: { id: true, parentId: true, path: true },
+      select: {
+        id: true,
+        parentId: true,
+        path: true,
+        name: true,
+        sort: true,
+        parent: { select: { name: true } },
+      },
     });
+  }
+
+  private async recordUpdate(
+    before: { name: string; sort: number; parent: { name: string } | null },
+    after: { id: bigint; name: string; sort: number },
+    parentName: string | undefined,
+  ): Promise<void> {
+    const changes = changesOf([
+      ['名称', before.name, after.name],
+      ['上级部门', before.parent?.name, parentName],
+      ['排序', before.sort, after.sort],
+    ]);
+    if (changes.length > 0) {
+      await this.audit.record({
+        action: 'dept.update',
+        target: { type: 'dept', id: after.id, name: after.name },
+        changes,
+      });
+    }
   }
 }

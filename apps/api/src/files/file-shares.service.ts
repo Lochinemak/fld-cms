@@ -1,6 +1,7 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import type { CreateFileShareInput, FileShare } from '@fld/shared';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { AuditService, changesOf } from '../audit/audit.service.js';
 import type { Principal } from '../auth/principal.js';
 import { TENANT_PRISMA, tenantIdOf, type TenantPrisma } from '../authz/tenant-prisma.js';
 import { toUserRef } from '../crm/crm-scope.js';
@@ -54,6 +55,7 @@ export class FileSharesService {
   constructor(
     @Inject(TENANT_PRISMA) private readonly db: TenantPrisma,
     private readonly snowflake: SnowflakeService,
+    private readonly audit: AuditService,
   ) {}
 
   async list(user: Principal, fileId: string): Promise<FileShare[]> {
@@ -72,7 +74,7 @@ export class FileSharesService {
     { expiresInDays, withCode }: CreateFileShareInput,
   ): Promise<FileShare> {
     const tenantId = tenantIdOf(user);
-    const id = await this.db.$transaction(async (tx) => {
+    const { id, file } = await this.db.$transaction(async (tx) => {
       // So that a file being deleted meanwhile cannot end up with a link.
       await lockFile(tx, tenantId, BigInt(fileId));
       const file = await requireVisibleFile(tx, user, BigInt(fileId));
@@ -88,7 +90,15 @@ export class FileSharesService {
         },
         select: { id: true },
       });
-      return share.id;
+      return { id: share.id, file };
+    });
+    await this.audit.record({
+      action: 'file.share',
+      target: { type: 'file', id: file.id, name: file.name },
+      changes: changesOf([
+        ['有效期', null, expiresInDays === null ? '永久' : `${expiresInDays} 天`],
+        ['提取码', null, withCode ? '有' : '无'],
+      ]),
     });
     return toShare(
       await this.db.fileShare.findUniqueOrThrow({ where: { id }, select: shareSelect }),
@@ -97,11 +107,18 @@ export class FileSharesService {
 
   /** Revokes the link; it stops working at once. */
   async remove(user: Principal, shareId: string): Promise<void> {
-    const { count } = await this.db.fileShare.deleteMany({
-      where: { id: BigInt(shareId), file: visibleFiles(user) },
+    const where: Prisma.FileShareWhereInput = { id: BigInt(shareId), file: visibleFiles(user) };
+    const share = await this.db.fileShare.findFirst({
+      where,
+      select: { file: { select: { id: true, name: true } } },
     });
-    if (count === 0) {
+    const { count } = await this.db.fileShare.deleteMany({ where });
+    if (!share || count === 0) {
       throw new NotFoundException('外链不存在');
     }
+    await this.audit.record({
+      action: 'file.unshare',
+      target: { type: 'file', id: share.file.id, name: share.file.name },
+    });
   }
 }

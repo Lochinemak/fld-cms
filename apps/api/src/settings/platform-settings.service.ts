@@ -11,6 +11,7 @@ import {
 } from '@fld/shared';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AuditService, changesOf } from '../audit/audit.service.js';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MAIL_TEMPLATES } from './mail-templates.js';
@@ -30,6 +31,12 @@ const KEYS: Record<Field, string> = {
 };
 const PASSWORD_KEY = 'mail.smtp.password';
 const DEFAULT_PORTS: Record<SmtpSecurity, number> = { ssl: 465, starttls: 587, none: 25 };
+
+const SECURITY_WORDS: Record<SmtpSecurity, string> = {
+  ssl: 'SSL/TLS',
+  starttls: 'STARTTLS',
+  none: '不加密',
+};
 
 const templateKeys = (key: MailTemplateKey) => ({
   subject: `mail.template.${key}.subject`,
@@ -55,6 +62,7 @@ export class PlatformSettingsService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
     config: ConfigService<Env, true>,
   ) {
     const key = config.get('SETTINGS_ENCRYPTION_KEY', { infer: true });
@@ -107,8 +115,32 @@ export class PlatformSettingsService {
     } else if (input.smtpPassword !== undefined) {
       values.push([PASSWORD_KEY, null]);
     }
+    const before = (await this.page()).settings;
     await this.write(values);
-    return this.view();
+    const view = await this.view();
+    const after = view.page;
+    const security = (value: SmtpSecurity | null) => value && SECURITY_WORDS[value];
+    // Never the password itself.
+    const cleared = before.smtpPassword && !after.smtpPassword;
+    const password = input.smtpPassword ? '已更换' : cleared ? '已清除' : null;
+    const changes = changesOf([
+      ['SMTP 服务器', before.smtpHost, after.smtpHost],
+      ['端口', before.smtpPort, after.smtpPort],
+      ['加密方式', security(before.smtpSecurity), security(after.smtpSecurity)],
+      ['SMTP 用户名', before.smtpUsername, after.smtpUsername],
+      ['SMTP 密码', null, password],
+      ['发件人地址', before.mailFromAddress, after.mailFromAddress],
+      ['发件人名称', before.mailFromName, after.mailFromName],
+      ['网站地址', before.siteUrl, after.siteUrl],
+    ]);
+    if (changes.length > 0) {
+      await this.audit.record({
+        action: 'settings.update',
+        target: { type: 'settings', name: '邮件和网站' },
+        changes,
+      });
+    }
+    return view;
   }
 
   /** The mail server to send with, or null while no host or sender address is set. */
@@ -146,11 +178,25 @@ export class PlatformSettingsService {
     input: UpdateMailTemplateInput,
   ): Promise<MailTemplate> {
     const keys = templateKeys(key);
+    const before = await this.mailTemplate(key);
     await this.write([
       [keys.subject, input.subject],
       [keys.body, input.body],
     ]);
-    return this.mailTemplate(key);
+    const after = await this.mailTemplate(key);
+    const changes = changesOf([
+      ['主题', before.subject, after.subject],
+      // Bodies are long: only that it changed.
+      ['正文', null, before.body === after.body ? null : '已修改'],
+    ]);
+    if (changes.length > 0) {
+      await this.audit.record({
+        action: 'mail-template.update',
+        target: { type: 'mail-template', name: after.name },
+        changes,
+      });
+    }
+    return after;
   }
 
   async resetMailTemplate(key: MailTemplateKey): Promise<MailTemplate> {
@@ -159,7 +205,12 @@ export class PlatformSettingsService {
       [keys.subject, null],
       [keys.body, null],
     ]);
-    return this.mailTemplate(key);
+    const template = await this.mailTemplate(key);
+    await this.audit.record({
+      action: 'mail-template.reset',
+      target: { type: 'mail-template', name: template.name },
+    });
+    return template;
   }
 
   private async page(): Promise<PageSettings> {

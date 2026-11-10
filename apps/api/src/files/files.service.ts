@@ -17,6 +17,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { AuditService, changesOf } from '../audit/audit.service.js';
 import type { Principal } from '../auth/principal.js';
 import { TENANT_PRISMA, tenantIdOf, type TenantPrisma } from '../authz/tenant-prisma.js';
 import { toNamedRef, toUserRef } from '../crm/crm-scope.js';
@@ -93,6 +94,7 @@ export class FilesService {
     private readonly snowflake: SnowflakeService,
     private readonly storage: Storage,
     private readonly refs: FileRefsService,
+    private readonly audit: AuditService,
   ) {}
 
   /** A folder's files by name, or with a keyword, matching files from every folder, latest first. */
@@ -255,9 +257,9 @@ export class FilesService {
   async remove(user: Principal, id: string): Promise<void> {
     const fileId = BigInt(id);
     const tenantId = tenantIdOf(user);
-    await this.db.$transaction(async (tx) => {
+    const name = await this.db.$transaction(async (tx) => {
       await lockFile(tx, tenantId, fileId);
-      await requireVisibleFile(tx, user, fileId);
+      const file = await requireVisibleFile(tx, user, fileId);
       await this.refs.assertUnused(tx, user, fileId);
       await tx.storedFile.update({
         where: { id: fileId },
@@ -265,7 +267,9 @@ export class FilesService {
         select: { id: true },
       });
       await tx.fileShare.deleteMany({ where: { fileId } });
+      return file.name;
     });
+    await this.audit.record({ action: 'file.delete', target: { type: 'file', id: fileId, name } });
   }
 
   async sendContent(
@@ -375,6 +379,11 @@ export class FilesService {
         : error;
     }
     await this.removingOnFailure(version.storageKey, () => this.addVersion(user, file.id, version));
+    await this.audit.record({
+      action: 'file.restore-version',
+      target: { type: 'file', id: file.id, name: file.name },
+      changes: changesOf([['恢复的版本', null, `第 ${earlier.number} 版`]]),
+    });
     return this.get(user, id);
   }
 

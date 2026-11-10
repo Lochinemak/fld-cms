@@ -15,6 +15,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { AuditService, changesOf } from '../audit/audit.service.js';
 import { AccountProvisioning } from '../auth/account-provisioning.js';
 import { TenantContextCache } from '../auth/tenant-context.cache.js';
 import { Prisma } from '../generated/prisma/client.js';
@@ -30,6 +31,8 @@ const tenantSelect = {
   createdAt: true,
   _count: { select: { members: true } },
 } satisfies Prisma.TenantSelect;
+
+const STATUS_WORDS: Record<Tenant['status'], string> = { ACTIVE: '启用', DISABLED: '停用' };
 
 function toTenant(row: Prisma.TenantGetPayload<{ select: typeof tenantSelect }>): Tenant {
   return {
@@ -49,6 +52,7 @@ export class TenantsService {
     private readonly snowflake: SnowflakeService,
     private readonly accounts: AccountProvisioning,
     private readonly tenantContexts: TenantContextCache,
+    private readonly audit: AuditService,
   ) {}
 
   async list({ page, pageSize, keyword }: PageQuery): Promise<Page<Tenant>> {
@@ -84,7 +88,7 @@ export class TenantsService {
     const admin = await this.accounts.prepare(input.admin);
 
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      const created = await this.prisma.$transaction(async (tx) => {
         if (await tx.tenant.count({ where: { code: input.code } })) {
           throw new ConflictException('租户编码已被使用');
         }
@@ -109,6 +113,15 @@ export class TenantsService {
           },
         };
       });
+      await this.audit.record({
+        action: 'tenant.create',
+        target: { type: 'tenant', id: created.tenant.id, name: created.tenant.name },
+        changes: changesOf([
+          ['编码', null, created.tenant.code],
+          ['管理员', null, created.admin.username],
+        ]),
+      });
+      return created;
     } catch (error) {
       // Two requests racing past the checks above.
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -123,8 +136,12 @@ export class TenantsService {
       throw new BadRequestException('系统租户不能停用');
     }
     const tenantId = BigInt(id);
+    const before = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { name: true, status: true },
+    });
     const { count } = await this.prisma.tenant.updateMany({ where: { id: tenantId }, data: input });
-    if (count === 0) {
+    if (!before || count === 0) {
       throw new NotFoundException('租户不存在');
     }
     // Members of a disabled tenant lose access on their next request.
@@ -133,6 +150,17 @@ export class TenantsService {
       where: { id: tenantId },
       select: tenantSelect,
     });
+    const changes = changesOf([
+      ['名称', before.name, tenant.name],
+      ['状态', STATUS_WORDS[before.status], STATUS_WORDS[tenant.status]],
+    ]);
+    if (changes.length > 0) {
+      await this.audit.record({
+        action: 'tenant.update',
+        target: { type: 'tenant', id: tenant.id, name: tenant.name },
+        changes,
+      });
+    }
     return toTenant(tenant);
   }
 
@@ -184,6 +212,15 @@ export class TenantsService {
         };
       });
       await this.tenantContexts.invalidate(tenantId);
+      const tenant = await this.prisma.tenant.findUniqueOrThrow({
+        where: { id: tenantId },
+        select: { name: true },
+      });
+      await this.audit.record({
+        action: 'tenant.reset-admin',
+        target: { type: 'tenant', id: tenantId, name: tenant.name },
+        changes: changesOf([['管理员', null, admin.username]]),
+      });
       return admin;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {

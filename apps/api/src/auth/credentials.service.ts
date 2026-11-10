@@ -5,6 +5,13 @@ import { normalizeAccount } from './account-name.js';
 import type { SessionUser } from './principal.js';
 import { sessionUserSelect, toSessionUser } from './session-user.js';
 
+export type SignInRefusal = 'unknown-account' | 'wrong-password' | 'disabled';
+
+/** The account a sign-in proves, or why it doesn't and which account it named. */
+export type Verification =
+  | { ok: true; user: SessionUser }
+  | { ok: false; refusal: SignInRefusal; account: SessionUser | null };
+
 @Injectable()
 export class CredentialsService {
   constructor(
@@ -12,8 +19,8 @@ export class CredentialsService {
     private readonly passwordHasher: PasswordHasher,
   ) {}
 
-  /** The active account the username or email and password prove, or null. */
-  async verify(account: string, password: string): Promise<SessionUser | null> {
+  /** Whether the username or email and password prove an active account. */
+  async verify(account: string, password: string): Promise<Verification> {
     const normalized = normalizeAccount(account);
     const row = await this.prisma.user.findFirst({
       where: { OR: [{ username: normalized }, { email: normalized }] },
@@ -21,8 +28,14 @@ export class CredentialsService {
     });
     // Without a row, verify() still checks a dummy hash, so timing doesn't reveal which accounts exist.
     const valid = await this.passwordHasher.verify(password, row?.passwordHash);
-    if (!valid || !row?.passwordHash || row.status !== 'ACTIVE') {
-      return null;
+    if (!row) {
+      return { ok: false, refusal: 'unknown-account', account: null };
+    }
+    if (!valid || !row.passwordHash) {
+      return { ok: false, refusal: 'wrong-password', account: toSessionUser(row) };
+    }
+    if (row.status !== 'ACTIVE') {
+      return { ok: false, refusal: 'disabled', account: toSessionUser(row) };
     }
     if (this.passwordHasher.needsRehash(row.passwordHash)) {
       await this.prisma.user.update({
@@ -30,7 +43,7 @@ export class CredentialsService {
         data: { passwordHash: await this.passwordHasher.hash(password) },
       });
     }
-    return toSessionUser(row);
+    return { ok: true, user: toSessionUser(row) };
   }
 
   /** Whether the password is the account's current one. */

@@ -16,6 +16,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { accountName, AuditService, changesOf } from '../audit/audit.service.js';
 import { AccountProvisioning, type ProvisionedAccount } from '../auth/account-provisioning.js';
 import { CredentialsService } from '../auth/credentials.service.js';
 import type { Principal } from '../auth/principal.js';
@@ -67,6 +68,12 @@ function toMember(row: Prisma.TenantMemberGetPayload<{ select: typeof memberSele
   };
 }
 
+const STATUS_WORDS: Record<Member['status'], string> = { ACTIVE: '启用', DISABLED: '停用' };
+
+function memberTarget(member: Member) {
+  return { type: 'member' as const, id: member.id, name: accountName(member) };
+}
+
 /**
  * Memberships of the current tenant. Every read and change stays within the user's data scope:
  * the members of the departments it covers, and the user's own membership.
@@ -80,6 +87,7 @@ export class MembersService {
     private readonly accounts: AccountProvisioning,
     private readonly credentials: CredentialsService,
     private readonly tenantContexts: TenantContextCache,
+    private readonly audit: AuditService,
   ) {}
 
   async list(user: Principal, query: MemberQuery): Promise<Page<Member>> {
@@ -155,6 +163,14 @@ export class MembersService {
     // A context cached while the account was not a member would keep it out.
     await this.tenantContexts.invalidate(tenantId);
     const member = await this.get(memberId);
+    await this.audit.record({
+      action: 'member.create',
+      target: memberTarget(member),
+      changes: changesOf([
+        ['部门', null, member.dept?.name],
+        ['角色', null, member.roles.map((role) => role.name)],
+      ]),
+    });
     return provisioned.initialPassword
       ? { member, initialPassword: provisioned.initialPassword }
       : { member };
@@ -162,6 +178,7 @@ export class MembersService {
 
   async update(user: Principal, id: string, input: UpdateMemberInput): Promise<Member> {
     const member = await this.findManageable(user, id);
+    const before = await this.get(member.id);
     const tenantId = tenantIdOf(user);
     if (input.deptId !== undefined) {
       await this.checkDepartment(user, input.deptId);
@@ -188,12 +205,22 @@ export class MembersService {
           ]),
     ]);
     await this.tenantContexts.invalidate(tenantId);
-    return this.get(member.id);
+    const after = await this.get(member.id);
+    const changes = changesOf([
+      ['部门', before.dept?.name, after.dept?.name],
+      ['角色', before.roles.map((role) => role.name), after.roles.map((role) => role.name)],
+      ['状态', STATUS_WORDS[before.status], STATUS_WORDS[after.status]],
+    ]);
+    if (changes.length > 0) {
+      await this.audit.record({ action: 'member.update', target: memberTarget(after), changes });
+    }
+    return after;
   }
 
   /** Takes the account out of the tenant; the account itself stays. */
   async remove(user: Principal, id: string): Promise<void> {
     const member = await this.findManageable(user, id);
+    const removed = await this.get(member.id);
     const tenantId = tenantIdOf(user);
     await this.db.$transaction([
       this.db.tenantMember.delete({ where: { id: member.id } }),
@@ -204,6 +231,14 @@ export class MembersService {
       }),
     ]);
     await this.tenantContexts.invalidate(tenantId);
+    await this.audit.record({
+      action: 'member.remove',
+      target: memberTarget(removed),
+      changes: changesOf([
+        ['部门', removed.dept?.name, null],
+        ['角色', removed.roles.map((role) => role.name), null],
+      ]),
+    });
   }
 
   /**
@@ -225,6 +260,10 @@ export class MembersService {
       }),
       this.db.session.deleteMany({ where: { userId: member.userId.toString() } }),
     ]);
+    await this.audit.record({
+      action: 'member.reset-password',
+      target: memberTarget(await this.get(member.id)),
+    });
     return { password };
   }
 

@@ -23,6 +23,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { minutes, Throttle } from '@nestjs/throttler';
+import { AuditService, changesOf, type AuditEvent } from '../audit/audit.service.js';
 import { RequirePermission } from '../authz/permission.policy.js';
 import { MailService } from './mail.service.js';
 import { PlatformSettingsService } from './platform-settings.service.js';
@@ -34,6 +35,7 @@ export class SettingsController {
   constructor(
     private readonly settings: PlatformSettingsService,
     private readonly mail: MailService,
+    private readonly audit: AuditService,
   ) {}
 
   @RequirePermission('system:settings')
@@ -55,8 +57,20 @@ export class SettingsController {
   @Throttle({ default: { limit: 10, ttl: minutes(1) } })
   @Post('settings/test-mail')
   @HttpCode(HttpStatus.NO_CONTENT)
-  testMail(@Body({ schema: testMailSchema }) input: TestMailInput): Promise<void> {
-    return this.mail.sendTest(input.to);
+  async testMail(@Body({ schema: testMailSchema }) input: TestMailInput): Promise<void> {
+    const event: AuditEvent = {
+      action: 'settings.test-mail',
+      target: { type: 'settings', name: '邮件和网站' },
+      changes: changesOf([['收件人', null, input.to]]),
+    };
+    try {
+      await this.mail.sendTest(input.to);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      await this.audit.record({ ...event, success: false, reason });
+      throw error;
+    }
+    await this.audit.record(event);
   }
 
   @RequirePermission('system:settings')

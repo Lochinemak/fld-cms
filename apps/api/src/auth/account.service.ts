@@ -1,6 +1,7 @@
 import type { ChangePasswordInput, Me } from '@fld/shared';
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { SessionService, SignInService, type SessionRecord } from '@nestjs/authentication';
+import { AuditService } from '../audit/audit.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CredentialsService } from './credentials.service.js';
 import { PrismaSessionStore } from './prisma-session.store.js';
@@ -17,6 +18,7 @@ export class AccountService {
     private readonly sessionStore: PrismaSessionStore,
     private readonly sessions: SessionService,
     private readonly signIn: SignInService,
+    private readonly audit: AuditService,
   ) {}
 
   async describe(principal: Principal): Promise<Me> {
@@ -63,6 +65,12 @@ export class AccountService {
       where: { id: userId },
       data: { lastTenantId: BigInt(tenantId) },
     });
+    // Recorded in the tenant entered only, which the tenant left doesn't need to know.
+    await this.audit.record({
+      action: 'auth.switch-tenant',
+      tenantId,
+      target: { type: 'tenant', id: tenantId, name: context.tenant.name },
+    });
     return this.describe({ ...principal, context, permissionSet: new Set(context.permissions) });
   }
 
@@ -70,6 +78,12 @@ export class AccountService {
   async changePassword(principal: Principal, input: ChangePasswordInput): Promise<Me> {
     const userId = BigInt(principal.id);
     if (!(await this.credentials.check(userId, input.currentPassword))) {
+      await this.audit.record({
+        action: 'auth.change-password',
+        account: principal,
+        success: false,
+        reason: '当前密码不正确',
+      });
       throw new BadRequestException('当前密码不正确');
     }
     await this.prisma.user.update({
@@ -87,6 +101,7 @@ export class AccountService {
       );
     }
     await this.sessions.revokeAll(principal.id, { except: rotated?.session.id });
+    await this.audit.record({ action: 'auth.change-password', account: principal });
     return this.describe({ ...principal, mustChangePassword: false });
   }
 }

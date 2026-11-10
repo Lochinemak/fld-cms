@@ -46,6 +46,8 @@ export const PERMISSIONS = {
     platform: true,
   },
 
+  'system:platform-audit': { name: '审计日志', kind: 'page', parent: 'system', platform: true },
+
   'system:member': { name: '成员管理', kind: 'page', parent: 'system' },
   'system:member:create': { name: '添加成员', kind: 'element', parent: 'system:member' },
   'system:member:update': { name: '编辑成员', kind: 'element', parent: 'system:member' },
@@ -61,6 +63,8 @@ export const PERMISSIONS = {
   'system:role:create': { name: '新建角色', kind: 'element', parent: 'system:role' },
   'system:role:update': { name: '编辑角色', kind: 'element', parent: 'system:role' },
   'system:role:delete': { name: '删除角色', kind: 'element', parent: 'system:role' },
+
+  'system:audit': { name: '审计日志', kind: 'page', parent: 'system' },
 
   crm: { name: '客户关系', kind: 'directory' },
 

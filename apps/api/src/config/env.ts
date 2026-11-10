@@ -87,6 +87,11 @@ export const envSchema = z
       .base64()
       .refine((key) => Buffer.from(key, 'base64').length === 32, 'Must be 32 bytes, base64')
       .optional(),
+    /**
+     * How many days the audit log keeps its records. At least 180: China's Cybersecurity Law asks
+     * for six months of logs.
+     */
+    AUDIT_RETENTION_DAYS: z.coerce.number().int().min(180).default(365),
   })
   .superRefine((env, ctx) => {
     if (env.STORAGE_DRIVER === 's3' && !env.S3_BUCKET) {

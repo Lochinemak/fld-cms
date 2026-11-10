@@ -104,4 +104,15 @@ describe('envSchema', () => {
       expect(key(16)).toBe(false);
     });
   });
+
+  describe('AUDIT_RETENTION_DAYS', () => {
+    it('keeps audit records for a year by default, and never less than 180 days', () => {
+      const days = (value?: string) =>
+        envSchema.safeParse({ ...required, AUDIT_RETENTION_DAYS: value });
+
+      expect(days().data?.AUDIT_RETENTION_DAYS).toBe(365);
+      expect(days('180').data?.AUDIT_RETENTION_DAYS).toBe(180);
+      expect(days('90').success).toBe(false);
+    });
+  });
 });

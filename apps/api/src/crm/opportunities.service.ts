@@ -9,6 +9,7 @@ import {
   type UpdateOpportunityInput,
 } from '@fld/shared';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { AuditService, changesOf } from '../audit/audit.service.js';
 import type { Principal } from '../auth/principal.js';
 import { TENANT_PRISMA, tenantIdOf, type TenantPrisma } from '../authz/tenant-prisma.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -57,6 +58,14 @@ function toOpportunity(
 }
 
 /** A "YYYY-MM-DD" input as the UTC midnight Prisma writes to a date column. */
+function opportunityTarget(opportunity: Opportunity) {
+  return {
+    type: 'opportunity' as const,
+    id: opportunity.id,
+    name: `${opportunity.name}（${opportunity.customer.name}）`,
+  };
+}
+
 function toDate(value: string | null | undefined): Date | null | undefined {
   return typeof value === 'string' ? new Date(value) : value;
 }
@@ -71,6 +80,7 @@ export class OpportunitiesService {
     @Inject(TENANT_PRISMA) private readonly db: TenantPrisma,
     private readonly snowflake: SnowflakeService,
     private readonly owners: OwnersService,
+    private readonly audit: AuditService,
   ) {}
 
   /** The page asked for, and every stage's count and total over all its filters but the stage. */
@@ -173,18 +183,34 @@ export class OpportunitiesService {
   async transfer(user: Principal, id: string, { ownerId }: TransferInput): Promise<Opportunity> {
     const current = await this.findVisible(user, id);
     const owner = await this.owners.resolve(user, ownerId);
+    const before = await this.read(current.id);
     await this.db.opportunity.update({
       where: { id: current.id },
       data: { ownerId: owner.userId, deptId: owner.deptId },
       select: { id: true },
     });
-    return this.read(current.id);
+    const after = await this.read(current.id);
+    await this.audit.record({
+      action: 'opportunity.transfer',
+      target: opportunityTarget(after),
+      changes: changesOf([
+        ['负责人', before.owner.displayName, after.owner.displayName],
+        ['所属部门', before.dept?.name, after.dept?.name],
+      ]),
+    });
+    return after;
   }
 
   /** Its follow-ups stay with the customer, no longer pointing at it. */
   async remove(user: Principal, id: string): Promise<void> {
     const current = await this.findVisible(user, id);
+    const opportunity = await this.read(current.id);
     await this.db.opportunity.delete({ where: { id: current.id }, select: { id: true } });
+    await this.audit.record({
+      action: 'opportunity.delete',
+      target: opportunityTarget(opportunity),
+      changes: changesOf([['金额', opportunity.amount, null]]),
+    });
   }
 
   private async findVisible(user: Principal, id: string) {

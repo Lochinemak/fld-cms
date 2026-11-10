@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { AccountsModule } from './accounts/accounts.module.js';
+import { AuditModule } from './audit/audit.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { RESET_PASSWORD_PATH } from './auth/password-reset.mailer.js';
 import { AuthzModule } from './authz/authz.module.js';
@@ -60,6 +61,7 @@ import { ThrottleModule } from './throttle/throttle.module.js';
     AuthModule,
     AuthzModule,
     AuthorizationModule.forRoot(),
+    AuditModule,
     HealthModule,
     SettingsModule,
     AccountsModule,

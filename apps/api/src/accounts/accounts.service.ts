@@ -1,5 +1,6 @@
 import type { Page, PageQuery, PlatformAccount, ResetAccountPasswordResult } from '@fld/shared';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { accountName, AuditService } from '../audit/audit.service.js';
 import { CredentialsService } from '../auth/credentials.service.js';
 import type { Principal } from '../auth/principal.js';
 import { generatePassword } from '../common/password.js';
@@ -26,6 +27,7 @@ export class AccountsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly credentials: CredentialsService,
+    private readonly audit: AuditService,
   ) {}
 
   async list({ page, pageSize, keyword }: PageQuery): Promise<Page<PlatformAccount>> {
@@ -61,7 +63,7 @@ export class AccountsService {
     }
     const account = await this.prisma.user.findUnique({
       where: { id: BigInt(id) },
-      select: { id: true },
+      select: { id: true, username: true, displayName: true },
     });
     if (!account) {
       throw new NotFoundException('账号不存在');
@@ -75,6 +77,10 @@ export class AccountsService {
       }),
       this.prisma.session.deleteMany({ where: { userId: account.id.toString() } }),
     ]);
+    await this.audit.record({
+      action: 'account.reset-password',
+      target: { type: 'account', id: account.id, name: accountName(account) },
+    });
     return { password };
   }
 }

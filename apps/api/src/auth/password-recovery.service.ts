@@ -1,5 +1,6 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { AuthenticationStorage, PasswordResetService } from '@nestjs/authentication';
+import { AuditService } from '../audit/audit.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { RedisService } from '../redis/redis.service.js';
 import { PlatformSettingsService } from '../settings/platform-settings.service.js';
@@ -38,6 +39,7 @@ export class PasswordRecoveryService {
     private readonly settings: PlatformSettingsService,
     private readonly passwordReset: PasswordResetService,
     private readonly storage: AuthenticationStorage,
+    private readonly audit: AuditService,
   ) {}
 
   async request(account: string): Promise<void> {
@@ -58,15 +60,37 @@ export class PasswordRecoveryService {
   private async issue(account: string): Promise<void> {
     const normalized = normalizeAccount(account);
     const user = await this.prisma.user.findFirst({
-      where: { status: 'ACTIVE', OR: [{ username: normalized }, { email: normalized }] },
-      select: { id: true, email: true },
+      where: { OR: [{ username: normalized }, { email: normalized }] },
+      select: { id: true, username: true, displayName: true, email: true, status: true },
     });
-    if (!user?.email || !(await this.allow(user.id))) {
+    const refusal = await this.refusal(user);
+    await this.audit.record({
+      action: 'auth.forgot-password',
+      account: user ?? { id: null, username: normalized, displayName: '' },
+      ...(refusal ? { success: false, reason: `${refusal}，没有发送邮件` } : {}),
+    });
+    if (refusal || !user?.email) {
       return;
     }
     // A new link replaces those sent before.
     await this.storage.emailTokens.deleteUserEmailTokens(user.id.toString(), 'password-reset');
     this.passwordReset.request(user.email);
+  }
+
+  /** Why no link goes to the account, if none does. */
+  private async refusal(
+    user: { id: bigint; email: string | null; status: string } | null,
+  ): Promise<string | null> {
+    if (!user) {
+      return '账号不存在';
+    }
+    if (user.status !== 'ACTIVE') {
+      return '账号已停用';
+    }
+    if (!user.email) {
+      return '账号没有邮箱';
+    }
+    return (await this.allow(user.id)) ? null : '申请太频繁';
   }
 
   private async allow(userId: bigint): Promise<boolean> {
