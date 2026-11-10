@@ -66,13 +66,13 @@ API 第一次连上空数据库时，会创建系统租户（ID 1，编码 `syst
 ```bash
 cd deploy
 cp .env.example .env     # 填上 POSTGRES_PASSWORD
-docker login ghcr.io     # 镜像默认私有：用有 read:packages 权限的 GitHub token 登录
 docker compose up -d
 docker compose logs api | grep 'Initial password'   # 首次启动时超级管理员的初始密码
 ```
 
 然后访问 `http://服务器:8080`。注意：
 
+- 镜像的可见性跟随仓库：仓库公开时，任何人都能直接拉取。仓库或镜像包改成私有后，先用有 `read:packages` 权限的 GitHub token 执行 `docker login ghcr.io`。
 - 登录 Cookie 只在 HTTPS 下生效（localhost 例外）。正式环境在前面加 HTTPS 反向代理（Caddy、Nginx、云负载均衡等）；只在内网用 http 试用时，在 `.env` 里设 `SESSION_COOKIE_SECURE=false`。
 - 登录限流按客户端 IP 计。后端只相信 web 容器里这一层 nginx 转发的 IP（`TRUST_PROXY=1`），客户端自己伪造的地址不会被采信。前面每多加一层反向代理，就在 `.env` 里把 `TRUST_PROXY` 加 1。
 - 重置密码：`docker compose exec api node dist/cli.js reset-password <用户名或邮箱>`。
