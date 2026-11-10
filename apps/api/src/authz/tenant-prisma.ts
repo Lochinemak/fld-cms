@@ -15,6 +15,11 @@ export const TENANT_MODELS: ReadonlySet<string> = new Set([
   'Contact',
   'FollowUp',
   'Opportunity',
+  'FileFolder',
+  'StoredFile',
+  'FileVersion',
+  'FileShare',
+  'FileRef',
 ]);
 
 const FILTERED = new Set([

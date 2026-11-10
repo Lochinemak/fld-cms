@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
+import { FilesModule } from '../files/files.module.js';
 import { ContactsController } from './contacts.controller.js';
 import { ContactsService } from './contacts.service.js';
+import { CustomerAttachmentsController } from './customer-attachments.controller.js';
+import { CustomerAttachmentsService } from './customer-attachments.service.js';
 import { CustomersController } from './customers.controller.js';
 import { CustomersService } from './customers.service.js';
 import { FollowUpsController } from './follow-ups.controller.js';
@@ -11,8 +14,10 @@ import { OwnersController } from './owners.controller.js';
 import { OwnersService } from './owners.service.js';
 
 @Module({
+  imports: [FilesModule],
   controllers: [
     CustomersController,
+    CustomerAttachmentsController,
     ContactsController,
     FollowUpsController,
     OpportunitiesController,
@@ -20,6 +25,7 @@ import { OwnersService } from './owners.service.js';
   ],
   providers: [
     CustomersService,
+    CustomerAttachmentsService,
     ContactsService,
     FollowUpsService,
     OpportunitiesService,

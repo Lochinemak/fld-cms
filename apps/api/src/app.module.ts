@@ -10,6 +10,7 @@ import { AppConfigModule } from './config/app-config.module.js';
 import type { Env } from './config/env.js';
 import { CrmModule } from './crm/crm.module.js';
 import { DepartmentsModule } from './departments/departments.module.js';
+import { FilesModule } from './files/files.module.js';
 import { HealthModule } from './health/health.module.js';
 import { MembersModule } from './members/members.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -56,6 +57,7 @@ import { ThrottleModule } from './throttle/throttle.module.js';
     RolesModule,
     MembersModule,
     CrmModule,
+    FilesModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

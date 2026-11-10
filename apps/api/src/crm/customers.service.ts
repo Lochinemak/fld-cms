@@ -10,14 +10,17 @@ import { ConflictException, Inject, Injectable, NotFoundException } from '@nestj
 import type { Principal } from '../auth/principal.js';
 import { TENANT_PRISMA, tenantIdOf, type TenantPrisma } from '../authz/tenant-prisma.js';
 import { Prisma } from '../generated/prisma/client.js';
+import { FileRefsService } from '../files/file-refs.service.js';
 import { SnowflakeService } from '../snowflake/snowflake.service.js';
 import {
+  lockCustomer,
   ownDept,
   requireVisibleCustomer,
   toNamedRef,
   toUserRef,
   visibleCustomers,
 } from './crm-scope.js';
+import { customerTarget } from './customer-attachments.service.js';
 import { OwnersService } from './owners.service.js';
 
 const customerSelect = {
@@ -70,6 +73,7 @@ export class CustomersService {
     @Inject(TENANT_PRISMA) private readonly db: TenantPrisma,
     private readonly snowflake: SnowflakeService,
     private readonly owners: OwnersService,
+    private readonly refs: FileRefsService,
   ) {}
 
   async list(user: Principal, query: CustomerQuery): Promise<Page<Customer>> {
@@ -156,7 +160,10 @@ export class CustomersService {
     return this.read(customerId);
   }
 
-  /** Deletes the customer with its contacts and follow-ups, unless it has opportunities. */
+  /**
+   * Deletes the customer with its contacts and follow-ups, unless it has opportunities. Its
+   * attachments come off it; the files stay in the library.
+   */
   async remove(user: Principal, id: string): Promise<void> {
     const customerId = await requireVisibleCustomer(this.db, user, id);
     const opportunities = await this.db.opportunity.count({ where: { customerId } });
@@ -164,7 +171,12 @@ export class CustomersService {
       throw new ConflictException(`该客户还有 ${opportunities} 个商机，不能删除`);
     }
     try {
-      await this.db.customer.delete({ where: { id: customerId }, select: { id: true } });
+      await this.db.$transaction(async (tx) => {
+        // After any attaching under way, so that no attachment outlives the customer.
+        await lockCustomer(tx, tenantIdOf(user), customerId);
+        await this.refs.detachAll(tx, customerTarget(customerId));
+        await tx.customer.delete({ where: { id: customerId }, select: { id: true } });
+      });
     } catch (error) {
       // An opportunity added after the count above.
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {

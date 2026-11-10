@@ -72,6 +72,16 @@ export const PERMISSIONS = {
     parent: 'crm:opportunity',
   },
   'crm:opportunity:delete': { name: '删除商机', kind: 'element', parent: 'crm:opportunity' },
+
+  file: { name: '文件管理', kind: 'directory' },
+
+  'file:library': { name: '文件', kind: 'page', parent: 'file' },
+  'file:library:upload': { name: '上传', kind: 'element', parent: 'file:library' },
+  'file:library:folder': { name: '新建文件夹', kind: 'element', parent: 'file:library' },
+  'file:library:edit': { name: '重命名和移动', kind: 'element', parent: 'file:library' },
+  'file:library:replace': { name: '替换和恢复版本', kind: 'element', parent: 'file:library' },
+  'file:library:delete': { name: '删除', kind: 'element', parent: 'file:library' },
+  'file:library:share': { name: '分享', kind: 'element', parent: 'file:library' },
 } as const satisfies Record<string, PermissionDefinition>;
 
 export type PermissionCode = keyof typeof PERMISSIONS;

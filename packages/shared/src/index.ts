@@ -1,6 +1,7 @@
 export * from './account.js';
 export * from './crm.js';
 export * from './department.js';
+export * from './file.js';
 export * from './health.js';
 export * from './id.js';
 export * from './member.js';

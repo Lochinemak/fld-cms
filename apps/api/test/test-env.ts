@@ -38,6 +38,8 @@ export function testEnv() {
     SUPER_ADMIN_USERNAME: 'superadmin',
     STORAGE_DRIVER: 'local',
     STORAGE_LOCAL_DIR: join(tmpdir(), 'fld-asset-test-storage'),
+    // Small, so that going over it takes a small upload.
+    FILE_MAX_SIZE_MB: '1',
     ...Object.fromEntries(S3_SETTINGS.flatMap((key) => (env[key] ? [[key, env[key]]] : []))),
     S3_BUCKET: TEST_BUCKET,
   };

@@ -32,6 +32,11 @@ model Tenant {
   contacts        Contact[]
   followUps       FollowUp[]
   opportunities   Opportunity[]
+  fileFolders     FileFolder[]
+  files           StoredFile[]
+  fileVersions    FileVersion[]
+  fileShares      FileShare[]
+  fileRefs        FileRef[]
 
   @@map("tenants")
 }
@@ -68,6 +73,13 @@ model User {
   createdCustomers   Customer[]     @relation("CustomerCreator")
   ownedOpportunities Opportunity[]
   followUps          FollowUp[]
+  ownedFileFolders   FileFolder[]   @relation("FileFolderOwner")
+  createdFileFolders FileFolder[]   @relation("FileFolderCreator")
+  ownedFiles         StoredFile[]   @relation("StoredFileOwner")
+  createdFiles       StoredFile[]   @relation("StoredFileCreator")
+  fileVersions       FileVersion[]
+  fileShares         FileShare[]
+  fileRefs           FileRef[]
 
   @@map("users")
 }
@@ -126,6 +138,8 @@ model Department {
   roleScopes    RoleDepartment[]
   customers     Customer[]
   opportunities Opportunity[]
+  fileFolders   FileFolder[]
+  files         StoredFile[]
 
   @@unique([tenantId, id])
   @@index([parentId])
@@ -417,4 +431,153 @@ enum OpportunityStage {
   LOST
 
   @@map("opportunity_stage")
+}
+
+// Files. Folders and files have an owner and the owner's department like CRM records, and what
+// sits in a folder takes the folder's owner and department, so whoever sees a folder sees all of
+// it. Top-level items belong to whoever created them. Deleting sets deleted_at; the contents are
+// removed 30 days later.
+
+/// A folder of the file library; parentId is null at the top level.
+model FileFolder {
+  id        BigInt    @id
+  tenantId  BigInt    @map("tenant_id")
+  parentId  BigInt?   @map("parent_id")
+  name      String    @db.VarChar(100)
+  ownerId   BigInt    @map("owner_id")
+  deptId    BigInt?   @map("dept_id")
+  creatorId BigInt    @map("creator_id")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  tenant     Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent     FileFolder?  @relation("FileFolderTree", fields: [tenantId, parentId], references: [tenantId, id], onDelete: Restrict)
+  children   FileFolder[] @relation("FileFolderTree")
+  owner      User         @relation("FileFolderOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  creator    User         @relation("FileFolderCreator", fields: [creatorId], references: [id], onDelete: Restrict)
+  department Department?  @relation(fields: [deptId], references: [id], onDelete: SetNull)
+  files      StoredFile[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, parentId])
+  @@index([ownerId])
+  @@index([deptId])
+  @@index([creatorId])
+  @@map("file_folders")
+}
+
+/// A file of the library. Its contents, size and type are the current version's.
+model StoredFile {
+  id         BigInt    @id
+  tenantId   BigInt    @map("tenant_id")
+  folderId   BigInt?   @map("folder_id")
+  name       String    @db.VarChar(255)
+  /// The current version's number.
+  version    Int
+  storageKey String    @map("storage_key") @db.VarChar(255)
+  size       BigInt
+  mimeType   String    @map("mime_type") @db.VarChar(127)
+  ownerId    BigInt    @map("owner_id")
+  deptId     BigInt?   @map("dept_id")
+  /// Who uploaded the first version.
+  creatorId  BigInt    @map("creator_id")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  tenant     Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  folder     FileFolder?   @relation(fields: [tenantId, folderId], references: [tenantId, id], onDelete: Restrict)
+  owner      User          @relation("StoredFileOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  creator    User          @relation("StoredFileCreator", fields: [creatorId], references: [id], onDelete: Restrict)
+  department Department?   @relation(fields: [deptId], references: [id], onDelete: SetNull)
+  versions   FileVersion[]
+  shares     FileShare[]
+  refs       FileRef[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, folderId])
+  @@index([ownerId])
+  @@index([deptId])
+  @@index([creatorId])
+  @@map("files")
+}
+
+/// One set of contents a file has had, the current one included. Objects in storage are never
+/// changed: every version has its own.
+model FileVersion {
+  id           BigInt   @id
+  tenantId     BigInt   @map("tenant_id")
+  fileId       BigInt   @map("file_id")
+  number       Int
+  storageKey   String   @map("storage_key") @db.VarChar(255)
+  size         BigInt
+  mimeType     String   @map("mime_type") @db.VarChar(127)
+  /// Who uploaded it, or restored the version it copies.
+  uploaderId   BigInt   @map("uploader_id")
+  /// The number of the version it was restored from.
+  restoredFrom Int?     @map("restored_from")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant   Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  file     StoredFile @relation(fields: [tenantId, fileId], references: [tenantId, id], onDelete: Cascade)
+  uploader User       @relation(fields: [uploaderId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([fileId, number])
+  @@index([tenantId, fileId])
+  @@index([uploaderId])
+  @@map("file_versions")
+}
+
+/// A link that lets anyone holding it open a file without signing in.
+model FileShare {
+  id             BigInt    @id
+  tenantId       BigInt    @map("tenant_id")
+  fileId         BigInt    @map("file_id")
+  token          String    @unique @db.VarChar(64)
+  /// The extraction code the link asks for, if any.
+  code           String?   @db.VarChar(8)
+  /// Null for a link that never expires.
+  expiresAt      DateTime? @map("expires_at") @db.Timestamptz(3)
+  accessCount    Int       @default(0) @map("access_count")
+  lastAccessedAt DateTime? @map("last_accessed_at") @db.Timestamptz(3)
+  creatorId      BigInt    @map("creator_id")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant  Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  file    StoredFile @relation(fields: [tenantId, fileId], references: [tenantId, id], onDelete: Cascade)
+  creator User       @relation(fields: [creatorId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, fileId])
+  @@index([creatorId])
+  @@map("file_shares")
+}
+
+/// A record that uses a file, such as a customer it is attached to. Files in use can't be deleted.
+model FileRef {
+  id         BigInt        @id
+  tenantId   BigInt        @map("tenant_id")
+  fileId     BigInt        @map("file_id")
+  targetType FileRefTarget @map("target_type")
+  targetId   BigInt        @map("target_id")
+  creatorId  BigInt        @map("creator_id")
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant  Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  file    StoredFile @relation(fields: [tenantId, fileId], references: [tenantId, id], onDelete: Restrict)
+  creator User       @relation(fields: [creatorId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([fileId, targetType, targetId])
+  @@index([tenantId, targetType, targetId])
+  @@index([creatorId])
+  @@map("file_refs")
+}
+
+enum FileRefTarget {
+  CUSTOMER
+
+  @@map("file_ref_target")
 }
