@@ -2,6 +2,7 @@ import { logtoSignInErrors, signInSchema, type LogtoSignInError } from '@fld/sha
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { FieldError } from '@/components/field-error';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -49,6 +50,7 @@ function LoginPage() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const options = useQuery(signInOptionsQuery);
   const appName = useAppName();
+  const { t } = useTranslation('auth');
   const mutation = useMutation({
     mutationFn: signIn,
     onSuccess: async (result) => {
@@ -87,8 +89,8 @@ function LoginPage() {
     <main className="flex min-h-svh items-center justify-center p-6">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>登录 {appName}</CardTitle>
-          <CardDescription>用用户名或邮箱登录，进入你上次使用的租户</CardDescription>
+          <CardTitle>{t('signInTitle', { appName })}</CardTitle>
+          <CardDescription>{t('signInDescription')}</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
           <CardContent className="space-y-4">
@@ -98,7 +100,7 @@ function LoginPage() {
               </Alert>
             )}
             <div className="space-y-2">
-              <Label htmlFor="account">用户名或邮箱</Label>
+              <Label htmlFor="account">{t('accountLabel')}</Label>
               <Input
                 id="account"
                 name="account"
@@ -110,12 +112,12 @@ function LoginPage() {
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password">密码</Label>
+                <Label htmlFor="password">{t('password')}</Label>
                 <Link
                   to="/forgot-password"
                   className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                 >
-                  忘记密码？
+                  {t('forgotPasswordLink')}
                 </Link>
               </div>
               <Input
@@ -130,20 +132,20 @@ function LoginPage() {
           </CardContent>
           <CardFooter className="flex-col gap-3">
             <Button type="submit" className="w-full" disabled={mutation.isPending}>
-              {mutation.isPending ? '登录中…' : '登录'}
+              {mutation.isPending ? t('signingIn') : t('signIn')}
             </Button>
             {options.data?.logto && (
               <>
                 <div className="flex w-full items-center gap-3 text-xs text-muted-foreground">
                   <div className="h-px flex-1 bg-border" />
-                  或
+                  {t('or')}
                   <div className="h-px flex-1 bg-border" />
                 </div>
                 <a
                   href={logtoSignInHref(safeRedirect(search.redirect))}
                   className={buttonVariants({ variant: 'outline', className: 'w-full' })}
                 >
-                  使用 Logto 登录
+                  {t('signInWithLogto')}
                 </a>
               </>
             )}

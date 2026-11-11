@@ -1,4 +1,4 @@
-import { permissionDefinition, type PermissionCode } from '@fld/shared';
+import type { PermissionCode } from '@fld/shared';
 import { Link, useMatchRoute } from '@tanstack/react-router';
 import {
   Building2,
@@ -32,6 +32,8 @@ import {
 } from '@/components/ui/sidebar';
 import { hasPermission, useMe } from '@/lib/auth';
 import { useAppName } from '@/lib/site';
+import { useTranslation } from 'react-i18next';
+import { permissionName } from '@/i18n';
 
 interface MenuPage {
   to:
@@ -93,6 +95,7 @@ const MENU: MenuGroup[] = [
 
 /** The menu lists only the pages the user may open in the current tenant. */
 export function AppSidebar() {
+  const { t } = useTranslation('layout');
   const me = useMe();
   const appName = useAppName();
   const matchRoute = useMatchRoute();
@@ -118,11 +121,11 @@ export function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={!!matchRoute({ to: '/' })}
-                  tooltip="工作台"
+                  tooltip={t('workbench')}
                   render={<Link to="/" />}
                 >
                   <LayoutDashboard />
-                  <span>工作台</span>
+                  <span>{t('workbench')}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -135,11 +138,11 @@ export function AppSidebar() {
           }
           return (
             <SidebarGroup key={group.code}>
-              <SidebarGroupLabel>{permissionDefinition(group.code).name}</SidebarGroupLabel>
+              <SidebarGroupLabel>{permissionName(group.code)}</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
                   {pages.map(({ to, icon: Icon, code }) => {
-                    const title = permissionDefinition(code).name;
+                    const title = permissionName(code);
                     return (
                       <SidebarMenuItem key={code}>
                         <SidebarMenuButton

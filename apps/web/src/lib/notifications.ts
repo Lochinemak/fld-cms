@@ -1,6 +1,7 @@
 import { notificationPageSchema, unreadCountSchema } from '@fld/shared';
 import { queryOptions, type QueryClient } from '@tanstack/react-query';
 import { api } from './api';
+import { currentLocale } from '@/i18n';
 
 /** How many the bell's menu lists. */
 export const LATEST_NOTIFICATIONS = 10;
@@ -42,5 +43,5 @@ export function formatNotificationTime(iso: string, now = Date.now()): string {
   if (minutes < 24 * 60) {
     return `${Math.floor(minutes / 60)} 小时前`;
   }
-  return new Date(iso).toLocaleString('zh-CN', { dateStyle: 'short', timeStyle: 'short' });
+  return new Date(iso).toLocaleString(currentLocale(), { dateStyle: 'short', timeStyle: 'short' });
 }

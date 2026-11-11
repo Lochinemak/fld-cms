@@ -6,6 +6,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ApiError, needsMfa } from '@/lib/api';
 import { meQuery, reloadToSignIn } from '@/lib/auth';
+import './i18n';
 import './index.css';
 import { routeTree } from './routeTree.gen';
 

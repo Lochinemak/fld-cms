@@ -21,6 +21,7 @@ import { keepPreviousData, queryOptions, type QueryClient } from '@tanstack/reac
 import { z } from 'zod';
 import { api } from './api';
 import { listPath } from './system';
+import { currentLocale } from '@/i18n';
 
 // The labels live in @fld/shared: spreadsheets the API writes use them too.
 export { CUSTOMER_LEVEL_LABELS, CUSTOMER_STATUS_LABELS } from '@fld/shared';
@@ -167,7 +168,7 @@ export function refreshCrm(queryClient: QueryClient): Promise<void> {
 }
 
 export function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString('zh-CN', { dateStyle: 'short', timeStyle: 'short' });
+  return new Date(iso).toLocaleString(currentLocale(), { dateStyle: 'short', timeStyle: 'short' });
 }
 
 /** A decimal amount such as "1234567.5" as "1,234,567.50", without going through a float. */

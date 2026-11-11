@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useTranslation } from 'react-i18next';
 
 type FormDialogProps = Omit<ComponentProps<typeof Dialog>, 'children'> & {
   title: ReactNode;
@@ -38,14 +39,15 @@ export function FormDialog({
   description,
   error,
   pending,
-  submitLabel = '保存',
-  pendingLabel = '保存中…',
+  submitLabel,
+  pendingLabel,
   onSubmit,
   className,
   formClassName = 'grid gap-4',
   children,
   ...rootProps
 }: FormDialogProps) {
+  const { t } = useTranslation();
   return (
     <Dialog {...rootProps}>
       <DialogContent className={className}>
@@ -58,10 +60,10 @@ export function FormDialog({
           {children}
           <DialogFooter>
             <DialogClose render={<Button variant="outline" />} disabled={pending}>
-              取消
+              {t('cancel')}
             </DialogClose>
             <Button type="submit" disabled={pending}>
-              {pending ? pendingLabel : submitLabel}
+              {pending ? (pendingLabel ?? t('saving')) : (submitLabel ?? t('save'))}
             </Button>
           </DialogFooter>
         </form>

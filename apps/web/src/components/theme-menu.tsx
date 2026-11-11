@@ -8,14 +8,16 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useTranslation } from 'react-i18next';
 
 const THEMES = [
-  { value: 'light', label: '浅色', Icon: Sun },
-  { value: 'dark', label: '深色', Icon: Moon },
-  { value: 'system', label: '跟随系统', Icon: Monitor },
+  { value: 'light', label: 'themeLight', Icon: Sun },
+  { value: 'dark', label: 'themeDark', Icon: Moon },
+  { value: 'system', label: 'themeSystem', Icon: Monitor },
 ] as const satisfies readonly { value: Theme; label: string; Icon: LucideIcon }[];
 
 export function ThemeMenu() {
+  const { t } = useTranslation('layout');
   const { theme, setTheme } = useTheme();
   const CurrentIcon = (THEMES.find((option) => option.value === theme) ?? THEMES[2]).Icon;
 
@@ -23,8 +25,8 @@ export function ThemeMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger
         className={buttonVariants({ variant: 'ghost', size: 'icon-sm' })}
-        aria-label="外观"
-        title="外观"
+        aria-label={t('appearance')}
+        title={t('appearance')}
       >
         <CurrentIcon />
       </DropdownMenuTrigger>
@@ -33,7 +35,7 @@ export function ThemeMenu() {
           {THEMES.map(({ value, label, Icon }) => (
             <DropdownMenuRadioItem key={value} value={value}>
               <Icon />
-              {label}
+              {t(label)}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>

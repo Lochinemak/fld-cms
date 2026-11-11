@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { ErrorAlert } from '@/components/error-alert';
 import { FieldError } from '@/components/field-error';
 import { FormDialog } from '@/components/form-dialog';
@@ -17,25 +18,26 @@ interface ChangePasswordFieldsProps {
 /** The fields of a change-password form, named as {@link useChangePassword} reads them. */
 export function ChangePasswordFields({ errors, error }: ChangePasswordFieldsProps) {
   const me = useMe();
+  const { t } = useTranslation('auth');
   return (
     <>
       <ErrorAlert error={error} />
       <input type="hidden" name="username" autoComplete="username" value={me.user.username} />
       <PasswordField
         name="currentPassword"
-        label="当前密码"
+        label={t('currentPassword')}
         autoComplete="current-password"
         error={errors['currentPassword']}
       />
       <PasswordField
         name="newPassword"
-        label="新密码"
+        label={t('newPassword')}
         autoComplete="new-password"
         error={errors['newPassword']}
       />
       <PasswordField
         name="confirmPassword"
-        label="确认新密码"
+        label={t('confirmNewPassword')}
         autoComplete="new-password"
         error={errors['confirmPassword']}
       />
@@ -47,14 +49,15 @@ export function ChangePasswordFields({ errors, error }: ChangePasswordFieldsProp
 export function ChangePasswordDialog({ onClosed }: { onClosed: () => void }) {
   const dialog = useMountedDialog(onClosed);
   const { errors, mutation, submit } = useChangePassword(dialog.close);
+  const { t } = useTranslation('auth');
 
   return (
     <FormDialog
       {...dialog.rootProps(mutation.isPending)}
-      title="修改密码"
-      description="修改后，你在其他设备上的登录会全部失效。"
+      title={t('changePasswordTitle')}
+      description={t('changePasswordDescription')}
       pending={mutation.isPending}
-      submitLabel="保存新密码"
+      submitLabel={t('saveNewPassword')}
       onSubmit={submit}
       className="sm:max-w-sm"
     >

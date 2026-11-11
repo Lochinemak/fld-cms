@@ -2,6 +2,7 @@ import { auditLogPageSchema, type AuditAction } from '@fld/shared';
 import { keepPreviousData, queryOptions } from '@tanstack/react-query';
 import { api } from './api';
 import { listPath } from './system';
+import { currentLocale } from '@/i18n';
 
 export interface AuditLogListParams {
   page: number;
@@ -32,7 +33,7 @@ export const auditLogsQuery = (params: AuditLogListParams) =>
 
 /** A record's time to the second, in the browser's time zone. */
 export function formatAuditTime(iso: string): string {
-  return new Date(iso).toLocaleString('zh-CN', { dateStyle: 'short', timeStyle: 'medium' });
+  return new Date(iso).toLocaleString(currentLocale(), { dateStyle: 'short', timeStyle: 'medium' });
 }
 
 /** Where a day, or one some days later, starts in the browser's time zone, as an ISO time. */

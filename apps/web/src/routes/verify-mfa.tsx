@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { ErrorAlert } from '@/components/error-alert';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -30,6 +31,7 @@ function VerifyMfaPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t } = useTranslation('auth');
   const [usingRecoveryCode, setUsingRecoveryCode] = useState(false);
   const mutation = useMutation({
     mutationFn: verifyMfa,
@@ -53,18 +55,18 @@ function VerifyMfaPage() {
     <main className="flex min-h-svh items-center justify-center p-6">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>两步验证</CardTitle>
+          <CardTitle>{t('mfaTitle')}</CardTitle>
           <CardDescription>
-            {usingRecoveryCode
-              ? '输入一个恢复码。每个恢复码只能用一次。'
-              : '打开手机上的验证器应用，输入它显示的 6 位数字。'}
+            {usingRecoveryCode ? t('mfaRecoveryDescription') : t('mfaCodeDescription')}
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
           <CardContent className="space-y-4">
             <ErrorAlert error={mutation.error} />
             <div className="space-y-2">
-              <Label htmlFor="code">{usingRecoveryCode ? '恢复码' : '验证码'}</Label>
+              <Label htmlFor="code">
+                {usingRecoveryCode ? t('recoveryCodeLabel') : t('codeLabel')}
+              </Label>
               <Input
                 key={usingRecoveryCode ? 'recovery' : 'totp'}
                 id="code"
@@ -84,13 +86,13 @@ function VerifyMfaPage() {
                 mutation.reset();
               }}
             >
-              {usingRecoveryCode ? '改用验证器里的验证码' : '手机不在身边？用恢复码'}
+              {usingRecoveryCode ? t('useAuthenticatorCode') : t('useRecoveryCode')}
             </button>
           </CardContent>
           <CardFooter className="flex items-center justify-between gap-2">
             {expired ? (
               <Link to="/login" className={buttonVariants({ variant: 'ghost' })}>
-                重新登录
+                {t('signInAgain')}
               </Link>
             ) : (
               <Button
@@ -98,11 +100,11 @@ function VerifyMfaPage() {
                 variant="ghost"
                 onClick={() => void signOut().finally(() => window.location.replace('/login'))}
               >
-                换个账号
+                {t('switchAccount')}
               </Button>
             )}
             <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? '验证中…' : '验证'}
+              {mutation.isPending ? t('verifying') : t('verify')}
             </Button>
           </CardFooter>
         </form>

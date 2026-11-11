@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useMountedDialog } from '@/hooks/use-mounted-dialog';
+import { useTranslation } from 'react-i18next';
 
 interface ConfirmDialogProps {
   title: string;
@@ -36,6 +37,7 @@ export function ConfirmDialog({
   const dialog = useMountedDialog(onClosed);
   const mutation = useMutation({ mutationFn: action, onSuccess: dialog.close });
 
+  const { t } = useTranslation();
   return (
     <AlertDialog {...dialog.rootProps(mutation.isPending)}>
       <AlertDialogContent>
@@ -45,13 +47,13 @@ export function ConfirmDialog({
         </AlertDialogHeader>
         <ErrorAlert error={mutation.error} />
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={mutation.isPending}>取消</AlertDialogCancel>
+          <AlertDialogCancel disabled={mutation.isPending}>{t('cancel')}</AlertDialogCancel>
           <AlertDialogAction
             variant={destructive ? 'destructive' : 'default'}
             disabled={mutation.isPending}
             onClick={() => mutation.mutate()}
           >
-            {mutation.isPending ? '处理中…' : confirmLabel}
+            {mutation.isPending ? t('working') : confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

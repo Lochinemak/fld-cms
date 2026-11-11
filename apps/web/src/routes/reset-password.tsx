@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { CircleCheck } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { PasswordField } from '@/components/change-password-form';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -28,6 +29,7 @@ export const Route = createFileRoute('/reset-password')({
 
 function ResetPasswordPage() {
   const { token } = Route.useSearch();
+  const { t } = useTranslation('auth');
   const [errors, setErrors] = useState<FieldErrors>({});
   const mutation = useMutation({ mutationFn: resetPassword });
 
@@ -37,7 +39,7 @@ function ResetPasswordPage() {
     const parsed = resetPasswordSchema.safeParse({ token, newPassword: form.get('newPassword') });
     const next = parsed.success ? {} : fieldErrors(parsed.error);
     if (form.get('confirmPassword') !== form.get('newPassword')) {
-      next['confirmPassword'] = '两次输入的新密码不一致';
+      next['confirmPassword'] = t('passwordsMismatch');
     }
     setErrors(next);
     if (parsed.success && Object.keys(next).length === 0) {
@@ -48,21 +50,21 @@ function ResetPasswordPage() {
   const linkBroken = !token || !!errors['token'];
   // The API refuses a used, expired or replaced link with a 400.
   const linkRefused = mutation.error instanceof ApiError && mutation.error.status === 400;
-  const error = linkBroken ? '链接不完整，请重新打开邮件里的链接。' : mutation.error?.message;
+  const error = linkBroken ? t('linkIncomplete') : mutation.error?.message;
 
   return (
     <main className="flex min-h-svh items-center justify-center p-6">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>重设密码</CardTitle>
-          <CardDescription>设置新密码后，这个账号在所有设备上的登录都会退出。</CardDescription>
+          <CardTitle>{t('resetPasswordTitle')}</CardTitle>
+          <CardDescription>{t('resetPasswordDescription')}</CardDescription>
         </CardHeader>
         {mutation.isSuccess ? (
           <CardContent>
             <Alert>
               <CircleCheck />
-              <AlertTitle>密码已重设</AlertTitle>
-              <AlertDescription>请用新密码登录。</AlertDescription>
+              <AlertTitle>{t('passwordReset')}</AlertTitle>
+              <AlertDescription>{t('signInWithNewPassword')}</AlertDescription>
             </Alert>
           </CardContent>
         ) : (
@@ -74,7 +76,7 @@ function ResetPasswordPage() {
                     <p>{error}</p>
                     {(linkBroken || linkRefused) && (
                       <Link to="/forgot-password" className="underline underline-offset-4">
-                        重新申请重设链接
+                        {t('requestNewResetLink')}
                       </Link>
                     )}
                   </AlertDescription>
@@ -82,13 +84,13 @@ function ResetPasswordPage() {
               )}
               <PasswordField
                 name="newPassword"
-                label="新密码"
+                label={t('newPassword')}
                 autoComplete="new-password"
                 error={errors['newPassword']}
               />
               <PasswordField
                 name="confirmPassword"
-                label="确认新密码"
+                label={t('confirmNewPassword')}
                 autoComplete="new-password"
                 error={errors['confirmPassword']}
               />
@@ -98,7 +100,7 @@ function ResetPasswordPage() {
         <CardFooter className="flex-col gap-3">
           {mutation.isSuccess ? (
             <Link to="/login" className={buttonVariants({ className: 'w-full' })}>
-              去登录
+              {t('goToSignIn')}
             </Link>
           ) : (
             <>
@@ -108,10 +110,10 @@ function ResetPasswordPage() {
                 className="w-full"
                 disabled={mutation.isPending || linkBroken}
               >
-                {mutation.isPending ? '保存中…' : '保存新密码'}
+                {mutation.isPending ? t('saving', { ns: 'common' }) : t('saveNewPassword')}
               </Button>
               <Link to="/login" className={buttonVariants({ variant: 'link', size: 'sm' })}>
-                返回登录
+                {t('backToSignIn')}
               </Link>
             </>
           )}

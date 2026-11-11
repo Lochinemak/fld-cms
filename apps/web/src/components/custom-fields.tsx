@@ -13,6 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { itemLabel, offeredItems } from '@/lib/custom-fields';
 import type { FieldErrors } from '@/lib/form';
+import { currentLocale } from '@/i18n';
 
 /**
  * What the inputs hold, by field key: as the record has it, except numbers, which are the text
@@ -210,7 +211,7 @@ export function formatCustomValue(field: CustomField, value: unknown): string {
     case 'BOOLEAN':
       return value === true ? '是' : '否';
     case 'NUMBER':
-      return typeof value === 'number' ? value.toLocaleString('zh-CN') : String(value);
+      return typeof value === 'number' ? value.toLocaleString(currentLocale()) : String(value);
     default:
       return String(value);
   }

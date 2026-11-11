@@ -4,6 +4,7 @@ import { ShieldX } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Can } from '@/components/can';
 import { buttonVariants } from '@/components/ui/button';
+import { useTranslation } from 'react-i18next';
 
 /**
  * A page for the users who hold its permission; anyone else who opens its address learns why
@@ -24,17 +25,16 @@ export function RequirePermission({
 }
 
 function Forbidden() {
+  const { t } = useTranslation('layout');
   return (
     <div className="flex flex-col items-center gap-4 py-24 text-center">
       <ShieldX className="size-10 text-muted-foreground" aria-hidden />
       <div className="space-y-1">
-        <h1 className="text-lg font-semibold">无权访问</h1>
-        <p className="text-sm text-muted-foreground">
-          你在当前租户没有这个页面的权限。如需使用，请联系租户管理员。
-        </p>
+        <h1 className="text-lg font-semibold">{t('noAccess')}</h1>
+        <p className="text-sm text-muted-foreground">{t('noAccessDetail')}</p>
       </div>
       <Link to="/" className={buttonVariants({ variant: 'outline' })}>
-        返回工作台
+        {t('backToWorkbench')}
       </Link>
     </div>
   );

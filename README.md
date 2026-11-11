@@ -240,6 +240,17 @@ docker compose logs api | grep 'Initial password'   # 首次启动时超级管�
 - 系统的名字由超级管理员在「平台设置」页面的「系统名称」里填，浏览器标签页、登录页、侧边栏和邮件都跟着变（接口文档的标题在 API 启动时取一次，改名后重启才变）；没填就用 `packages/shared/src/app.ts` 里的 `DEFAULT_APP_NAME`。基于本项目的分支要换默认名字，改这一行；README 和 `.env.example` 里的文字要另外改。
 - 登录前就要显示的站点信息（现在只有系统名称）走公开接口 `GET /api/site`，结构在 `packages/shared/src/app.ts` 的 `siteSchema` 里；它不用登录，所以只放可以公开的内容。请求可以带 `?tenant=租户ID`，现在各租户拿到的都一样，以后租户有自己的显示内容时按它返回。
 
+## 多语言
+
+前端用 i18next（react-i18next）。现在只有简体中文，界面的公共部分（侧边栏、顶栏和用户菜单、通知、登录和账号相关的页面和对话框、通用的对话框和分页）已经改成用翻译键，业务页面还是直接写的中文，用到时再逐步改。
+
+- 文案在 `apps/web/src/i18n/locales/zh-CN.ts`，按命名空间分组：`common` 是哪里都用的词（取消、保存、加载中…），`layout`、`auth`、`account` 按页面分。组件里 `const { t } = useTranslation('layout')`，再 `t('profile')`；不在组件里的代码用 `i18n.t()`（`import i18n from '@/i18n'`）。动态的部分用插值：`t('total', { count })` 对应 `'共 {{count}} 条'`，整句放在一个键里，方便别的语言调整语序。
+- 键有类型检查：写错键名或漏加文案，`pnpm typecheck` 就报错。
+- 菜单名用权限码的名称（`packages/shared/src/permissions.ts`），经 `permissionName()` 取当前语言的；中文不用另外写，别的语言在 `LANGUAGES` 里给 `permissions` 补上。
+- 日期和数字按当前语言格式化（`currentLocale()`）。
+- 加一种语言：在 `apps/web/src/i18n/locales/` 加一个文件，类型标成 `Translation`（键必须和中文的一一对应，少一个类型检查就不通过），再登记到 `apps/web/src/i18n/index.ts` 的 `LANGUAGES`。有两种以上语言时，用户菜单里自动出现「语言」，选择记在浏览器里；没选过时按浏览器的语言选。
+- 后端的提示（接口返回的错误信息、邮件模板、权限和审计操作的名称）现在都是中文。前端请求时会带上 `Accept-Language`，以后后端要按语言返回时可以读它。
+
 ## 加一个新模块
 
 可以照着客户模块（`crm`）写，按这个顺序改：

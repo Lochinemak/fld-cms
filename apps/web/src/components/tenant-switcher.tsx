@@ -11,8 +11,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { meQuery, switchTenant, useMe } from '@/lib/auth';
+import { useTranslation } from 'react-i18next';
 
 export function TenantSwitcher() {
+  const { t } = useTranslation('layout');
   const me = useMe();
   const queryClient = useQueryClient();
   const mutation = useMutation({
@@ -24,7 +26,7 @@ export function TenantSwitcher() {
   });
 
   if (me.tenants.length === 0) {
-    return <span className="text-sm text-muted-foreground">未加入任何租户</span>;
+    return <span className="text-sm text-muted-foreground">{t('noTenant')}</span>;
   }
 
   return (
@@ -35,12 +37,12 @@ export function TenantSwitcher() {
           disabled={mutation.isPending}
         >
           <Building2 />
-          <span className="truncate">{me.tenant?.name ?? '选择租户'}</span>
+          <span className="truncate">{me.tenant?.name ?? t('chooseTenant')}</span>
           <ChevronsUpDown className="opacity-50" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-56">
           <DropdownMenuGroup>
-            <DropdownMenuLabel>切换租户</DropdownMenuLabel>
+            <DropdownMenuLabel>{t('switchTenant')}</DropdownMenuLabel>
             <DropdownMenuRadioGroup
               value={me.tenant?.id ?? ''}
               onValueChange={(tenantId: string) => {

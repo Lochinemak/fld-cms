@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { MailCheck } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ErrorAlert } from '@/components/error-alert';
 import { FieldError } from '@/components/field-error';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -25,6 +26,7 @@ export const Route = createFileRoute('/forgot-password')({
 });
 
 function ForgotPasswordPage() {
+  const { t } = useTranslation('auth');
   const [errors, setErrors] = useState<FieldErrors>({});
   const mutation = useMutation({ mutationFn: forgotPassword });
 
@@ -42,19 +44,16 @@ function ForgotPasswordPage() {
     <main className="flex min-h-svh items-center justify-center p-6">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>忘记密码</CardTitle>
-          <CardDescription>
-            输入用户名或邮箱，我们会把重设密码的链接发到账号绑定的邮箱。
-          </CardDescription>
+          <CardTitle>{t('forgotPasswordTitle')}</CardTitle>
+          <CardDescription>{t('forgotPasswordDescription')}</CardDescription>
         </CardHeader>
         {mutation.isSuccess ? (
           <CardContent>
             <Alert>
               <MailCheck />
-              <AlertTitle>如果账号存在且绑定了邮箱，邮件已发出</AlertTitle>
+              <AlertTitle>{t('resetLinkSentTitle')}</AlertTitle>
               <AlertDescription>
-                请在 {PASSWORD_RESET_MINUTES}{' '}
-                分钟内打开邮件里的链接设置新密码。没收到的话先看看垃圾邮件；账号没有绑定邮箱的，请联系管理员重置密码。
+                {t('resetLinkSentDetail', { minutes: PASSWORD_RESET_MINUTES })}
               </AlertDescription>
             </Alert>
           </CardContent>
@@ -63,7 +62,7 @@ function ForgotPasswordPage() {
             <CardContent className="space-y-4">
               <ErrorAlert error={mutation.error} />
               <div className="space-y-2">
-                <Label htmlFor="account">用户名或邮箱</Label>
+                <Label htmlFor="account">{t('accountLabel')}</Label>
                 <Input
                   id="account"
                   name="account"
@@ -84,11 +83,11 @@ function ForgotPasswordPage() {
               className="w-full"
               disabled={mutation.isPending}
             >
-              {mutation.isPending ? '发送中…' : '发送重设链接'}
+              {mutation.isPending ? t('sending') : t('sendResetLink')}
             </Button>
           )}
           <Link to="/login" className={buttonVariants({ variant: 'link', size: 'sm' })}>
-            返回登录
+            {t('backToSignIn')}
           </Link>
         </CardFooter>
       </Card>

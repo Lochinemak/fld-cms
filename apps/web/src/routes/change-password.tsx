@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { Link, createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
+import { useTranslation } from 'react-i18next';
 import { ChangePasswordFields } from '@/components/change-password-form';
 import { RequireSignIn } from '@/components/require-sign-in';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -36,6 +37,7 @@ function ChangePasswordForm() {
   const me = useMe();
   const forced = me.user.mustChangePassword;
   const navigate = useNavigate();
+  const { t } = useTranslation('auth');
   const { errors, mutation, submit } = useChangePassword(() =>
     navigate({ to: '/', replace: true }),
   );
@@ -45,11 +47,9 @@ function ChangePasswordForm() {
     <main className="flex min-h-svh items-center justify-center p-6">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>修改密码</CardTitle>
+          <CardTitle>{t('changePasswordTitle')}</CardTitle>
           <CardDescription>
-            {forced
-              ? '你正在使用初始密码或管理员重置的密码，修改后才能继续使用。'
-              : '修改后，你在其他设备上的登录会全部失效。'}
+            {forced ? t('mustChangePassword') : t('changePasswordDescription')}
           </CardDescription>
         </CardHeader>
         <form onSubmit={submit} noValidate className="flex flex-col gap-6">
@@ -64,15 +64,15 @@ function ChangePasswordForm() {
                 disabled={leave.isPending}
                 onClick={() => leave.mutate()}
               >
-                退出登录
+                {t('signOut')}
               </Button>
             ) : (
               <Link to="/" className={buttonVariants({ variant: 'ghost' })}>
-                取消
+                {t('cancel', { ns: 'common' })}
               </Link>
             )}
             <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? '保存中…' : '保存新密码'}
+              {mutation.isPending ? t('saving', { ns: 'common' }) : t('saveNewPassword')}
             </Button>
           </CardFooter>
         </form>

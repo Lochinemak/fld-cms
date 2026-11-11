@@ -26,6 +26,7 @@ import { z } from 'zod';
 import { api } from './api';
 import { meQuery } from './auth';
 import { buildDeptTree, flattenDeptTree } from './dept-tree';
+import { currentLocale } from '@/i18n';
 
 export const PAGE_SIZE = 20;
 
@@ -158,5 +159,5 @@ export function refreshSystem(queryClient: QueryClient): Promise<unknown> {
 }
 
 export function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('zh-CN');
+  return new Date(iso).toLocaleDateString(currentLocale());
 }

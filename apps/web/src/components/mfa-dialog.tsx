@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Copy, ShieldCheck } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useEffect, useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ErrorAlert } from '@/components/error-alert';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ type Step =
 /** The signed-in user's two-step sign-in: turning it on with an authenticator app, and off. */
 export function MfaDialog({ onClosed }: { onClosed: () => void }) {
   const dialog = useMountedDialog(onClosed);
+  const { t } = useTranslation('account');
   const queryClient = useQueryClient();
   const status = useQuery(mfaStatusQuery);
   const [step, setStep] = useState<Step>({ kind: 'overview' });
@@ -80,7 +82,7 @@ export function MfaDialog({ onClosed }: { onClosed: () => void }) {
 
   let body;
   if (status.isPending) {
-    body = <p className="text-sm text-muted-foreground">加载中…</p>;
+    body = <p className="text-sm text-muted-foreground">{t('loading', { ns: 'common' })}</p>;
   } else if (status.error) {
     body = <ErrorAlert error={status.error} />;
   } else if (step.kind === 'codes') {
@@ -90,16 +92,16 @@ export function MfaDialog({ onClosed }: { onClosed: () => void }) {
       <form id="mfa-step" onSubmit={submitCode} noValidate className="space-y-4">
         <ErrorAlert error={confirm.error} />
         <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
-          <li>在手机上打开验证器应用（如 Google Authenticator、Microsoft Authenticator）。</li>
-          <li>扫描下面的二维码，或者手动输入密钥。</li>
-          <li>输入应用显示的 6 位数字。</li>
+          <li>{t('mfaStepOpenApp')}</li>
+          <li>{t('mfaStepScan')}</li>
+          <li>{t('mfaStepEnterCode')}</li>
         </ol>
         <QrCode text={step.setup.uri} />
         <p className="text-center font-mono text-xs break-all text-muted-foreground select-all">
           {step.setup.secret}
         </p>
         <div className="space-y-2">
-          <Label htmlFor="mfa-code">验证码</Label>
+          <Label htmlFor="mfa-code">{t('codeLabel', { ns: 'auth' })}</Label>
           <Input
             id="mfa-code"
             name="code"
@@ -122,7 +124,7 @@ export function MfaDialog({ onClosed }: { onClosed: () => void }) {
       >
         <ErrorAlert error={error} />
         <div className="space-y-2">
-          <Label htmlFor="mfa-password">当前密码</Label>
+          <Label htmlFor="mfa-password">{t('currentPassword', { ns: 'auth' })}</Label>
           <Input
             id="mfa-password"
             name="currentPassword"
@@ -136,9 +138,7 @@ export function MfaDialog({ onClosed }: { onClosed: () => void }) {
   } else if (!status.data.available) {
     body = (
       <Alert>
-        <AlertDescription>
-          服务器还没有配置 SETTINGS_ENCRYPTION_KEY，暂时不能开启两步验证，请联系管理员。
-        </AlertDescription>
+        <AlertDescription>{t('mfaUnavailable')}</AlertDescription>
       </Alert>
     );
   } else if (status.data.enabled) {
@@ -147,36 +147,31 @@ export function MfaDialog({ onClosed }: { onClosed: () => void }) {
         <ErrorAlert error={renew.error} />
         <p className="flex items-center gap-2 font-medium">
           <ShieldCheck className="size-4 text-emerald-600" />
-          已开启：登录时除了密码，还要输入验证器里的验证码。
+          {t('mfaOn')}
         </p>
         <p className="text-muted-foreground">
-          剩余恢复码 {status.data.recoveryCodesLeft} 个。手机丢了时，用恢复码登录。
+          {t('recoveryCodesLeft', { count: status.data.recoveryCodesLeft })}
         </p>
       </div>
     );
   } else {
-    body = (
-      <p className="text-sm text-muted-foreground">
-        开启后，用密码或 Logto 登录时，还要输入手机验证器应用里的 6
-        位验证码。别人知道了你的密码也登录不了。
-      </p>
-    );
+    body = <p className="text-sm text-muted-foreground">{t('mfaOffIntro')}</p>;
   }
 
   let footer;
   if (step.kind === 'codes') {
     footer = (
       <DialogClose render={<Button />} onClick={() => setStep({ kind: 'overview' })}>
-        我已保存
+        {t('codesSaved')}
       </DialogClose>
     );
   } else if (step.kind === 'scan' || step.kind === 'password') {
     const label =
-      step.kind === 'scan' ? '开启' : step.purpose === 'enable' ? '下一步' : '关闭两步验证';
+      step.kind === 'scan' ? t('enable') : step.purpose === 'enable' ? t('next') : t('disableMfa');
     footer = (
       <>
         <Button variant="outline" disabled={busy} onClick={() => setStep({ kind: 'overview' })}>
-          返回
+          {t('back')}
         </Button>
         <Button
           type="submit"
@@ -186,7 +181,7 @@ export function MfaDialog({ onClosed }: { onClosed: () => void }) {
           }
           disabled={busy}
         >
-          {busy ? '请稍候…' : label}
+          {busy ? t('pleaseWait') : label}
         </Button>
       </>
     );
@@ -194,7 +189,7 @@ export function MfaDialog({ onClosed }: { onClosed: () => void }) {
     footer = (
       <>
         <Button variant="outline" disabled={busy} onClick={() => renew.mutate()}>
-          重新生成恢复码
+          {t('renewRecoveryCodes')}
         </Button>
         <Button
           variant="destructive"
@@ -204,7 +199,7 @@ export function MfaDialog({ onClosed }: { onClosed: () => void }) {
             setStep({ kind: 'password', purpose: 'disable' });
           }}
         >
-          关闭两步验证
+          {t('disableMfa')}
         </Button>
       </>
     );
@@ -216,7 +211,7 @@ export function MfaDialog({ onClosed }: { onClosed: () => void }) {
           setStep({ kind: 'password', purpose: 'enable' });
         }}
       >
-        开启两步验证
+        {t('enableMfa')}
       </Button>
     );
   }
@@ -226,8 +221,8 @@ export function MfaDialog({ onClosed }: { onClosed: () => void }) {
     <Dialog {...dialog.rootProps(busy)} disablePointerDismissal={step.kind === 'codes'}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>两步验证</DialogTitle>
-          <DialogDescription>用手机上的验证器应用，给登录多加一道保护。</DialogDescription>
+          <DialogTitle>{t('mfaTitle')}</DialogTitle>
+          <DialogDescription>{t('mfaDescription')}</DialogDescription>
         </DialogHeader>
         {body}
         {footer && <DialogFooter>{footer}</DialogFooter>}
@@ -237,6 +232,7 @@ export function MfaDialog({ onClosed }: { onClosed: () => void }) {
 }
 
 function QrCode({ text }: { text: string }) {
+  const { t } = useTranslation('account');
   const [src, setSrc] = useState<string>();
   useEffect(() => {
     let current = true;
@@ -250,7 +246,7 @@ function QrCode({ text }: { text: string }) {
   return (
     <div className="flex justify-center">
       {src ? (
-        <img src={src} alt="两步验证的二维码" className="size-48 rounded-md border bg-white" />
+        <img src={src} alt={t('qrCodeAlt')} className="size-48 rounded-md border bg-white" />
       ) : (
         <div className="size-48 rounded-md border bg-muted" />
       )}
@@ -259,6 +255,7 @@ function QrCode({ text }: { text: string }) {
 }
 
 function RecoveryCodesView({ codes }: { codes: string[] }) {
+  const { t } = useTranslation('account');
   const [copied, setCopied] = useState(false);
   async function copy() {
     try {
@@ -271,9 +268,7 @@ function RecoveryCodesView({ codes }: { codes: string[] }) {
   return (
     <div className="space-y-3">
       <Alert>
-        <AlertDescription>
-          这些恢复码只显示这一次。把它们保存在手机以外的地方：手机丢了时，每个码可以代替验证码登录一次。
-        </AlertDescription>
+        <AlertDescription>{t('recoveryCodesNotice')}</AlertDescription>
       </Alert>
       <ul className="grid grid-cols-2 gap-2 rounded-lg border bg-muted p-3 font-mono text-sm select-all">
         {codes.map((code) => (
@@ -282,7 +277,7 @@ function RecoveryCodesView({ codes }: { codes: string[] }) {
       </ul>
       <Button variant="outline" size="sm" onClick={() => void copy()}>
         {copied ? <Check /> : <Copy />}
-        {copied ? '已复制' : '复制全部'}
+        {copied ? t('copied') : t('copyAll')}
       </Button>
     </div>
   );

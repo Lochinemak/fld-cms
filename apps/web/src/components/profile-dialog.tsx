@@ -2,6 +2,7 @@ import { EMAIL_CHANGE_MINUTES, updateProfileSchema } from '@fld/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { MailCheck } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PasswordField } from '@/components/change-password-form';
 import { ErrorAlert } from '@/components/error-alert';
 import { TextField } from '@/components/text-field';
@@ -28,6 +29,7 @@ export function ProfileDialog({ onClosed }: { onClosed: () => void }) {
   const { user } = useMe();
   const queryClient = useQueryClient();
   const dialog = useMountedDialog(onClosed);
+  const { t } = useTranslation('account');
   // What was typed, if anything: until then the fields show what the account has, which another
   // tab may have changed since this one last asked.
   const [typedName, setTypedName] = useState<string>();
@@ -52,11 +54,9 @@ export function ProfileDialog({ onClosed }: { onClosed: () => void }) {
   const emailChanges = newEmail !== (user.email ?? '');
   const sentTo = mutation.data?.confirmationSentTo;
 
-  let emailHint = '用于接收「忘记密码」的重设链接；第一次用 Logto 登录时，也靠它找到这个账号。';
+  let emailHint: string = t('emailHint');
   if (emailChanges) {
-    emailHint = newEmail
-      ? '保存后会往这个地址发一封确认邮件，在邮件里确认后才生效。'
-      : '清空后，就不能用「忘记密码」通过邮件重设密码了。';
+    emailHint = newEmail ? t('emailHintNew') : t('emailHintCleared');
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -75,7 +75,7 @@ export function ProfileDialog({ onClosed }: { onClosed: () => void }) {
       return;
     }
     if (input.email !== user.email && !input.currentPassword) {
-      setErrors({ currentPassword: '修改邮箱需要输入当前密码' });
+      setErrors({ currentPassword: t('currentPasswordRequired') });
       return;
     }
     setNameSaved(input.displayName !== user.displayName);
@@ -88,43 +88,42 @@ export function ProfileDialog({ onClosed }: { onClosed: () => void }) {
         {sentTo ? (
           <div className="grid gap-4">
             <DialogHeader>
-              <DialogTitle>个人资料</DialogTitle>
-              <DialogDescription>还差一步：到新邮箱里确认。</DialogDescription>
+              <DialogTitle>{t('profileTitle')}</DialogTitle>
+              <DialogDescription>{t('confirmationPending')}</DialogDescription>
             </DialogHeader>
             <Alert>
               <MailCheck />
-              <AlertTitle className="break-all">确认邮件已发到 {sentTo}</AlertTitle>
+              <AlertTitle className="break-all">
+                {t('confirmationSentTo', { email: sentTo })}
+              </AlertTitle>
               <AlertDescription>
-                请在 {EMAIL_CHANGE_MINUTES}{' '}
-                分钟内打开邮件里的链接，点击「确认修改邮箱」后才生效；在这之前，你的邮箱不变。
-                {nameSaved && '姓名已保存。'}
+                {t('confirmationDetail', { minutes: EMAIL_CHANGE_MINUTES })}
+                {nameSaved && t('nameSaved')}
               </AlertDescription>
             </Alert>
             <DialogFooter>
-              <Button onClick={dialog.close}>知道了</Button>
+              <Button onClick={dialog.close}>{t('gotIt')}</Button>
             </DialogFooter>
           </div>
         ) : (
           <form onSubmit={submit} noValidate className="grid gap-4">
             <DialogHeader>
-              <DialogTitle>个人资料</DialogTitle>
-              <DialogDescription>
-                修改邮箱需要输入当前密码，并在新邮箱里确认后才生效。
-              </DialogDescription>
+              <DialogTitle>{t('profileTitle')}</DialogTitle>
+              <DialogDescription>{t('profileDescription')}</DialogDescription>
             </DialogHeader>
             <ErrorAlert error={mutation.error} />
             <TextField
               name="username"
-              label="用户名"
+              label={t('username')}
               value={user.username}
               autoComplete="username"
               readOnly
               disabled
-              hint="用户名不能修改。"
+              hint={t('usernameReadOnly')}
             />
             <TextField
               name="displayName"
-              label="姓名"
+              label={t('displayName')}
               value={name}
               onChange={(event) => setTypedName(event.target.value)}
               maxLength={64}
@@ -134,7 +133,7 @@ export function ProfileDialog({ onClosed }: { onClosed: () => void }) {
             <TextField
               name="email"
               type="email"
-              label="邮箱（选填）"
+              label={t('emailOptional')}
               value={email}
               onChange={(event) => setTypedEmail(event.target.value)}
               autoComplete="email"
@@ -144,17 +143,17 @@ export function ProfileDialog({ onClosed }: { onClosed: () => void }) {
             {emailChanges && (
               <PasswordField
                 name="currentPassword"
-                label="当前密码"
+                label={t('currentPassword', { ns: 'auth' })}
                 autoComplete="current-password"
                 error={errors['currentPassword']}
               />
             )}
             <DialogFooter>
               <DialogClose render={<Button variant="outline" />} disabled={mutation.isPending}>
-                取消
+                {t('cancel', { ns: 'common' })}
               </DialogClose>
               <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? '保存中…' : '保存'}
+                {mutation.isPending ? t('saving', { ns: 'common' }) : t('save', { ns: 'common' })}
               </Button>
             </DialogFooter>
           </form>

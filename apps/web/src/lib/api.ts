@@ -1,5 +1,6 @@
 import { TENANT_HEADER, TENANT_SWITCHED_ERROR } from '@fld/shared';
 import type { z } from 'zod';
+import i18n from '@/i18n';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -49,7 +50,7 @@ function errorMessage(status: number, body: unknown): string {
   }
   // Asked of a browser that signed in without the second step, which this needs.
   if ((body as { errorCode?: unknown } | null)?.errorCode === MFA_REQUIRED) {
-    return '这台设备登录时没有经过两步验证，请退出登录，用验证码重新登录后再操作';
+    return i18n.t('mfaRequired');
   }
   if (typeof message === 'string') {
     return message;
@@ -57,9 +58,9 @@ function errorMessage(status: number, body: unknown): string {
   // The proxy in front of the API refuses too, without a message: too many requests, or an upload
   // over its own limit.
   if (status === 429) {
-    return '操作太频繁，请稍后再试';
+    return i18n.t('tooManyRequests');
   }
-  return status === 413 ? '文件太大，超过了上传上限' : `请求失败（${status}）`;
+  return status === 413 ? i18n.t('fileTooLarge') : i18n.t('requestFailed', { status });
 }
 
 function failure(status: number, body: unknown, requestId: string | null): ApiError {
@@ -72,7 +73,9 @@ function failure(status: number, body: unknown, requestId: string | null): ApiEr
   const message = errorMessage(status, body);
   // An error of the server's own is one to report: the id finds it in the API's log.
   const reported =
-    status >= 500 && requestId ? `${message}（请求 ID：${requestId.slice(0, 8)}）` : message;
+    status >= 500 && requestId
+      ? i18n.t('serverErrorId', { message, id: requestId.slice(0, 8) })
+      : message;
   return new ApiError(status, reported, body, requestId);
 }
 
@@ -85,6 +88,8 @@ export async function api<T = void>(path: string, options: ApiOptions<T> = {}): 
   const { json, schema, ...init } = options;
   const headers = new Headers(init.headers);
   headers.set('Accept', 'application/json');
+  // The API answers in Chinese for now; this lets it follow the interface's language later.
+  headers.set('Accept-Language', i18n.language);
   if (json !== undefined) {
     headers.set('Content-Type', 'application/json');
   }
@@ -121,6 +126,7 @@ export function upload<T = void>(
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `/api${path}`);
     xhr.setRequestHeader('Accept', 'application/json');
+    xhr.setRequestHeader('Accept-Language', i18n.language);
     if (currentTenantId) {
       xhr.setRequestHeader(TENANT_HEADER, currentTenantId);
     }

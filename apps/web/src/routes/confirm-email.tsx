@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { CircleCheck } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -25,26 +26,27 @@ export const Route = createFileRoute('/confirm-email')({
 
 function ConfirmEmailPage() {
   const { token } = Route.useSearch();
+  const { t } = useTranslation('auth');
   const mutation = useMutation({ mutationFn: confirmEmail });
   // The API refuses a used, expired or replaced link with a 400, and an address another account
   // got in the meantime with a 409. Either way the link is used up.
   const refused = mutation.error instanceof ApiError && [400, 409].includes(mutation.error.status);
-  const error = token ? mutation.error?.message : '链接不完整，请重新打开邮件里的链接。';
+  const error = token ? mutation.error?.message : t('linkIncomplete');
 
   return (
     <main className="flex min-h-svh items-center justify-center p-6">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>确认修改邮箱</CardTitle>
-          <CardDescription>确认后，账号的邮箱会改为收到这封邮件的地址。</CardDescription>
+          <CardTitle>{t('confirmEmail')}</CardTitle>
+          <CardDescription>{t('confirmEmailDescription')}</CardDescription>
         </CardHeader>
         {mutation.isSuccess ? (
           <CardContent>
             <Alert>
               <CircleCheck />
-              <AlertTitle>邮箱已修改</AlertTitle>
+              <AlertTitle>{t('emailChanged')}</AlertTitle>
               <AlertDescription className="break-all">
-                账号的邮箱现在是 {mutation.data.email}。
+                {t('emailNowIs', { email: mutation.data.email })}
               </AlertDescription>
             </Alert>
           </CardContent>
@@ -60,7 +62,7 @@ function ConfirmEmailPage() {
         <CardFooter className="flex-col gap-3">
           {mutation.isSuccess ? (
             <Link to="/" className={buttonVariants({ className: 'w-full' })}>
-              进入系统
+              {t('enterApp')}
             </Link>
           ) : (
             <>
@@ -69,10 +71,10 @@ function ConfirmEmailPage() {
                 disabled={!token || refused || mutation.isPending}
                 onClick={() => token && mutation.mutate({ token })}
               >
-                {mutation.isPending ? '确认中…' : '确认修改邮箱'}
+                {mutation.isPending ? t('confirming') : t('confirmEmail')}
               </Button>
               <Link to="/" className={buttonVariants({ variant: 'link', size: 'sm' })}>
-                返回系统
+                {t('backToApp')}
               </Link>
             </>
           )}

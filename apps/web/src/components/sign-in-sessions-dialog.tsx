@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Laptop } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { ErrorAlert } from '@/components/error-alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,7 @@ import { formatDateTime } from '@/lib/crm';
 /** Where the signed-in user is signed in, to sign other devices out. */
 export function SignInSessionsDialog({ onClosed }: { onClosed: () => void }) {
   const dialog = useMountedDialog(onClosed);
+  const { t } = useTranslation('account');
   const queryClient = useQueryClient();
   const { data, error, isPending } = useQuery(signInSessionsQuery);
   const refresh = () => queryClient.invalidateQueries({ queryKey: signInSessionsQuery.queryKey });
@@ -34,13 +36,13 @@ export function SignInSessionsDialog({ onClosed }: { onClosed: () => void }) {
     <Dialog {...dialog.rootProps()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>登录设备</DialogTitle>
-          <DialogDescription>
-            这个账号正在这些浏览器和设备上登录。看到不认识的，退出它并修改密码。
-          </DialogDescription>
+          <DialogTitle>{t('sessionsTitle')}</DialogTitle>
+          <DialogDescription>{t('sessionsDescription')}</DialogDescription>
         </DialogHeader>
         <ErrorAlert error={error ?? revoke.error ?? revokeOthers.error} />
-        {isPending && <p className="text-sm text-muted-foreground">加载中…</p>}
+        {isPending && (
+          <p className="text-sm text-muted-foreground">{t('loading', { ns: 'common' })}</p>
+        )}
         <ul className="max-h-96 divide-y overflow-y-auto rounded-lg border">
           {data?.map((session) => (
             <li key={session.id} className="flex items-center gap-3 p-3">
@@ -48,12 +50,15 @@ export function SignInSessionsDialog({ onClosed }: { onClosed: () => void }) {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
                   {describeUserAgent(session.userAgent)}
-                  {session.current && <Badge variant="secondary">当前设备</Badge>}
+                  {session.current && <Badge variant="secondary">{t('currentDevice')}</Badge>}
                   {session.method === 'logto' && <Badge variant="outline">Logto</Badge>}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {session.ip ?? '未知 IP'} · 登录于 {formatDateTime(session.createdAt)} · 最近活动{' '}
-                  {formatDateTime(session.lastActiveAt)}
+                  {t('sessionDetail', {
+                    ip: session.ip ?? t('unknownIp'),
+                    signedInAt: formatDateTime(session.createdAt),
+                    lastActiveAt: formatDateTime(session.lastActiveAt),
+                  })}
                 </div>
               </div>
               {!session.current && (
@@ -63,7 +68,7 @@ export function SignInSessionsDialog({ onClosed }: { onClosed: () => void }) {
                   disabled={revoke.isPending && revoke.variables === session.id}
                   onClick={() => revoke.mutate(session.id)}
                 >
-                  退出
+                  {t('signOutSession')}
                 </Button>
               )}
             </li>
@@ -75,7 +80,7 @@ export function SignInSessionsDialog({ onClosed }: { onClosed: () => void }) {
             disabled={others === 0 || revokeOthers.isPending}
             onClick={() => revokeOthers.mutate()}
           >
-            {revokeOthers.isPending ? '正在退出…' : '退出其他所有设备'}
+            {revokeOthers.isPending ? t('signingOutOthers') : t('signOutOthers')}
           </Button>
         </DialogFooter>
       </DialogContent>

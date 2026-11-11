@@ -4,12 +4,14 @@ import {
   CircleUser,
   FileSpreadsheet,
   KeyRound,
+  Languages,
   Laptop,
   LogOut,
   ShieldCheck,
   UserRoundPen,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChangePasswordDialog } from '@/components/change-password-form';
 import { MfaDialog } from '@/components/mfa-dialog';
 import { ProfileDialog } from '@/components/profile-dialog';
@@ -21,9 +23,15 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { changeLanguage, LANGUAGES, type Language } from '@/i18n';
 import { meQuery, signOutAndReload, useMe } from '@/lib/auth';
 
 export function UserMenu() {
@@ -34,6 +42,8 @@ export function UserMenu() {
   const [changingPassword, setChangingPassword] = useState(false);
   const [viewingSessions, setViewingSessions] = useState(false);
   const [settingUpMfa, setSettingUpMfa] = useState(false);
+  const { t, i18n } = useTranslation('layout');
+  const languages = Object.entries(LANGUAGES) as [Language, { name: string }][];
 
   function editProfile() {
     // Asked again: the email changes in another tab, the one the mailed link opens.
@@ -58,27 +68,48 @@ export function UserMenu() {
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={editProfile}>
             <UserRoundPen />
-            个人资料
+            {t('profile')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setChangingPassword(true)}>
             <KeyRound />
-            修改密码
+            {t('changePassword')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setSettingUpMfa(true)}>
             <ShieldCheck />
-            两步验证
+            {t('mfa')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setViewingSessions(true)}>
             <Laptop />
-            登录设备
+            {t('signInSessions')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => void navigate({ to: '/spreadsheets' })}>
             <FileSpreadsheet />
-            导入导出
+            {t('spreadsheets')}
           </DropdownMenuItem>
+          {/* Offered once the interface comes in more than one language. */}
+          {languages.length > 1 && (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <Languages />
+                {t('language')}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuRadioGroup
+                  value={i18n.language}
+                  onValueChange={(value) => void changeLanguage(value as Language)}
+                >
+                  {languages.map(([tag, language]) => (
+                    <DropdownMenuRadioItem key={tag} value={tag}>
+                      {language.name}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          )}
           <DropdownMenuItem onClick={() => void signOutAndReload()}>
             <LogOut />
-            退出登录
+            {t('signOut')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

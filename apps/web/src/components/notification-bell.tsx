@@ -20,9 +20,11 @@ import {
   unreadCountQuery,
 } from '@/lib/notifications';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 /** The bell in the top bar: how many notifications are unread, and the latest ones. */
 export function NotificationBell() {
+  const { t } = useTranslation('layout');
   const queryClient = useQueryClient();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -45,14 +47,14 @@ export function NotificationBell() {
   }
 
   const items = latest.data?.items ?? [];
-  const label = unread > 0 ? `通知，${unread} 条未读` : '通知';
+  const label = unread > 0 ? t('notificationsUnread', { count: unread }) : t('notifications');
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
         className={cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }), 'relative')}
         aria-label={label}
-        title="通知"
+        title={t('notifications')}
       >
         <Bell />
         {unread > 0 && (
@@ -63,23 +65,27 @@ export function NotificationBell() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[360px] max-w-[calc(100vw-2rem)]">
         <div className="flex items-center justify-between gap-2 px-1.5 py-1">
-          <span className="text-sm font-medium">通知</span>
+          <span className="text-sm font-medium">{t('notifications')}</span>
           <button
             type="button"
             className="text-xs text-primary hover:underline disabled:pointer-events-none disabled:opacity-50"
             disabled={unread === 0 || markAll.isPending}
             onClick={() => markAll.mutate()}
           >
-            全部标为已读
+            {t('markAllRead')}
           </button>
         </div>
         <DropdownMenuSeparator />
         {latest.isPending ? (
-          <p className="px-1.5 py-6 text-center text-sm text-muted-foreground">加载中…</p>
+          <p className="px-1.5 py-6 text-center text-sm text-muted-foreground">
+            {t('loading', { ns: 'common' })}
+          </p>
         ) : latest.error ? (
           <p className="px-1.5 py-6 text-center text-sm text-destructive">{latest.error.message}</p>
         ) : items.length === 0 ? (
-          <p className="px-1.5 py-6 text-center text-sm text-muted-foreground">暂无通知</p>
+          <p className="px-1.5 py-6 text-center text-sm text-muted-foreground">
+            {t('noNotifications')}
+          </p>
         ) : (
           items.map((notification) => (
             <DropdownMenuItem
@@ -102,7 +108,7 @@ export function NotificationBell() {
                       notification.read ? 'text-muted-foreground' : 'font-medium',
                     )}
                   >
-                    {notification.read ? '' : <span className="sr-only">未读：</span>}
+                    {notification.read ? '' : <span className="sr-only">{t('unread')}</span>}
                     {notification.title}
                   </span>
                   <span className="shrink-0 text-xs text-muted-foreground">

@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { useTranslation } from 'react-i18next';
 
 interface PaginationBarProps {
   page: number;
@@ -18,6 +19,7 @@ export function PaginationBar({
   summary,
   onPageChange,
 }: PaginationBarProps) {
+  const { t } = useTranslation();
   const pages = Math.max(1, Math.ceil(total / pageSize));
 
   // The page shown may no longer exist: after a removal, or from an old address.
@@ -29,24 +31,22 @@ export function PaginationBar({
 
   return (
     <div className="flex items-center justify-between gap-4 text-sm text-muted-foreground">
-      <span>{summary ?? `共 ${total} 条`}</span>
+      <span>{summary ?? t('total', { count: total })}</span>
       <div className="flex items-center gap-2">
         <Button
           variant="outline"
           size="icon-sm"
-          aria-label="上一页"
+          aria-label={t('previousPage')}
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
         >
           <ChevronLeft />
         </Button>
-        <span className="tabular-nums">
-          第 {Math.min(page, pages)} / {pages} 页
-        </span>
+        <span className="tabular-nums">{t('page', { page: Math.min(page, pages), pages })}</span>
         <Button
           variant="outline"
           size="icon-sm"
-          aria-label="下一页"
+          aria-label={t('nextPage')}
           disabled={page >= pages}
           onClick={() => onPageChange(page + 1)}
         >
