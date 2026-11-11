@@ -1,5 +1,6 @@
 import type { Page, PageQuery, PlatformAccount, ResetAccountPasswordResult } from '@fld/shared';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { SessionService } from '@nestjs/authentication';
 import { accountName, AuditService, changesOf } from '../audit/audit.service.js';
 import { CredentialsService, UNLOCKED } from '../auth/credentials.service.js';
 import type { Principal } from '../auth/principal.js';
@@ -29,6 +30,7 @@ export class AccountsService {
     private readonly prisma: PrismaService,
     private readonly credentials: CredentialsService,
     private readonly audit: AuditService,
+    private readonly sessions: SessionService,
   ) {}
 
   async list({ page, pageSize, keyword }: PageQuery): Promise<Page<PlatformAccount>> {
@@ -102,6 +104,22 @@ export class AccountsService {
       target: { type: 'account', id: userId, name: accountName(account) },
     });
     return account;
+  }
+
+  /** Signs the account out on every device; its password stays as it is. */
+  async signOut(id: string): Promise<void> {
+    const account = await this.prisma.user.findUnique({
+      where: { id: BigInt(id) },
+      select: { id: true, username: true, displayName: true },
+    });
+    if (!account) {
+      throw new NotFoundException('账号不存在');
+    }
+    await this.sessions.revokeAll(id);
+    await this.audit.record({
+      action: 'account.sign-out',
+      target: { type: 'account', id: account.id, name: accountName(account) },
+    });
   }
 }
 

@@ -15,6 +15,7 @@ import { PrismaSessionStore } from './prisma-session.store.js';
 import { ProfileService } from './profile.service.js';
 import { RedisOidcStateStore } from './redis-oidc-state.store.js';
 import { SessionAuth } from './session-auth.provider.js';
+import { SignInSessionsService } from './sign-in-sessions.service.js';
 import { TenantContextCache } from './tenant-context.cache.js';
 import { TenantContextService } from './tenant-context.service.js';
 
@@ -35,6 +36,7 @@ import { TenantContextService } from './tenant-context.service.js';
     AccountProvisioning,
     PasswordResetMailer,
     PasswordRecoveryService,
+    SignInSessionsService,
   ],
   exports: [TenantContextCache, CredentialsService, AccountProvisioning],
 })

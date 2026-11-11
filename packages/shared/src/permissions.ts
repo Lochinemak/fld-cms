@@ -46,6 +46,12 @@ export const PERMISSIONS = {
     parent: 'system:account',
     platform: true,
   },
+  'system:account:sign-out': {
+    name: '退出全部登录',
+    kind: 'element',
+    parent: 'system:account',
+    platform: true,
+  },
 
   'system:settings': { name: '平台设置', kind: 'page', parent: 'system', platform: true },
   'system:settings:update': {

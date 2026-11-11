@@ -164,3 +164,22 @@ export const updateProfileResultSchema = z.object({
   confirmationSentTo: z.string().nullable(),
 });
 export type UpdateProfileResult = z.infer<typeof updateProfileResultSchema>;
+
+// Where the account is signed in
+
+export const signInMethodSchema = z.enum(['password', 'logto']);
+export type SignInMethod = z.infer<typeof signInMethodSchema>;
+
+/** One browser or device the account is signed in on. */
+export const signInSessionSchema = z.object({
+  /** Revokes the session; it can't be used to sign in. */
+  id: z.string(),
+  /** The session of the request asking. */
+  current: z.boolean(),
+  method: signInMethodSchema,
+  ip: z.string().nullable(),
+  userAgent: z.string().nullable(),
+  createdAt: z.iso.datetime(),
+  lastActiveAt: z.iso.datetime(),
+});
+export type SignInSession = z.infer<typeof signInSessionSchema>;

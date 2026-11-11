@@ -4,11 +4,12 @@ import {
   updateProfileSchema,
   type ChangePasswordInput,
   type Me,
+  type SignInSession,
   type SwitchTenantInput,
   type UpdateProfileInput,
   type UpdateProfileResult,
 } from '@fld/shared';
-import { Body, Controller, Get, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Put } from '@nestjs/common';
 import { CurrentSession, CurrentUser, type SessionRecord } from '@nestjs/authentication';
 import { Can } from '@nestjs/authorization';
 import { ApiTags } from '@nestjs/swagger';
@@ -17,6 +18,7 @@ import { AccountRoute } from '../authz/account-route.decorator.js';
 import { AccountService } from './account.service.js';
 import type { Principal } from './principal.js';
 import { ProfileService } from './profile.service.js';
+import { SignInSessionsService } from './sign-in-sessions.service.js';
 
 @ApiTags('me')
 @AccountRoute()
@@ -26,6 +28,7 @@ export class MeController {
   constructor(
     private readonly accounts: AccountService,
     private readonly profile: ProfileService,
+    private readonly signInSessions: SignInSessionsService,
   ) {}
 
   /** The signed-in user, their current tenant and the permissions they hold there. */
@@ -58,5 +61,35 @@ export class MeController {
     @Body({ schema: updateProfileSchema }) input: UpdateProfileInput,
   ): Promise<UpdateProfileResult> {
     return this.profile.update(user, input);
+  }
+
+  /** Where the account is signed in. */
+  @Get('sessions')
+  sessions(
+    @CurrentUser() user: Principal,
+    @CurrentSession() session: SessionRecord,
+  ): Promise<SignInSession[]> {
+    return this.signInSessions.list(user, session);
+  }
+
+  /** Signs out every other device. */
+  @Delete('sessions')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  revokeOtherSessions(
+    @CurrentUser() user: Principal,
+    @CurrentSession() session: SessionRecord,
+  ): Promise<void> {
+    return this.signInSessions.revokeOthers(user, session);
+  }
+
+  /** Signs out one other device. */
+  @Delete('sessions/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  revokeSession(
+    @CurrentUser() user: Principal,
+    @CurrentSession() session: SessionRecord,
+    @Param('id') id: string,
+  ): Promise<void> {
+    return this.signInSessions.revoke(user, session, id);
   }
 }

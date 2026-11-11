@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/table';
 import { useMe } from '@/lib/auth';
 import { formatDateTime } from '@/lib/crm';
-import { accountsQuery, resetAccountPassword, unlockAccount } from '@/lib/platform';
+import { accountsQuery, resetAccountPassword, signOutAccount, unlockAccount } from '@/lib/platform';
 import { PAGE_SIZE } from '@/lib/system';
 
 const searchSchema = z.object({
@@ -51,6 +51,7 @@ function AccountsPage() {
   const queryClient = useQueryClient();
   const [resetting, setResetting] = useState<PlatformAccount | null>(null);
   const [unlocking, setUnlocking] = useState<PlatformAccount | null>(null);
+  const [signingOut, setSigningOut] = useState<PlatformAccount | null>(null);
   const [secret, setSecret] = useState<OneTimePassword | null>(null);
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['system', 'accounts'] });
@@ -126,6 +127,13 @@ function AccountsPage() {
                         </Can>
                       )}
                       {!self && (
+                        <Can code="system:account:sign-out">
+                          <Button variant="ghost" size="sm" onClick={() => setSigningOut(account)}>
+                            退出全部登录
+                          </Button>
+                        </Can>
+                      )}
+                      {!self && (
                         <Can code="system:account:reset-password">
                           <Button variant="ghost" size="sm" onClick={() => setResetting(account)}>
                             重置密码
@@ -171,6 +179,15 @@ function AccountsPage() {
             await refresh();
           }}
           onClosed={() => setUnlocking(null)}
+        />
+      )}
+      {signingOut && (
+        <ConfirmDialog
+          title={`让「${signingOut.displayName}」退出全部登录？`}
+          description="这个账号会在所有浏览器和设备上退出，需要重新登录；密码不变。怀疑账号被别人登录时，可以先这样做，再重置密码。"
+          confirmLabel="退出全部登录"
+          action={() => signOutAccount(signingOut.id)}
+          onClosed={() => setSigningOut(null)}
         />
       )}
       {secret && <OneTimePasswordDialog secret={secret} onClosed={() => setSecret(null)} />}

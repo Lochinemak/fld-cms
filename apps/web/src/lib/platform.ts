@@ -32,6 +32,9 @@ export const resetAccountPassword = (id: string) =>
 export const unlockAccount = (id: string) =>
   api(`/system/accounts/${id}/unlock`, { method: 'POST', schema: platformAccountSchema });
 
+export const signOutAccount = (id: string) =>
+  api(`/system/accounts/${id}/sign-out`, { method: 'POST' });
+
 export const platformSettingsQuery = queryOptions({
   queryKey: ['system', 'settings'],
   queryFn: () => api('/system/settings', { schema: platformSettingsViewSchema }),

@@ -1,8 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { CircleUser, KeyRound, LogOut, UserRoundPen } from 'lucide-react';
+import { CircleUser, KeyRound, Laptop, LogOut, UserRoundPen } from 'lucide-react';
 import { useState } from 'react';
 import { ChangePasswordDialog } from '@/components/change-password-form';
 import { ProfileDialog } from '@/components/profile-dialog';
+import { SignInSessionsDialog } from '@/components/sign-in-sessions-dialog';
 import { buttonVariants } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -20,6 +21,7 @@ export function UserMenu() {
   const queryClient = useQueryClient();
   const [editingProfile, setEditingProfile] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [viewingSessions, setViewingSessions] = useState(false);
 
   function editProfile() {
     // Asked again: the email changes in another tab, the one the mailed link opens.
@@ -50,6 +52,10 @@ export function UserMenu() {
             <KeyRound />
             修改密码
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setViewingSessions(true)}>
+            <Laptop />
+            登录设备
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => void signOutAndReload()}>
             <LogOut />
             退出登录
@@ -58,6 +64,7 @@ export function UserMenu() {
       </DropdownMenu>
       {editingProfile && <ProfileDialog onClosed={() => setEditingProfile(false)} />}
       {changingPassword && <ChangePasswordDialog onClosed={() => setChangingPassword(false)} />}
+      {viewingSessions && <SignInSessionsDialog onClosed={() => setViewingSessions(false)} />}
     </>
   );
 }

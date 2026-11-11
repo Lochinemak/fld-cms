@@ -41,4 +41,11 @@ export class AccountsController {
   unlock(@Param('id', { schema: idSchema }) id: string): Promise<PlatformAccount> {
     return this.accounts.unlock(id);
   }
+
+  @RequirePermission('system:account:sign-out')
+  @Post(':id/sign-out')
+  @HttpCode(204)
+  signOut(@Param('id', { schema: idSchema }) id: string): Promise<void> {
+    return this.accounts.signOut(id);
+  }
 }

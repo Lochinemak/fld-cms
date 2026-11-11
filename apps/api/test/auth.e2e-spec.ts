@@ -74,6 +74,7 @@ describe('Sign-in, tenants and permissions (e2e)', () => {
     expect(me.permissions).toEqual([
       'system:account',
       'system:account:reset-password',
+      'system:account:sign-out',
       'system:account:unlock',
       'system:platform-audit',
       'system:settings',
