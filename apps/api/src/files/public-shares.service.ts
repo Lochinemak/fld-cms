@@ -1,13 +1,16 @@
-import type { PublicShare } from '@fld/shared';
+import { directoryOf, type PublicShare } from '@fld/shared';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Storage } from '../storage/storage.js';
 import { sendFileContent } from './file-content.js';
 
+/** The module share links are part of: none of a tenant without it works. */
+const FILES_MODULE = directoryOf('file:library:share');
+
 /**
  * Share links as their visitors see them, without signing in. A link works until it expires or
- * is revoked, its file is deleted, or its tenant is disabled.
+ * is revoked, its file is deleted, or its tenant is disabled or goes without the module.
  */
 @Injectable()
 export class PublicSharesService {
@@ -56,7 +59,7 @@ export class PublicSharesService {
         id: true,
         code: true,
         expiresAt: true,
-        tenant: { select: { status: true } },
+        tenant: { select: { status: true, disabledModules: true } },
         file: {
           select: { name: true, storageKey: true, size: true, mimeType: true, deletedAt: true },
         },
@@ -66,7 +69,8 @@ export class PublicSharesService {
       !share ||
       share.file.deletedAt ||
       (share.expiresAt && share.expiresAt <= new Date()) ||
-      share.tenant.status !== 'ACTIVE'
+      share.tenant.status !== 'ACTIVE' ||
+      share.tenant.disabledModules.includes(FILES_MODULE)
     ) {
       throw new NotFoundException('链接不存在或已失效');
     }

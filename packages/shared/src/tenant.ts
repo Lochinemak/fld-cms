@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { accountChoiceSchema } from './account.js';
 import { idSchema } from './id.js';
 import { pageSchema } from './pagination.js';
+import { MODULE_CODES } from './permissions.js';
 
 export const tenantStatusSchema = z.enum(['ACTIVE', 'DISABLED']);
 export type TenantStatus = z.infer<typeof tenantStatusSchema>;
@@ -14,11 +15,20 @@ export const tenantCodeSchema = z
 
 export const tenantNameSchema = z.string().trim().min(1, '请输入租户名称').max(128);
 
+export const moduleCodeSchema = z.enum(MODULE_CODES, '未知的模块');
+
+/** The modules to switch off for a tenant: each once, in the registry's order. */
+export const disabledModulesSchema = z
+  .array(moduleCodeSchema)
+  .transform((codes) => MODULE_CODES.filter((code) => codes.includes(code)));
+
 export const tenantSchema = z.object({
   id: idSchema,
   code: z.string(),
   name: z.string(),
   status: tenantStatusSchema,
+  /** The modules switched off for the tenant: nobody in it sees or uses them. */
+  disabledModules: z.array(moduleCodeSchema),
   memberCount: z.number().int().nonnegative(),
   createdAt: z.iso.datetime(),
 });
@@ -31,6 +41,8 @@ export const createTenantSchema = z.object({
   name: tenantNameSchema,
   /** The tenant's first administrator. */
   admin: accountChoiceSchema,
+  /** None unless given: a tenant starts with every module. */
+  disabledModules: disabledModulesSchema.default([]),
 });
 export type CreateTenantInput = z.infer<typeof createTenantSchema>;
 
@@ -55,7 +67,11 @@ export const resetTenantAdminSchema = z.object({
 export type ResetTenantAdminInput = z.infer<typeof resetTenantAdminSchema>;
 
 export const updateTenantSchema = z
-  .object({ name: tenantNameSchema, status: tenantStatusSchema })
+  .object({
+    name: tenantNameSchema,
+    status: tenantStatusSchema,
+    disabledModules: disabledModulesSchema,
+  })
   .partial()
   .refine((value) => Object.keys(value).length > 0, '至少修改一项');
 export type UpdateTenantInput = z.infer<typeof updateTenantSchema>;

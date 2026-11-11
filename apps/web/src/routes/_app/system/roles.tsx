@@ -189,7 +189,7 @@ function RoleDialog({ role, readOnly, onClosed }: RoleDialogProps) {
   const queryClient = useQueryClient();
   const dialog = useMountedDialog(onClosed);
   const { nodes } = useDeptTree();
-  const grantable = grantablePermissions(me.tenant?.isSystem ?? false);
+  const grantable = me.tenant ? grantablePermissions(me.tenant) : [];
   const [initial] = useState(() => new Set<string>(role?.permissions));
   const [permissions, setPermissions] = useState(
     () => new Set<PermissionCode>(role?.permissions.filter(isPermissionCode)),

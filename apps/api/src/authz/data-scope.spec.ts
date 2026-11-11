@@ -18,7 +18,7 @@ function principal(dataScope: DataScopeGrant | null): Principal {
     lastTenantId: null,
   };
   const context = dataScope && {
-    tenant: { id: '2', code: 'acme', name: 'Acme', isSystem: false },
+    tenant: { id: '2', code: 'acme', name: 'Acme', isSystem: false, disabledModules: [] },
     memberId: '8',
     deptId: '10',
     permissions: [],

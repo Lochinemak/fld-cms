@@ -1,5 +1,11 @@
-import type { Attachment, FileRefTarget, FileUsage } from '@fld/shared';
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { directoryOf, type Attachment, type FileRefTarget, type FileUsage } from '@fld/shared';
+import {
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { Principal } from '../auth/principal.js';
 import { TENANT_PRISMA, tenantIdOf, type TenantPrisma } from '../authz/tenant-prisma.js';
 import { toUserRef, visibleCustomers } from '../crm/crm-scope.js';
@@ -15,6 +21,12 @@ export interface FileRefTargetRef {
 }
 
 const TARGET_NAMES: Record<FileRefTarget, string> = { CUSTOMER: '客户' };
+
+/** The module customers are part of: nobody sees those of a tenant without it. */
+const CUSTOMERS_MODULE = directoryOf('crm:customer');
+
+/** The module the library is part of: records of a tenant without it take no more files. */
+const FILES_MODULE = directoryOf('file:library');
 
 interface RefRow {
   targetType: FileRefTarget;
@@ -83,8 +95,8 @@ export class FileRefsService {
   }
 
   /**
-   * Attaches files the user can see to a record. The caller holds the record's row, so that it
-   * cannot go away meanwhile.
+   * Attaches files the user can see to a record, unless the library is switched off for the
+   * tenant. The caller holds the record's row, so that it cannot go away meanwhile.
    */
   async attach(
     tx: FilesDb,
@@ -92,6 +104,9 @@ export class FileRefsService {
     target: FileRefTargetRef,
     fileIds: readonly bigint[],
   ): Promise<void> {
+    if (user.context?.tenant.disabledModules.includes(FILES_MODULE)) {
+      throw new ForbiddenException('文件管理已关闭，不能添加附件');
+    }
     const tenantId = tenantIdOf(user);
     const ids = [...new Set(fileIds)];
     // Keeps the files from being deleted until the references are in.
@@ -175,9 +190,9 @@ export class FileRefsService {
     user: Principal,
     refs: RefRow[],
   ): Promise<{ usages: FileUsage[]; hidden: number }> {
-    const customerIds = refs
-      .filter((ref) => ref.targetType === 'CUSTOMER')
-      .map((ref) => ref.targetId);
+    const customerIds = user.context?.tenant.disabledModules.includes(CUSTOMERS_MODULE)
+      ? []
+      : refs.filter((ref) => ref.targetType === 'CUSTOMER').map((ref) => ref.targetId);
     const customers = customerIds.length
       ? await this.db.customer.findMany({
           where: { AND: [{ id: { in: customerIds } }, visibleCustomers(user)] },

@@ -137,6 +137,8 @@ export const tenantSummarySchema = z.object({
   code: z.string(),
   name: z.string(),
   isSystem: z.boolean(),
+  /** Codes of the modules switched off for the tenant: nobody in it sees or uses them. */
+  disabledModules: z.array(z.string()),
 });
 export type TenantSummary = z.infer<typeof tenantSummarySchema>;
 

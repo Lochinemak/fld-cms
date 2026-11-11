@@ -1,5 +1,4 @@
 import {
-  grantablePermissions,
   isPermissionCode,
   permissionDefinition,
   type CreateRoleInput,
@@ -18,7 +17,7 @@ import {
 import { AuditService, changesOf } from '../audit/audit.service.js';
 import type { Principal } from '../auth/principal.js';
 import { TenantContextCache } from '../auth/tenant-context.cache.js';
-import { assertWithinOwnGrant } from '../authz/grants.js';
+import { assertWithinOwnGrant, dormantIn, grantableIn } from '../authz/grants.js';
 import { TENANT_PRISMA, tenantIdOf, type TenantPrisma } from '../authz/tenant-prisma.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { SnowflakeService } from '../snowflake/snowflake.service.js';
@@ -51,10 +50,6 @@ function permissionWords(code: PermissionCode): string {
   return kind === 'element' && parent && isPermissionCode(parent)
     ? `${permissionDefinition(parent).name}·${name}`
     : name;
-}
-
-function grantableIn(user: Principal): Set<PermissionCode> {
-  return new Set(grantablePermissions(user.context?.tenant.isSystem ?? false));
 }
 
 function toRole(row: RoleRow, grantable: Set<PermissionCode>): Role {
@@ -266,7 +261,10 @@ export class RolesService {
     return deptIds;
   }
 
-  /** Writes that make the role's permissions and custom departments exactly these. */
+  /**
+   * Writes that make the role's permissions and custom departments exactly these. What it holds
+   * of a module switched off stays, unseen, for when the module is back.
+   */
   private writeGrants(
     user: Principal,
     roleId: bigint,
@@ -275,7 +273,9 @@ export class RolesService {
   ) {
     const tenantId = tenantIdOf(user);
     return [
-      this.db.rolePermission.deleteMany({ where: { roleId } }),
+      this.db.rolePermission.deleteMany({
+        where: { roleId, permission: { notIn: [...dormantIn(user)] } },
+      }),
       this.db.roleDepartment.deleteMany({ where: { roleId } }),
       this.db.rolePermission.createMany({
         data: permissions.map((permission) => ({ roleId, permission })),

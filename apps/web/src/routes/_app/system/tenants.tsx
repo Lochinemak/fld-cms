@@ -1,8 +1,11 @@
 import {
+  MODULE_CODES,
   SYSTEM_TENANT_ID,
   createTenantSchema,
+  permissionDefinition,
   resetTenantAdminSchema,
   updateTenantSchema,
+  type ModuleCode,
   type ResetTenantAdminInput,
   type Tenant,
   type TenantStatus,
@@ -30,6 +33,7 @@ import { TextField } from '@/components/text-field';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogClose,
@@ -39,6 +43,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -115,14 +120,15 @@ function TenantsPage() {
               <TableHead>编码</TableHead>
               <TableHead>名称</TableHead>
               <TableHead>状态</TableHead>
+              <TableHead>已关闭模块</TableHead>
               <TableHead className="text-right">成员数</TableHead>
               <TableHead>创建时间</TableHead>
               <TableHead className="w-0" />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isPending && <TableMessage colSpan={6}>加载中…</TableMessage>}
-            {data?.items.length === 0 && <TableMessage colSpan={6}>没有找到租户</TableMessage>}
+            {isPending && <TableMessage colSpan={7}>加载中…</TableMessage>}
+            {data?.items.length === 0 && <TableMessage colSpan={7}>没有找到租户</TableMessage>}
             {data?.items.map((tenant) => (
               <TableRow key={tenant.id}>
                 <TableCell className="font-mono text-xs">{tenant.code}</TableCell>
@@ -134,6 +140,11 @@ function TenantsPage() {
                 </TableCell>
                 <TableCell>
                   <StatusBadge status={tenant.status} />
+                </TableCell>
+                <TableCell>
+                  {tenant.disabledModules
+                    .map((code) => permissionDefinition(code).name)
+                    .join('、') || '—'}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{tenant.memberCount}</TableCell>
                 <TableCell>{formatDate(tenant.createdAt)}</TableCell>
@@ -190,6 +201,40 @@ function TenantsPage() {
   );
 }
 
+interface ModulesFieldProps {
+  /** The modules switched off. */
+  value: readonly ModuleCode[];
+  onChange: (disabledModules: ModuleCode[]) => void;
+}
+
+/** A checkbox for each module, ticked while the tenant has it. */
+function ModulesField({ value, onChange }: ModulesFieldProps) {
+  if (MODULE_CODES.length === 0) {
+    return null;
+  }
+  return (
+    <div className="space-y-2">
+      <Label>功能模块</Label>
+      <div className="flex flex-wrap gap-x-6 gap-y-2">
+        {MODULE_CODES.map((code) => (
+          <Label key={code} className="font-normal">
+            <Checkbox
+              checked={!value.includes(code)}
+              onCheckedChange={(checked) =>
+                onChange(checked ? value.filter((off) => off !== code) : [...value, code])
+              }
+            />
+            {permissionDefinition(code).name}
+          </Label>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        取消勾选后，这个租户里的所有人（包括租户管理员）都看不到、也用不了该模块；数据都还在，重新勾选即可恢复。
+      </p>
+    </div>
+  );
+}
+
 interface CreateTenantDialogProps {
   /** The administrator's generated password, to show once. */
   onCreated: (secret: OneTimePassword) => void;
@@ -200,6 +245,7 @@ function CreateTenantDialog({ onCreated, onClosed }: CreateTenantDialogProps) {
   const queryClient = useQueryClient();
   const dialog = useMountedDialog(onClosed);
   const [mode, setMode] = useState<AccountMode>('new');
+  const [disabledModules, setDisabledModules] = useState<ModuleCode[]>([]);
   const [errors, setErrors] = useState<FieldErrors>({});
   const mutation = useMutation({
     mutationFn: createTenant,
@@ -223,6 +269,7 @@ function CreateTenantDialog({ onCreated, onClosed }: CreateTenantDialogProps) {
       code: form.get('code'),
       name: form.get('name'),
       admin: readAccountChoice(form, 'admin', mode),
+      disabledModules,
     });
     setErrors(parsed.success ? {} : fieldErrors(parsed.error));
     if (parsed.success) {
@@ -255,6 +302,7 @@ function CreateTenantDialog({ onCreated, onClosed }: CreateTenantDialogProps) {
             />
             <TextField name="name" label="租户名称" autoComplete="off" error={errors['name']} />
           </div>
+          <ModulesField value={disabledModules} onChange={setDisabledModules} />
           <fieldset className="space-y-3 rounded-lg border p-4">
             <legend className="px-1 text-sm font-medium">租户管理员</legend>
             <AccountChoiceFields name="admin" mode={mode} onModeChange={setMode} errors={errors} />
@@ -277,6 +325,7 @@ function EditTenantDialog({ tenant, onClosed }: { tenant: Tenant; onClosed: () =
   const queryClient = useQueryClient();
   const dialog = useMountedDialog(onClosed);
   const [status, setStatus] = useState<TenantStatus>(tenant.status);
+  const [disabledModules, setDisabledModules] = useState(tenant.disabledModules);
   const [errors, setErrors] = useState<FieldErrors>({});
   const isSystem = tenant.id === SYSTEM_TENANT_ID;
   const mutation = useMutation({
@@ -290,7 +339,12 @@ function EditTenantDialog({ tenant, onClosed }: { tenant: Tenant; onClosed: () =
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const parsed = updateTenantSchema.safeParse({ name: form.get('name'), status });
+    const parsed = updateTenantSchema.safeParse({
+      name: form.get('name'),
+      status,
+      // The system tenant has none to switch off.
+      ...(isSystem ? {} : { disabledModules }),
+    });
     setErrors(parsed.success ? {} : fieldErrors(parsed.error));
     if (parsed.success) {
       mutation.mutate(parsed.data);
@@ -329,6 +383,7 @@ function EditTenantDialog({ tenant, onClosed }: { tenant: Tenant; onClosed: () =
                 : '停用后，成员不能再进入这个租户；重新启用即可恢复，数据都还在。'
             }
           />
+          {!isSystem && <ModulesField value={disabledModules} onChange={setDisabledModules} />}
           <DialogFooter>
             <DialogClose render={<Button variant="outline" />} disabled={mutation.isPending}>
               取消

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { grantablePermissions, PERMISSIONS } from '@fld/shared';
+import { grantablePermissions, MODULE_CODES, PERMISSIONS } from '@fld/shared';
 import { Injectable, Logger } from '@nestjs/common';
 import { RedisService } from '../redis/redis.service.js';
 import type { TenantContext } from './principal.js';
@@ -9,7 +9,13 @@ const TTL_SECONDS = 600;
 // Built-in roles hold every permission their tenant may grant, so a release that changes the
 // registry or what a tenant may grant must not serve contexts cached by the previous one.
 const REGISTRY = createHash('sha256')
-  .update(JSON.stringify([PERMISSIONS, grantablePermissions(true), grantablePermissions(false)]))
+  .update(
+    JSON.stringify([
+      PERMISSIONS,
+      MODULE_CODES,
+      [true, false].map((isSystem) => grantablePermissions({ isSystem, disabledModules: [] })),
+    ]),
+  )
   .digest('hex')
   .slice(0, 12);
 
@@ -20,7 +26,7 @@ const entryKey = (tenantId: bigint, version: string, userId: bigint) =>
 /**
  * Caches each member's tenant context (permissions, data scope) per tenant version. Bumping the
  * version drops every entry of the tenant at once, so any change to its members, roles,
- * departments or status must call {@link invalidate}.
+ * departments, modules or status must call {@link invalidate}.
  */
 @Injectable()
 export class TenantContextCache {

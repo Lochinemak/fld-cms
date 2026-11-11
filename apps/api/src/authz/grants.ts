@@ -1,4 +1,4 @@
-import type { DataScope } from '@fld/shared';
+import { grantablePermissions, type DataScope, type PermissionCode } from '@fld/shared';
 import { ForbiddenException } from '@nestjs/common';
 import type { Principal } from '../auth/principal.js';
 import type { TenantPrisma } from './tenant-prisma.js';
@@ -10,6 +10,26 @@ export interface Grant {
   dataScope?: DataScope;
   /** The departments a CUSTOM scope adds. */
   deptIds?: readonly string[];
+}
+
+/** The permissions the roles of the principal's tenant may hold. */
+export function grantableIn(principal: Principal): Set<PermissionCode> {
+  return new Set(principal.context ? grantablePermissions(principal.context.tenant) : []);
+}
+
+/**
+ * The permissions the tenant's roles keep without holding them: those of the modules switched
+ * off for it, which count again once the module is back.
+ */
+export function dormantIn(principal: Principal): Set<PermissionCode> {
+  const tenant = principal.context?.tenant;
+  if (!tenant) {
+    return new Set();
+  }
+  const held = new Set(grantablePermissions(tenant));
+  return new Set(
+    grantablePermissions({ ...tenant, disabledModules: [] }).filter((code) => !held.has(code)),
+  );
 }
 
 /**
@@ -34,6 +54,38 @@ export function assertWithinOwnGrant(principal: Principal, grant: Grant): void {
     if (grant.deptIds?.some((id) => !visible.has(id))) {
       throw new ForbiddenException('自定义数据范围只能选你自己能看到的部门');
     }
+  }
+}
+
+/**
+ * Refuses to hand out, with a role, permissions of a module switched off that the principal's
+ * own roles don't keep: once the module is back, the role would give more than they have.
+ */
+export async function assertWithinDormantGrant(
+  db: TenantPrisma,
+  principal: Principal,
+  permissions: readonly string[],
+): Promise<void> {
+  if (permissions.length === 0) {
+    return;
+  }
+  const memberId = principal.context?.memberId;
+  const held = memberId
+    ? await db.memberRole.findMany({
+        where: { memberId: BigInt(memberId) },
+        select: {
+          role: { select: { builtin: true, permissions: { select: { permission: true } } } },
+        },
+      })
+    : [];
+  if (held.some(({ role }) => role.builtin)) {
+    return;
+  }
+  const kept = new Set(
+    held.flatMap(({ role }) => role.permissions.map(({ permission }) => permission)),
+  );
+  if (permissions.some((code) => !kept.has(code))) {
+    throw new ForbiddenException('不能授予自己没有的权限');
   }
 }
 

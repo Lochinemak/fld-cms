@@ -4,6 +4,8 @@ export interface TenantSeed {
   id: bigint;
   code: string;
   name: string;
+  /** The modules the tenant starts without; none unless given. */
+  disabledModules?: string[];
   /** The built-in role of the tenant's first administrator. */
   adminRole: { code: string; name: string };
   /** The existing user who becomes that administrator. */
@@ -23,7 +25,14 @@ export async function seedTenant(
   const deptId = nextId();
   const roleId = nextId();
   const memberId = nextId();
-  await tx.tenant.create({ data: { id: tenantId, code: seed.code, name: seed.name } });
+  await tx.tenant.create({
+    data: {
+      id: tenantId,
+      code: seed.code,
+      name: seed.name,
+      disabledModules: seed.disabledModules ?? [],
+    },
+  });
   await tx.department.create({
     data: { id: deptId, tenantId, name: seed.name, path: `/${deptId}/` },
   });

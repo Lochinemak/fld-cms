@@ -1,12 +1,11 @@
-import {
-  grantablePermissions,
-  type CreateMemberInput,
-  type CreateMemberResult,
-  type Member,
-  type MemberQuery,
-  type Page,
-  type ResetMemberPasswordResult,
-  type UpdateMemberInput,
+import type {
+  CreateMemberInput,
+  CreateMemberResult,
+  Member,
+  MemberQuery,
+  Page,
+  ResetMemberPasswordResult,
+  UpdateMemberInput,
 } from '@fld/shared';
 import {
   BadRequestException,
@@ -22,7 +21,13 @@ import { CredentialsService, UNLOCKED } from '../auth/credentials.service.js';
 import type { Principal } from '../auth/principal.js';
 import { TenantContextCache } from '../auth/tenant-context.cache.js';
 import { dataScopeWhere } from '../authz/data-scope.js';
-import { assertWithinOwnGrant, holdsBuiltinRole } from '../authz/grants.js';
+import {
+  assertWithinDormantGrant,
+  assertWithinOwnGrant,
+  dormantIn,
+  grantableIn,
+  holdsBuiltinRole,
+} from '../authz/grants.js';
 import { TENANT_PRISMA, tenantIdOf, type TenantPrisma } from '../authz/tenant-prisma.js';
 import { generatePassword } from '../common/password.js';
 import { Prisma } from '../generated/prisma/client.js';
@@ -342,7 +347,7 @@ export class MembersService {
 
   /**
    * The roles' ids, after checking each is the tenant's and each newly assigned one hands out
-   * nothing beyond the user's own grant.
+   * nothing beyond the user's own grant, now or once a module switched off is back.
    */
   private async checkAssignable(
     user: Principal,
@@ -367,18 +372,21 @@ export class MembersService {
     if (added.some((role) => role.builtin) && !(await holdsBuiltinRole(this.db, user))) {
       throw new ForbiddenException('只有管理员才能分配管理员角色');
     }
-    const grantable = new Set<string>(grantablePermissions(user.context?.tenant.isSystem ?? false));
+    const grantable: ReadonlySet<string> = grantableIn(user);
+    const dormant: ReadonlySet<string> = dormantIn(user);
+    const asleep: string[] = [];
     for (const role of added) {
       if (!role.builtin) {
+        const kept = role.permissions.map(({ permission }) => permission);
         assertWithinOwnGrant(user, {
-          permissions: role.permissions
-            .map(({ permission }) => permission)
-            .filter((code) => grantable.has(code)),
+          permissions: kept.filter((code) => grantable.has(code)),
           dataScope: role.dataScope,
           deptIds: role.departments.map(({ deptId }) => deptId.toString()),
         });
+        asleep.push(...kept.filter((code) => dormant.has(code)));
       }
     }
+    await assertWithinDormantGrant(this.db, user, asleep);
     return roles.map((role) => role.id);
   }
 }

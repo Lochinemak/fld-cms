@@ -1,4 +1,9 @@
-import { grantablePermissions, permissionDefinition, type PermissionCode } from '@fld/shared';
+import {
+  grantablePermissions,
+  permissionDefinition,
+  type PermissionCode,
+  type TenantSummary,
+} from '@fld/shared';
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
@@ -62,7 +67,7 @@ function HomePage() {
       cards={{
         permissions: {
           title: '我的权限',
-          content: <PermissionsCard isSystemTenant={tenant.isSystem} />,
+          content: <PermissionsCard tenant={tenant} />,
         },
         'service-status': { title: '服务状态', content: <ServiceStatusCard /> },
         'recent-files': hasPermission(me, 'file:library')
@@ -74,10 +79,10 @@ function HomePage() {
 }
 
 /** Folded to a count at first: the full list is long, and most days nobody needs it. */
-function PermissionsCard({ isSystemTenant }: { isSystemTenant: boolean }) {
+function PermissionsCard({ tenant }: { tenant: TenantSummary }) {
   const me = useMe();
   const [open, setOpen] = useState(false);
-  const codes = grantablePermissions(isSystemTenant);
+  const codes = grantablePermissions(tenant);
   const pages = codes.filter((code) => permissionDefinition(code).kind === 'page');
   const granted = (kind: 'page' | 'element') =>
     codes.filter((code) => permissionDefinition(code).kind === kind && hasPermission(me, code))

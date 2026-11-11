@@ -1,7 +1,8 @@
 /**
  * Permission registry: directory → page → element. Pages gate a screen and its read APIs,
  * elements gate one control (a button, a column, an action) and the API behind it.
- * Directories only group pages in menus and the role editor; they are never granted.
+ * Directories only group pages in menus and the role editor; they are never granted. Each is a
+ * module the platform can switch off for a tenant, with everything under it, unless it is `core`.
  */
 export type PermissionKind = 'directory' | 'page' | 'element';
 
@@ -11,10 +12,12 @@ export interface PermissionDefinition {
   readonly parent?: string;
   /** Grantable in the system tenant, which grants nothing else. */
   readonly platform?: boolean;
+  /** A directory no tenant goes without, so not a module to switch off. */
+  readonly core?: boolean;
 }
 
 export const PERMISSIONS = {
-  system: { name: '系统管理', kind: 'directory' },
+  system: { name: '系统管理', kind: 'directory', core: true },
 
   'system:tenant': { name: '租户管理', kind: 'page', parent: 'system', platform: true },
   'system:tenant:create': {
@@ -123,13 +126,49 @@ export function permissionDefinition(code: PermissionCode): PermissionDefinition
   return PERMISSIONS[code];
 }
 
+/** A directory the platform can switch off for a tenant: every one that is not `core`. */
+export type ModuleCode = {
+  [Code in PermissionCode]: (typeof PERMISSIONS)[Code] extends { kind: 'directory' }
+    ? (typeof PERMISSIONS)[Code] extends { core: true }
+      ? never
+      : Code
+    : never;
+}[PermissionCode];
+
+export const MODULE_CODES = PERMISSION_CODES.filter((code): code is ModuleCode => {
+  const definition = permissionDefinition(code);
+  return definition.kind === 'directory' && definition.core !== true;
+});
+
+export function isModuleCode(value: string): value is ModuleCode {
+  return (MODULE_CODES as readonly string[]).includes(value);
+}
+
+/** The directory a code is filed under; a directory is its own. */
+export function directoryOf(code: PermissionCode): PermissionCode {
+  const { parent } = permissionDefinition(code);
+  return parent !== undefined && isPermissionCode(parent) ? directoryOf(parent) : code;
+}
+
+/** What of a tenant decides the codes its roles may hold. */
+export interface GrantingTenant {
+  readonly isSystem: boolean;
+  /** Codes of the modules switched off for the tenant. */
+  readonly disabledModules: readonly string[];
+}
+
 /**
  * The codes a role may hold in a tenant, never directories. The system tenant only manages
- * tenants: it holds the platform codes, which no other tenant may.
+ * tenants: it holds the platform codes, which no other tenant may. No tenant holds the codes of
+ * a module switched off for it.
  */
-export function grantablePermissions(isSystemTenant: boolean): PermissionCode[] {
+export function grantablePermissions(tenant: GrantingTenant): PermissionCode[] {
   return PERMISSION_CODES.filter((code) => {
     const definition = permissionDefinition(code);
-    return definition.kind !== 'directory' && (definition.platform === true) === isSystemTenant;
+    return (
+      definition.kind !== 'directory' &&
+      (definition.platform === true) === tenant.isSystem &&
+      !tenant.disabledModules.includes(directoryOf(code))
+    );
   });
 }

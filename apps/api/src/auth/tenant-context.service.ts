@@ -1,12 +1,13 @@
 import {
   grantablePermissions,
+  isModuleCode,
   isPermissionCode,
   SYSTEM_TENANT_ID,
   type PermissionCode,
   type TenantSummary,
 } from '@fld/shared';
 import { Injectable } from '@nestjs/common';
-import type { DataScope } from '../generated/prisma/client.js';
+import type { DataScope, Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { DataScopeGrant, SessionUser, TenantContext } from './principal.js';
 import { TenantContextCache } from './tenant-context.cache.js';
@@ -20,9 +21,25 @@ interface RoleGrant {
   departments: { deptId: bigint }[];
 }
 
-export function toTenantSummary(tenant: { id: bigint; code: string; name: string }): TenantSummary {
+const tenantSummarySelect = {
+  id: true,
+  code: true,
+  name: true,
+  disabledModules: true,
+} satisfies Prisma.TenantSelect;
+
+export function toTenantSummary(
+  tenant: Prisma.TenantGetPayload<{ select: typeof tenantSummarySelect }>,
+): TenantSummary {
   const id = tenant.id.toString();
-  return { id, code: tenant.code, name: tenant.name, isSystem: id === SYSTEM_TENANT_ID };
+  return {
+    id,
+    code: tenant.code,
+    name: tenant.name,
+    isSystem: id === SYSTEM_TENANT_ID,
+    // A module the registry has no more is none to switch off.
+    disabledModules: tenant.disabledModules.filter(isModuleCode),
+  };
 }
 
 @Injectable()
@@ -61,7 +78,7 @@ export class TenantContextService {
         ...(platform ? { tenantId: SYSTEM_TENANT } : {}),
       },
       orderBy: { createdAt: 'asc' },
-      select: { tenant: { select: { id: true, code: true, name: true } } },
+      select: { tenant: { select: tenantSummarySelect } },
     });
     return memberships.map(({ tenant }) => toTenantSummary(tenant));
   }
@@ -83,7 +100,7 @@ export class TenantContextService {
         id: true,
         status: true,
         deptId: true,
-        tenant: { select: { id: true, code: true, name: true, status: true } },
+        tenant: { select: { ...tenantSummarySelect, status: true } },
         department: { select: { path: true } },
         roles: {
           select: {
@@ -108,7 +125,7 @@ export class TenantContextService {
       tenant,
       memberId: member.id.toString(),
       deptId: member.deptId?.toString() ?? null,
-      permissions: effectivePermissions(roles, tenant.isSystem),
+      permissions: effectivePermissions(roles, tenant),
       dataScope: await this.dataScope(tenantId, roles, member.deptId, member.department?.path),
     };
   }
@@ -146,8 +163,8 @@ export class TenantContextService {
   }
 }
 
-function effectivePermissions(roles: RoleGrant[], isSystemTenant: boolean): PermissionCode[] {
-  const grantable = new Set(grantablePermissions(isSystemTenant));
+function effectivePermissions(roles: RoleGrant[], tenant: TenantSummary): PermissionCode[] {
+  const grantable = new Set(grantablePermissions(tenant));
   const granted = new Set<PermissionCode>();
   for (const role of roles) {
     if (role.builtin) {

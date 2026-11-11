@@ -1,7 +1,10 @@
 import {
+  isModuleCode,
+  permissionDefinition,
   SYSTEM_TENANT_ID,
   type CreateTenantInput,
   type CreateTenantResult,
+  type ModuleCode,
   type Page,
   type PageQuery,
   type ResetTenantAdminInput,
@@ -28,11 +31,16 @@ const tenantSelect = {
   code: true,
   name: true,
   status: true,
+  disabledModules: true,
   createdAt: true,
   _count: { select: { members: true } },
 } satisfies Prisma.TenantSelect;
 
 const STATUS_WORDS: Record<Tenant['status'], string> = { ACTIVE: '启用', DISABLED: '停用' };
+
+/** The modules as the audit log names them: 「客户关系」. */
+const moduleWords = (codes: readonly ModuleCode[]) =>
+  codes.map((code) => permissionDefinition(code).name);
 
 function toTenant(row: Prisma.TenantGetPayload<{ select: typeof tenantSelect }>): Tenant {
   return {
@@ -40,6 +48,8 @@ function toTenant(row: Prisma.TenantGetPayload<{ select: typeof tenantSelect }>)
     code: row.code,
     name: row.name,
     status: row.status,
+    // A module the registry has no more is none to switch off.
+    disabledModules: row.disabledModules.filter(isModuleCode),
     memberCount: row._count.members,
     createdAt: row.createdAt.toISOString(),
   };
@@ -97,6 +107,7 @@ export class TenantsService {
           id: tenantId,
           code: input.code,
           name: input.name,
+          disabledModules: input.disabledModules,
           adminRole: { code: 'tenant_admin', name: '租户管理员' },
           adminUserId: adminUser.id,
         });
@@ -119,6 +130,7 @@ export class TenantsService {
         changes: changesOf([
           ['编码', null, created.tenant.code],
           ['管理员', null, created.admin.username],
+          ['关闭的模块', null, moduleWords(created.tenant.disabledModules)],
         ]),
       });
       return created;
@@ -135,33 +147,49 @@ export class TenantsService {
     if (id === SYSTEM_TENANT_ID && input.status === 'DISABLED') {
       throw new BadRequestException('系统租户不能停用');
     }
+    if (id === SYSTEM_TENANT_ID && input.disabledModules?.length) {
+      throw new BadRequestException('系统租户没有可以关闭的模块');
+    }
     const tenantId = BigInt(id);
     const before = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { name: true, status: true },
+      select: { name: true, status: true, disabledModules: true },
     });
     const { count } = await this.prisma.tenant.updateMany({ where: { id: tenantId }, data: input });
     if (!before || count === 0) {
       throw new NotFoundException('租户不存在');
     }
-    // Members of a disabled tenant lose access on their next request.
+    // On their next request, members of a disabled tenant lose access, and those of any tenant
+    // the modules switched off for it.
     await this.tenantContexts.invalidate(tenantId);
     const tenant = await this.prisma.tenant.findUniqueOrThrow({
       where: { id: tenantId },
       select: tenantSelect,
     });
+    const after = toTenant(tenant);
+    const off = before.disabledModules.filter(isModuleCode);
     const changes = changesOf([
-      ['名称', before.name, tenant.name],
-      ['状态', STATUS_WORDS[before.status], STATUS_WORDS[tenant.status]],
+      ['名称', before.name, after.name],
+      ['状态', STATUS_WORDS[before.status], STATUS_WORDS[after.status]],
+      [
+        '关闭的模块',
+        null,
+        moduleWords(after.disabledModules.filter((code) => !off.includes(code))),
+      ],
+      [
+        '开启的模块',
+        null,
+        moduleWords(off.filter((code) => !after.disabledModules.includes(code))),
+      ],
     ]);
     if (changes.length > 0) {
       await this.audit.record({
         action: 'tenant.update',
-        target: { type: 'tenant', id: tenant.id, name: tenant.name },
+        target: { type: 'tenant', id: after.id, name: after.name },
         changes,
       });
     }
-    return toTenant(tenant);
+    return after;
   }
 
   /**
