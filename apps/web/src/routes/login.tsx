@@ -1,4 +1,4 @@
-import { LOGTO_SIGN_IN_ERRORS, signInSchema, type LogtoSignInError } from '@fld/shared';
+import { APP_NAME, LOGTO_SIGN_IN_ERRORS, signInSchema, type LogtoSignInError } from '@fld/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
@@ -78,7 +78,7 @@ function LoginPage() {
     <main className="flex min-h-svh items-center justify-center p-6">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>登录 FLD CRM</CardTitle>
+          <CardTitle>登录 {APP_NAME}</CardTitle>
           <CardDescription>用用户名或邮箱登录，进入你上次使用的租户</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">

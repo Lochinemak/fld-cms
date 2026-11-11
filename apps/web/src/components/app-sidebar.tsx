@@ -1,4 +1,4 @@
-import { permissionDefinition, type PermissionCode } from '@fld/shared';
+import { APP_NAME, permissionDefinition, type PermissionCode } from '@fld/shared';
 import { Link, useMatchRoute } from '@tanstack/react-router';
 import {
   Building2,
@@ -96,9 +96,9 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<Link to="/" />}>
               <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground">
-                F
+                {APP_NAME.charAt(0)}
               </span>
-              <span className="font-semibold">FLD CRM</span>
+              <span className="font-semibold">{APP_NAME}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

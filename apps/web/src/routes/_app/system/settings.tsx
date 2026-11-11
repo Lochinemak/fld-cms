@@ -1,4 +1,5 @@
 import {
+  APP_NAME,
   renderMailTemplate,
   testMailSchema,
   updateLogtoSettingsSchema,
@@ -273,7 +274,7 @@ function MailSettingsCard({ view }: { view: PlatformSettingsView }) {
               label="发件人地址"
               type="email"
               defaultValue={page.mailFromAddress ?? ''}
-              placeholder="crm@example.com"
+              placeholder="admin@example.com"
               hint={blankHint(env.mailFromAddress)}
               error={errors['mailFromAddress']}
               disabled={!canUpdate}
@@ -282,7 +283,7 @@ function MailSettingsCard({ view }: { view: PlatformSettingsView }) {
               name="mailFromName"
               label="发件人名称"
               defaultValue={page.mailFromName ?? ''}
-              placeholder="FLD CRM"
+              placeholder={APP_NAME}
               hint={blankHint(env.mailFromName)}
               error={errors['mailFromName']}
               disabled={!canUpdate}
@@ -294,7 +295,7 @@ function MailSettingsCard({ view }: { view: PlatformSettingsView }) {
             label="站点地址"
             type="url"
             defaultValue={page.siteUrl ?? ''}
-            placeholder="https://crm.example.com"
+            placeholder="https://admin.example.com"
             hint={blankHint(env.siteUrl, '用户在浏览器里打开系统的地址，邮件里的链接以它开头。')}
             error={errors['siteUrl']}
             disabled={!canUpdate}
@@ -640,8 +641,8 @@ function LogtoSettingsCard({ view }: { view: LogtoSettingsView }) {
       <CardHeader>
         <CardTitle>Logto 登录</CardTitle>
         <CardDescription>
-          让用户在登录页用 Logto 账号登录。第一次登录按 Logto 里已验证的邮箱对应到 CRM 账号，之后认
-          Logto 账号；没有对应账号的不能登录。
+          让用户在登录页用 Logto 账号登录。第一次登录按 Logto 里已验证的邮箱对应到 {APP_NAME}{' '}
+          账号，之后认 Logto 账号；没有对应账号的不能登录。
         </CardDescription>
       </CardHeader>
       <CardContent>
