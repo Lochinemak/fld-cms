@@ -12,6 +12,7 @@ export const ThrottleModule = ThrottlerModule.forRootAsync({
   inject: [RedisService],
   useFactory: (redis: RedisService) => ({
     storage: new RedisThrottlerStorage(redis),
+    errorMessage: '操作太频繁，请稍后再试',
     throttlers: [
       { name: 'default', ttl: minutes(1), limit: 300 },
       {

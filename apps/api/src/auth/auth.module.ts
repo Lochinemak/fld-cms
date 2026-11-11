@@ -12,6 +12,7 @@ import { PasswordRecoveryService } from './password-recovery.service.js';
 import { PasswordResetMailer } from './password-reset.mailer.js';
 import { PrismaEmailTokenStore } from './prisma-email-token.store.js';
 import { PrismaSessionStore } from './prisma-session.store.js';
+import { ProfileService } from './profile.service.js';
 import { RedisOidcStateStore } from './redis-oidc-state.store.js';
 import { SessionAuth } from './session-auth.provider.js';
 import { TenantContextCache } from './tenant-context.cache.js';
@@ -30,6 +31,7 @@ import { TenantContextService } from './tenant-context.service.js';
     TenantContextService,
     CredentialsService,
     AccountService,
+    ProfileService,
     AccountProvisioning,
     PasswordResetMailer,
     PasswordRecoveryService,

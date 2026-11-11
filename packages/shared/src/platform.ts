@@ -127,7 +127,7 @@ export type UpdateLogtoSettingsInput = z.infer<typeof updateLogtoSettingsSchema>
 export const testMailSchema = z.object({ to: emailSchema });
 export type TestMailInput = z.infer<typeof testMailSchema>;
 
-export const mailTemplateKeySchema = z.enum(['password-reset']);
+export const mailTemplateKeySchema = z.enum(['password-reset', 'email-change']);
 export type MailTemplateKey = z.infer<typeof mailTemplateKeySchema>;
 
 export const mailTemplateSchema = z.object({

@@ -355,12 +355,26 @@ describe('Platform accounts, settings and password reset (e2e)', () => {
     await admin.post('/api/system/settings/test-mail').send({ to: 'not-an-address' }).expect(400);
   });
 
-  it('edits the mail template and restores the built-in one', async () => {
-    const templates = z
-      .array(mailTemplateSchema)
-      .parse((await admin.get('/api/system/mail-templates').expect(200)).body);
-    expect(templates).toHaveLength(1);
-    const [builtin] = templates;
+  it('edits a mail template and restores the built-in one, leaving the other as it is', async () => {
+    const list = async () =>
+      z
+        .array(mailTemplateSchema)
+        .parse((await admin.get('/api/system/mail-templates').expect(200)).body);
+    const templates = await list();
+    expect(templates).toHaveLength(2);
+    const [builtin, emailChange] = templates;
+    expect(emailChange).toMatchObject({
+      key: 'email-change',
+      name: '修改邮箱确认',
+      customized: false,
+    });
+    expect(emailChange!.placeholders.map(({ name }) => name)).toEqual([
+      '姓名',
+      '用户名',
+      '新邮箱',
+      '确认链接',
+      '有效分钟',
+    ]);
     expect(builtin).toMatchObject({ key: 'password-reset', name: '重置密码', customized: false });
     expect(builtin!.placeholders.map(({ name }) => name)).toEqual([
       '姓名',
@@ -377,6 +391,7 @@ describe('Platform accounts, settings and password reset (e2e)', () => {
       subject: '{{用户名}} 的新密码',
       customized: true,
     });
+    expect((await list())[1]).toEqual(emailChange);
 
     const sent = outbox.sent.length;
     await forgotPassword('plat-carol');

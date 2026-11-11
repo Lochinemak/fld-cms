@@ -20,6 +20,8 @@ export const AUDIT_ACTIONS = {
   'auth.sign-out': { label: '退出登录', group: 'security' },
   'auth.switch-tenant': { label: '切换租户', group: 'security' },
   'auth.change-password': { label: '修改密码', group: 'security' },
+  'auth.update-profile': { label: '修改个人资料', group: 'security' },
+  'auth.request-email-change': { label: '申请修改邮箱', group: 'security' },
   'auth.forgot-password': { label: '申请重设密码', group: 'security' },
   'auth.reset-password': { label: '用邮件链接重设密码', group: 'security' },
   'auth.lock': { label: '账号被锁定', group: 'security' },

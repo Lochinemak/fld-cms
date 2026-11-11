@@ -1,7 +1,10 @@
 import {
+  confirmEmailSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   signInSchema,
+  type ConfirmEmailInput,
+  type ConfirmEmailResult,
   type ForgotPasswordInput,
   type Me,
   type ResetPasswordInput,
@@ -36,6 +39,7 @@ import { AccountService } from './account.service.js';
 import { CredentialsService, SIGN_IN_ATTEMPTS, type SignInRefusal } from './credentials.service.js';
 import { PasswordRecoveryService } from './password-recovery.service.js';
 import type { Principal } from './principal.js';
+import { ProfileService } from './profile.service.js';
 
 const REFUSALS: Record<SignInRefusal, string> = {
   'unknown-account': '账号不存在',
@@ -54,6 +58,7 @@ export class AuthController {
     private readonly accounts: AccountService,
     private readonly recovery: PasswordRecoveryService,
     private readonly passwordReset: PasswordResetService,
+    private readonly profile: ProfileService,
     private readonly audit: AuditService,
     private readonly logto: LogtoSettingsService,
   ) {}
@@ -160,5 +165,20 @@ export class AuthController {
       account: await this.audit.account(result.userId),
       changes: unlocked ? changesOf([['账号', '已锁定', '已解锁']]) : [],
     });
+  }
+
+  /** Makes the address a link was mailed to the account's email, for whoever holds the link. */
+  @Public()
+  @Throttle({ default: { limit: 30, ttl: minutes(15) } })
+  @Post('confirm-email')
+  @HttpCode(HttpStatus.OK)
+  async confirmEmail(
+    @Body({ schema: confirmEmailSchema }) input: ConfirmEmailInput,
+  ): Promise<ConfirmEmailResult> {
+    const email = await this.profile.confirmEmail(input.token);
+    if (!email) {
+      throw new BadRequestException('链接无效或已过期，请回到个人资料重新修改邮箱');
+    }
+    return { email };
   }
 }

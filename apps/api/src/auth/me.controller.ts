@@ -1,9 +1,12 @@
 import {
   changePasswordSchema,
   switchTenantSchema,
+  updateProfileSchema,
   type ChangePasswordInput,
   type Me,
   type SwitchTenantInput,
+  type UpdateProfileInput,
+  type UpdateProfileResult,
 } from '@fld/shared';
 import { Body, Controller, Get, Put } from '@nestjs/common';
 import { CurrentSession, CurrentUser, type SessionRecord } from '@nestjs/authentication';
@@ -13,13 +16,17 @@ import { minutes, Throttle } from '@nestjs/throttler';
 import { AccountRoute } from '../authz/account-route.decorator.js';
 import { AccountService } from './account.service.js';
 import type { Principal } from './principal.js';
+import { ProfileService } from './profile.service.js';
 
 @ApiTags('me')
 @AccountRoute()
 @Can.Anyone()
 @Controller('me')
 export class MeController {
-  constructor(private readonly accounts: AccountService) {}
+  constructor(
+    private readonly accounts: AccountService,
+    private readonly profile: ProfileService,
+  ) {}
 
   /** The signed-in user, their current tenant and the permissions they hold there. */
   @Get()
@@ -43,5 +50,13 @@ export class MeController {
     @Body({ schema: changePasswordSchema }) input: ChangePasswordInput,
   ): Promise<Me> {
     return this.accounts.changePassword(user, input);
+  }
+
+  @Put('profile')
+  updateProfile(
+    @CurrentUser() user: Principal,
+    @Body({ schema: updateProfileSchema }) input: UpdateProfileInput,
+  ): Promise<UpdateProfileResult> {
+    return this.profile.update(user, input);
   }
 }

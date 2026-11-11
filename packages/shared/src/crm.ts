@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { emailSchema } from './account.js';
+import { optionalEmailSchema } from './account.js';
 import { idSchema } from './id.js';
 import { pageQuerySchema, pageSchema } from './pagination.js';
 
@@ -19,13 +19,6 @@ const optionalPhone = z
   .max(32, '电话最多 32 位')
   .regex(/^[\d\s()+-]*$/, '电话只能包含数字、空格、+、- 和括号')
   .transform((value) => value || null)
-  .nullable();
-
-const optionalEmail = z
-  .string()
-  .trim()
-  .transform((value) => value || null)
-  .pipe(emailSchema.nullable())
   .nullable();
 
 const changesSomething = (value: object) => Object.keys(value).length > 0;
@@ -155,7 +148,7 @@ const contactFieldsSchema = z.object({
   name: contactNameSchema,
   title: optionalText(64, '职务'),
   phone: optionalPhone,
-  email: optionalEmail,
+  email: optionalEmailSchema,
   primary: z.boolean(),
   remark: optionalText(500, '备注'),
 });

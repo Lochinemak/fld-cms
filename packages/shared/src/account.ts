@@ -26,6 +26,14 @@ export const usernameSchema = z
 
 export const emailSchema = z.string().trim().toLowerCase().max(254).pipe(z.email('邮箱格式不正确'));
 
+/** An address a form may leave empty: blank reads as null, which also clears it on update. */
+export const optionalEmailSchema = z
+  .string()
+  .trim()
+  .transform((value) => value || null)
+  .pipe(emailSchema.nullable())
+  .nullable();
+
 export const displayNameSchema = z.string().trim().min(1, '请输入姓名').max(64);
 
 /** An account to give access to: one that already exists, or a new one. */
@@ -85,6 +93,27 @@ export const changePasswordSchema = z
   });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
+/**
+ * What users change about their own account. A new email becomes the account's once the link
+ * mailed to it is used.
+ */
+export const updateProfileSchema = z.object({
+  displayName: displayNameSchema,
+  email: optionalEmailSchema,
+  /** Needed, and looked at, only where the email changes. */
+  currentPassword: z.string().max(PASSWORD_MAX_LENGTH).optional(),
+});
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+
+/** How long a link confirming a new email works, in minutes. */
+export const EMAIL_CHANGE_MINUTES = 30;
+
+export const confirmEmailSchema = z.object({ token: z.string().min(1).max(128) });
+export type ConfirmEmailInput = z.infer<typeof confirmEmailSchema>;
+
+export const confirmEmailResultSchema = z.object({ email: z.string() });
+export type ConfirmEmailResult = z.infer<typeof confirmEmailResultSchema>;
+
 /** How long a password reset link works, in minutes. */
 export const PASSWORD_RESET_MINUTES = 30;
 
@@ -125,3 +154,10 @@ export const meSchema = z.object({
   permissions: z.array(z.string()),
 });
 export type Me = z.infer<typeof meSchema>;
+
+export const updateProfileResultSchema = z.object({
+  me: meSchema,
+  /** The new address, when a link was mailed to it: the account's once the link is used. */
+  confirmationSentTo: z.string().nullable(),
+});
+export type UpdateProfileResult = z.infer<typeof updateProfileResultSchema>;

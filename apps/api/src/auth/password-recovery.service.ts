@@ -5,24 +5,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { RedisService } from '../redis/redis.service.js';
 import { PlatformSettingsService } from '../settings/platform-settings.service.js';
 import { normalizeAccount } from './account-name.js';
-
-const LINKS_PER_HOUR = 5;
-
-// One link a minute, and LINKS_PER_HOUR an hour, per account: the minute's marker first, then the
-// hour's count. 1 when this link may go.
-const ALLOW_LINK = `
-if not redis.call('SET', KEYS[1], '1', 'EX', ARGV[1], 'NX') then
-  return 0
-end
-local count = redis.call('INCR', KEYS[2])
-if count == 1 then
-  redis.call('EXPIRE', KEYS[2], ARGV[2])
-end
-if count > tonumber(ARGV[3]) then
-  return 0
-end
-return 1
-`;
+import { allowMailLink } from './mail-link-limit.js';
 
 /**
  * 「忘记密码」: mails a link to set a new password to the address of the account named by its
@@ -90,19 +73,6 @@ export class PasswordRecoveryService {
     if (!user.email) {
       return '账号没有邮箱';
     }
-    return (await this.allow(user.id)) ? null : '申请太频繁';
-  }
-
-  private async allow(userId: bigint): Promise<boolean> {
-    const allowed = await this.redis.eval(
-      ALLOW_LINK,
-      2,
-      `fld:password-reset:minute:${userId}`,
-      `fld:password-reset:hour:${userId}`,
-      60,
-      3600,
-      LINKS_PER_HOUR,
-    );
-    return allowed === 1;
+    return (await allowMailLink(this.redis, 'password-reset', user.id)) ? null : '申请太频繁';
   }
 }
