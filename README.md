@@ -79,6 +79,7 @@ docker compose logs api | grep 'Initial password'   # 首次启动时超级管�
 - 登录限流按客户端 IP 计。后端只相信 web 容器里这一层 nginx 转发的 IP（`TRUST_PROXY=1`），客户端自己伪造的地址不会被采信。前面每多加一层反向代理，就在 `.env` 里把 `TRUST_PROXY` 加 1。
 - 同一个账号连续输错 10 次密码就会被锁定，之后输对密码也登录不了，不会自动解开；登录成功一次，错误次数就清零。解锁：租户管理员在「成员管理」、超级管理员在「账号管理」里点「解锁」，或者本人用「忘记密码」重设；管理员重置密码和下面的命令也会顺带解锁。
 - 重置密码：`docker compose exec api node dist/cli.js reset-password <用户名或邮箱>`。
+- 时区：时间在数据库里按 UTC 存，页面按浏览器所在的时区显示。后端连接数据库时把会话时区固定为 UTC，所以数据库或 postgres 容器的时区（`TZ`、`timezone`）设成什么都不影响存取的时间。只有在 `DATABASE_URL` 里自己加了 `options` 参数时，它会盖掉这个设置，要一并写上 `-c TimeZone=UTC`。
 
 ### 文件存储
 
