@@ -116,7 +116,7 @@ docker compose logs api | grep 'Initial password'   # 首次启动时超级管�
 - 站点地址是用户在浏览器里打开系统的地址（比如 `https://admin.example.com`），邮件里的链接以它开头。
 - 要在页面上保存 SMTP 密码，先在 `.env` 里设 `SETTINGS_ENCRYPTION_KEY`（用 `openssl rand -base64 32` 生成），密码加密后才存进数据库。这个密钥和数据库备份分开保管；换了或丢了，页面上存过的密码要重新填。不想配密钥，就把密码写在 `SMTP_PASSWORD` 里。
 - 重设链接 30 分钟内有效，只能用一次，重新申请后旧链接作废；同一个账号每分钟最多发 1 封、每小时最多 5 封。重设后该账号所有登录立即失效。没有绑定邮箱的账号不能自己重设，只能请管理员重置。
-- 两种邮件（「重置密码」「修改邮箱确认」）的标题和正文都可以在「平台设置」页面里改，随时能恢复默认；正文里必须留着链接的占位符。
+- 两种邮件（「重置密码」「修改邮箱确认」）的标题和正文都可以在「平台设置」页面里改，随时能恢复默认；正文里必须留着链接的占位符。标题和正文里都可以写 `{{系统名称}}`，发信时换成当时的系统名称。
 - 本地开发用 Mailpit 收信：`docker compose --profile mail up -d`，在平台设置里填服务器 `localhost`、端口 `11025`、加密方式「不加密」，站点地址 `http://localhost:5173`。邮件不会真的发出去，都在 http://localhost:18025 里看。
 
 ### 个人资料
@@ -167,7 +167,8 @@ docker compose logs api | grep 'Initial password'   # 首次启动时超级管�
 - 删除、转交和管理类的操作完成后用 `AuditService.record()` 写审计日志，操作先在 `packages/shared/src/audit.ts` 里登记。改动用 `changesOf()` 写成文字，不要放密码、密钥和链接。
 - 表名、字段名用 snake_case，在 Prisma 模型里用 `@map` / `@@map` 映射。
 - 本地开发只用根目录一份 `.env`；部署时由容器环境变量提供同名配置。
-- 系统的名字只写在 `packages/shared/src/app.ts` 的 `APP_NAME` 里，浏览器标签页、登录页、侧边栏、邮件标题和接口文档都从这里取。基于本项目的分支要换名字，改这一行；README 和 `.env.example` 里的文字要另外改。
+- 系统的名字由超级管理员在「平台设置」页面的「系统名称」里填，浏览器标签页、登录页、侧边栏和邮件都跟着变（接口文档的标题在 API 启动时取一次，改名后重启才变）；没填就用 `packages/shared/src/app.ts` 里的 `DEFAULT_APP_NAME`。基于本项目的分支要换默认名字，改这一行；README 和 `.env.example` 里的文字要另外改。
+- 登录前就要显示的站点信息（现在只有系统名称）走公开接口 `GET /api/site`，结构在 `packages/shared/src/app.ts` 的 `siteSchema` 里；它不用登录，所以只放可以公开的内容。请求可以带 `?tenant=租户ID`，现在各租户拿到的都一样，以后租户有自己的显示内容时按它返回。
 
 ## 加一个新模块
 
