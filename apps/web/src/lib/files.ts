@@ -62,6 +62,12 @@ export const filesQuery = (params: FileListParams) =>
     placeholderData: keepPreviousData,
   });
 
+/** The files uploaded or changed last that the user can see, latest first. */
+export const recentFilesQuery = queryOptions({
+  queryKey: ['files', 'recent'],
+  queryFn: () => api('/files/recent', { schema: z.array(storedFileSchema) }),
+});
+
 export const fileQuery = (id: string) =>
   queryOptions({
     queryKey: ['files', 'file', id],

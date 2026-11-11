@@ -3,6 +3,7 @@ import { createFileRoute, redirect } from '@tanstack/react-router';
 import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { Can } from '@/components/can';
+import { RecentFilesCard } from '@/components/files/recent-files-card';
 import { PageHeader } from '@/components/page-header';
 import { ServiceStatusCard } from '@/components/service-status-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -64,6 +65,9 @@ function HomePage() {
           content: <PermissionsCard isSystemTenant={tenant.isSystem} />,
         },
         'service-status': { title: '服务状态', content: <ServiceStatusCard /> },
+        'recent-files': hasPermission(me, 'file:library')
+          ? { title: '最近文件', content: <RecentFilesCard /> }
+          : null,
       }}
     />
   );

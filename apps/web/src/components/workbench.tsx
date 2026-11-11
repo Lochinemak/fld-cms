@@ -53,15 +53,16 @@ type WorkbenchProps = {
   userId: string;
   tenantId: string;
   description: string;
-  cards: Record<WorkbenchCardId, WorkbenchCardContent>;
+  /** Null for a card the account may not have, which is then neither shown nor offered. */
+  cards: Record<WorkbenchCardId, WorkbenchCardContent | null>;
 };
 
 function defaultSize(id: WorkbenchCardId): CardSize {
   return DEFAULT_LAYOUT.find((card) => card.id === id)?.size ?? 'md';
 }
 
-function isDefault(layout: WorkbenchLayout): boolean {
-  return JSON.stringify(layout) === JSON.stringify(DEFAULT_LAYOUT);
+function sameLayout(one: WorkbenchLayout, other: WorkbenchLayout): boolean {
+  return JSON.stringify(one) === JSON.stringify(other);
 }
 
 /**
@@ -69,16 +70,18 @@ function isDefault(layout: WorkbenchLayout): boolean {
  * and how wide. Changes are made on a draft and kept only when the user is done.
  */
 export function Workbench({ userId, tenantId, description, cards }: WorkbenchProps) {
-  const [layout, save] = useWorkbenchLayout(userId, tenantId);
+  const [stored, save] = useWorkbenchLayout(userId, tenantId);
   const [draft, setDraft] = useState<WorkbenchLayout | null>(null);
-  const shown = draft ?? layout;
-  const hidden = WORKBENCH_CARDS.filter((id) => !shown.some((card) => card.id === id));
+  const allowed = (layout: WorkbenchLayout) => layout.filter((card) => cards[card.id]);
+  const shown = allowed(draft ?? stored);
+  const defaults = allowed(DEFAULT_LAYOUT);
+  const hidden = WORKBENCH_CARDS.filter((id) => cards[id] && !shown.some((card) => card.id === id));
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const titleOf = (id: UniqueIdentifier) => cards[id as WorkbenchCardId].title;
+  const titleOf = (id: UniqueIdentifier) => cards[id as WorkbenchCardId]?.title ?? '';
   // Over is the dragged card itself when it is picked up, so name places rather than cards.
   const placeOf = (id: UniqueIdentifier) =>
     `第 ${shown.findIndex((card) => card.id === id) + 1} 个位置，共 ${shown.length} 个`;
@@ -111,7 +114,7 @@ export function Workbench({ userId, tenantId, description, cards }: WorkbenchPro
 
   const finish = () => {
     if (draft) {
-      save(isDefault(draft) ? null : draft);
+      save(sameLayout(shown, defaults) ? null : shown);
     }
     setDraft(null);
   };
@@ -140,12 +143,12 @@ export function Workbench({ userId, tenantId, description, cards }: WorkbenchPro
                         update((current) => [...current, { id, size: defaultSize(id) }])
                       }
                     >
-                      {cards[id].title}
+                      {titleOf(id)}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button variant="ghost" onClick={() => setDraft(DEFAULT_LAYOUT)}>
+              <Button variant="ghost" onClick={() => setDraft(defaults)}>
                 恢复默认
               </Button>
               <Button variant="outline" onClick={() => setDraft(null)}>
@@ -154,7 +157,7 @@ export function Workbench({ userId, tenantId, description, cards }: WorkbenchPro
               <Button onClick={finish}>完成</Button>
             </>
           ) : (
-            <Button variant="outline" onClick={() => setDraft(layout)}>
+            <Button variant="outline" onClick={() => setDraft(shown)}>
               <LayoutDashboard />
               编辑工作台
             </Button>
@@ -180,7 +183,7 @@ export function Workbench({ userId, tenantId, description, cards }: WorkbenchPro
               <SortableCard
                 key={card.id}
                 card={card}
-                title={cards[card.id].title}
+                title={titleOf(card.id)}
                 editing={draft !== null}
                 onResize={(size) =>
                   update((current) =>
@@ -189,7 +192,7 @@ export function Workbench({ userId, tenantId, description, cards }: WorkbenchPro
                 }
                 onRemove={() => update((current) => current.filter((item) => item.id !== card.id))}
               >
-                {cards[card.id].content}
+                {cards[card.id]?.content}
               </SortableCard>
             ))}
           </div>

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import { z } from 'zod';
 
-export const WORKBENCH_CARDS = ['permissions', 'service-status'] as const;
+export const WORKBENCH_CARDS = ['permissions', 'service-status', 'recent-files'] as const;
 export type WorkbenchCardId = (typeof WORKBENCH_CARDS)[number];
 
 /** Small takes a third of a wide screen, medium two thirds and large all of it. */
@@ -15,6 +15,7 @@ export type WorkbenchLayout = WorkbenchCard[];
 export const DEFAULT_LAYOUT: WorkbenchLayout = [
   { id: 'permissions', size: 'md' },
   { id: 'service-status', size: 'sm' },
+  { id: 'recent-files', size: 'lg' },
 ];
 
 const storedLayoutSchema = z.array(z.object({ id: z.string(), size: z.enum(CARD_SIZES) }));
