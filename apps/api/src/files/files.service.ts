@@ -1,6 +1,7 @@
 import {
   extensionOf,
   fileNameSchema,
+  RECENT_FILES,
   type FileVersion,
   type Page,
   type StoredFile,
@@ -123,6 +124,17 @@ export class FilesService {
       this.db.storedFile.count({ where }),
     ]);
     return { items: rows.map(toFile), total };
+  }
+
+  /** The files uploaded or changed last, from every folder the user can see, latest first. */
+  async recent(user: Principal): Promise<StoredFile[]> {
+    const rows = await this.db.storedFile.findMany({
+      where: visibleFiles(user),
+      select: fileSelect,
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+      take: RECENT_FILES,
+    });
+    return rows.map(toFile);
   }
 
   async get(user: Principal, id: string): Promise<StoredFileDetail> {

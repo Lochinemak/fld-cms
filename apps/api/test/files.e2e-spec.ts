@@ -87,6 +87,9 @@ describe('Files (e2e)', () => {
       .parse((await as.get(`/api/files${query}`).expect(200)).body)
       .items.map(({ name }) => name)
       .sort();
+  const recentFiles = async (as: TestAgent) =>
+    z.array(storedFileSchema).parse((await as.get('/api/files/recent').expect(200)).body);
+  const recentNames = async (as: TestAgent) => (await recentFiles(as)).map(({ name }) => name);
   const folderNames = async (as: TestAgent, query = '') =>
     z
       .array(fileFolderSchema)
@@ -736,9 +739,74 @@ describe('Files (e2e)', () => {
     expect(text(kept)).toBe('copy');
   });
 
+  it('lists the 10 files changed last, to whoever sees them', async () => {
+    const east = agent('files-east');
+    const west = agent('files-west');
+    const manager = agent('files-manager');
+    const url = (name: string) => `/api/files/${id(name)}`;
+    // What is left of the story, the file touched last first.
+    expect(await recentNames(west)).toEqual(['draft.txt', '合同.pdf']);
+    expect(await recentNames(east)).toEqual(['合同 (2).PDF']);
+    expect(await recentNames(manager)).toEqual([
+      'brief.pdf',
+      'draft.txt',
+      'plan.txt',
+      '合同.pdf',
+      '合同 (2).PDF',
+    ]);
+
+    const uploads: string[] = [];
+    for (let number = 1; number <= 9; number++) {
+      const name = `recent-${number}.txt`;
+      ids[name] = (await upload(west, name, 'x')).id;
+      uploads.unshift(name);
+    }
+    // With 11 files, the one touched longest ago is left out.
+    expect(await recentNames(west)).toEqual([...uploads, 'draft.txt']);
+
+    // Renaming a file, replacing its contents, moving it and restoring a version all bring it up.
+    await west.patch(url('west/合同.pdf')).send({ name: '新合同.pdf' }).expect(200);
+    expect(await recentNames(west)).toEqual(['新合同.pdf', ...uploads]);
+    const replaced = storedFileDetailSchema.parse(
+      (
+        await west
+          .post(`${url('draft.txt')}/versions`)
+          .attach('file', Buffer.from('second draft'), 'draft.txt')
+          .expect(201)
+      ).body,
+    );
+    expect(await recentNames(west)).toEqual(['draft.txt', '新合同.pdf', ...uploads.slice(0, 8)]);
+    await west
+      .patch(url('recent-1.txt'))
+      .send({ folderId: id('west/项目') })
+      .expect(200);
+    expect((await recentFiles(west))[0]).toMatchObject({
+      name: 'recent-1.txt',
+      folder: { id: id('west/项目'), name: '草稿' },
+    });
+    await west.post(`${url('draft.txt')}/versions/${replaced.versions[1]!.id}/restore`).expect(200);
+    expect(await recentNames(west)).toEqual([
+      'draft.txt',
+      'recent-1.txt',
+      '新合同.pdf',
+      ...uploads.slice(0, 7),
+    ]);
+
+    // A deleted file makes room for the next one.
+    await west.delete(url('recent-1.txt')).expect(204);
+    const latest = ['draft.txt', '新合同.pdf', ...uploads.slice(0, 8)];
+    expect(await recentNames(west)).toEqual(latest);
+
+    // The manager sees West's files too, East only its own, and the viewer may not look.
+    expect(await recentNames(manager)).toEqual(latest);
+    expect(await recentNames(east)).toEqual(['合同 (2).PDF']);
+    await agent('files-viewer').get('/api/files/recent').expect(403);
+  });
+
   it('keeps other tenants out', async () => {
     const helper = agent('files-helper');
     expect(await fileNames(helper)).toEqual([]);
+    expect(await recentNames(helper)).toEqual([]);
     expect(await folderNames(helper)).toEqual([]);
     await helper.get(`/api/files/${id('合同 (2).PDF')}`).expect(404);
     await helper.get(`/api/files/${id('合同 (2).PDF')}/content`).expect(404);

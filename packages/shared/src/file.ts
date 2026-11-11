@@ -140,6 +140,9 @@ export const storedFileSchema = z.object({
 });
 export type StoredFile = z.infer<typeof storedFileSchema>;
 
+/** How many files the list of those changed last holds. */
+export const RECENT_FILES = 10;
+
 export const fileVersionSchema = z.object({
   id: idSchema,
   number: z.number().int().positive(),

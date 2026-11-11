@@ -50,6 +50,13 @@ export class FilesController {
     return this.files.list(user, query);
   }
 
+  // Above files/:id, which would otherwise take it.
+  @RequirePermission('file:library')
+  @Get('recent')
+  recent(@CurrentUser() user: Principal): Promise<StoredFile[]> {
+    return this.files.recent(user);
+  }
+
   /** One file per request, in the multipart field `file`. */
   @RequirePermission('file:library:upload')
   @Post()
