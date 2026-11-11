@@ -18,6 +18,7 @@ import { CrmModule } from './crm/crm.module.js';
 import { DepartmentsModule } from './departments/departments.module.js';
 import { FilesModule } from './files/files.module.js';
 import { HealthModule } from './health/health.module.js';
+import { JobsModule } from './jobs/jobs.module.js';
 import { MembersModule } from './members/members.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { RedisModule } from './redis/redis.module.js';
@@ -37,6 +38,7 @@ import { ThrottleModule } from './throttle/throttle.module.js';
     AppConfigModule,
     PrismaModule,
     RedisModule,
+    JobsModule,
     SnowflakeModule,
     StorageModule,
     ThrottleModule,

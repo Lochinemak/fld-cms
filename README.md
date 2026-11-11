@@ -150,6 +150,13 @@ docker compose logs api | grep 'Initial password'   # 首次启动时超级管�
 - 超级管理员在「账号管理」里可以让一个账号「退出全部登录」，密码不变。怀疑账号被别人登录时，先这样做，再重置密码。
 - 这些操作都记在审计日志里（「退出其他设备的登录」「退出账号的全部登录」）。
 
+### 后台任务
+
+定时和耗时的任务用 BullMQ 跑在 API 自己的进程里，任务存在 Redis 里（键以 `fld:jobs` 开头），不用另外部署。开几个 API 实例都行：定时任务每次只在其中一个上跑，失败会自动重试 3 次。
+
+- 现有的：每小时清除删除满 30 天的文件，每天清除过期的审计日志。
+- 加一个：在模块里 `BullModule.registerQueue({ name })` 注册队列，写一个 `@Processor(队列名)` 的类处理任务；定时的在它的 `onApplicationBootstrap()` 里用 `scheduleEvery()` 排上（测试环境不排，测试里自己加任务）。可以照着 `apps/api/src/files/files.processor.ts` 写。
+
 ### Logto 登录
 
 登录页可以多一个「使用 Logto 登录」按钮，让用户用 [Logto](https://logto.io) 的账号登录；用户名和密码照常能用。

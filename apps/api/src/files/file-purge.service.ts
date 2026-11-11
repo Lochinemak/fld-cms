@@ -1,15 +1,6 @@
-import {
-  Injectable,
-  Logger,
-  type OnApplicationBootstrap,
-  type OnApplicationShutdown,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import type { Env } from '../config/env.js';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { RedisService } from '../redis/redis.service.js';
 import { Storage } from '../storage/storage.js';
-import { scheduleExclusive } from '../common/exclusive-schedule.js';
 
 const RETENTION_DAYS = 30;
 const DAY = 24 * 60 * 60 * 1000;
@@ -17,42 +8,16 @@ const BATCH_SIZE = 100;
 
 /**
  * Removes deleted files and folders for good once they have been deleted for 30 days: the
- * contents of every version from storage, then the rows. One API instance runs it at a time,
- * every hour.
+ * contents of every version from storage, then the rows. FilesProcessor runs it every hour.
  */
 @Injectable()
-export class FilePurgeService implements OnApplicationBootstrap, OnApplicationShutdown {
+export class FilePurgeService {
   private readonly logger = new Logger(FilePurgeService.name);
-  private stop?: () => void;
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly redis: RedisService,
     private readonly storage: Storage,
-    private readonly config: ConfigService<Env, true>,
   ) {}
-
-  onApplicationBootstrap() {
-    // Tests purge when they choose to.
-    if (this.config.get('NODE_ENV', { infer: true }) === 'test') {
-      return;
-    }
-    this.stop = scheduleExclusive(this.redis, this.logger, {
-      name: 'Purging deleted files',
-      lockKey: 'fld:file-purge:lock',
-      interval: 60 * 60 * 1000,
-      run: async () => {
-        const { files, folders } = await this.purge();
-        return files > 0 || folders > 0
-          ? `Purged ${files} deleted files and ${folders} deleted folders`
-          : undefined;
-      },
-    });
-  }
-
-  onApplicationShutdown() {
-    this.stop?.();
-  }
 
   /**
    * Purges what was deleted more than 30 days before `now`, and says how much. A file's contents
