@@ -1,6 +1,8 @@
-import { CircleUser, KeyRound, LogOut } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { CircleUser, KeyRound, LogOut, UserRoundPen } from 'lucide-react';
 import { useState } from 'react';
 import { ChangePasswordDialog } from '@/components/change-password-form';
+import { ProfileDialog } from '@/components/profile-dialog';
 import { buttonVariants } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -11,11 +13,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { signOutAndReload, useMe } from '@/lib/auth';
+import { meQuery, signOutAndReload, useMe } from '@/lib/auth';
 
 export function UserMenu() {
   const { user } = useMe();
+  const queryClient = useQueryClient();
+  const [editingProfile, setEditingProfile] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+
+  function editProfile() {
+    // Asked again: the email changes in another tab, the one the mailed link opens.
+    void queryClient.invalidateQueries({ queryKey: meQuery.queryKey });
+    setEditingProfile(true);
+  }
 
   return (
     <>
@@ -32,6 +42,10 @@ export function UserMenu() {
             </DropdownMenuLabel>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={editProfile}>
+            <UserRoundPen />
+            个人资料
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setChangingPassword(true)}>
             <KeyRound />
             修改密码
@@ -42,6 +56,7 @@ export function UserMenu() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      {editingProfile && <ProfileDialog onClosed={() => setEditingProfile(false)} />}
       {changingPassword && <ChangePasswordDialog onClosed={() => setChangingPassword(false)} />}
     </>
   );

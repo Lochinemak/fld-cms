@@ -1,12 +1,16 @@
 import {
+  confirmEmailResultSchema,
   meSchema,
   signInOptionsSchema,
+  updateProfileResultSchema,
   type ChangePasswordInput,
+  type ConfirmEmailInput,
   type ForgotPasswordInput,
   type Me,
   type PermissionCode,
   type ResetPasswordInput,
   type SignInInput,
+  type UpdateProfileInput,
 } from '@fld/shared';
 import { queryOptions, useSuspenseQuery, type QueryClient } from '@tanstack/react-query';
 import { api, ApiError, setCurrentTenant } from './api';
@@ -60,6 +64,14 @@ export const switchTenant = (tenantId: string) =>
 
 export const changePassword = (input: ChangePasswordInput) =>
   api('/me/password', { method: 'PUT', json: input, schema: meSchema });
+
+/** Saves the user's own name and email. A new email only asks for the link that confirms it. */
+export const updateProfile = (input: UpdateProfileInput) =>
+  api('/me/profile', { method: 'PUT', json: input, schema: updateProfileResultSchema });
+
+/** Makes the address a link was mailed to its account's email. */
+export const confirmEmail = (input: ConfirmEmailInput) =>
+  api('/auth/confirm-email', { method: 'POST', json: input, schema: confirmEmailResultSchema });
 
 export const forgotPassword = (input: ForgotPasswordInput) =>
   api('/auth/forgot-password', { method: 'POST', json: input });

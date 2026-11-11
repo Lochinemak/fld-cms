@@ -29,9 +29,6 @@ export function currentTenant(): string | null {
 const ACCOUNT_PATH = /^\/(auth|me)(\/|$)/;
 
 function errorMessage(status: number, body: unknown): string {
-  if (status === 429) {
-    return '操作太频繁，请稍后再试';
-  }
   const message = (body as { message?: unknown } | null)?.message;
   if (Array.isArray(message)) {
     return message.join('；');
@@ -39,7 +36,11 @@ function errorMessage(status: number, body: unknown): string {
   if (typeof message === 'string') {
     return message;
   }
-  // The proxy in front of the API refuses an upload over its own limit, without a message.
+  // The proxy in front of the API refuses too, without a message: too many requests, or an upload
+  // over its own limit.
+  if (status === 429) {
+    return '操作太频繁，请稍后再试';
+  }
   return status === 413 ? '文件太大，超过了上传上限' : `请求失败（${status}）`;
 }
 

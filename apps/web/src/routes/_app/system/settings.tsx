@@ -70,6 +70,7 @@ const SECURITY_LABELS = Object.fromEntries(
 /** The placeholder a template is useless without. */
 const REQUIRED_PLACEHOLDERS: Partial<Record<MailTemplateKey, string>> = {
   'password-reset': '重设链接',
+  'email-change': '确认链接',
 };
 
 function SettingsPage() {
@@ -110,7 +111,9 @@ function MailStatus({ ready }: { ready: boolean }) {
     <Alert>
       <CircleCheck />
       <AlertTitle>邮件服务已就绪</AlertTitle>
-      <AlertDescription>用户可以用「忘记密码」通过邮件重设密码。</AlertDescription>
+      <AlertDescription>
+        用户可以用「忘记密码」通过邮件重设密码，也可以在「个人资料」里修改自己的邮箱。
+      </AlertDescription>
     </Alert>
   ) : (
     <Alert>
@@ -118,7 +121,7 @@ function MailStatus({ ready }: { ready: boolean }) {
       <AlertTitle>邮件服务还没配好</AlertTitle>
       <AlertDescription>
         填好 SMTP
-        服务器、发件人地址和站点地址之后，用户才能用「忘记密码」；在这之前，忘记密码只能请管理员重置。
+        服务器、发件人地址和站点地址之后，用户才能用「忘记密码」、才能修改自己的邮箱；在这之前，忘记密码只能请管理员重置，邮箱改不了。
       </AlertDescription>
     </Alert>
   );
@@ -190,7 +193,7 @@ function MailSettingsCard({ view }: { view: PlatformSettingsView }) {
     <Card>
       <CardHeader>
         <CardTitle>邮件服务</CardTitle>
-        <CardDescription>用来发「忘记密码」的重设链接。</CardDescription>
+        <CardDescription>用来发「忘记密码」的重设链接和修改邮箱的确认邮件。</CardDescription>
       </CardHeader>
       <CardContent>
         <form id="mail-settings" onSubmit={onSubmit} noValidate className="space-y-4">
