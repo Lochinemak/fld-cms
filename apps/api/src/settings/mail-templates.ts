@@ -1,5 +1,5 @@
 import {
-  APP_NAME,
+  DEFAULT_APP_NAME,
   EMAIL_CHANGE_MINUTES,
   PASSWORD_RESET_MINUTES,
   type MailTemplateKey,
@@ -12,11 +12,20 @@ export interface MailTemplateDefinition {
   placeholders: { name: string; description: string; example: string }[];
 }
 
+/** Stands for the product's name, as the platform settings have it when the mail goes out. */
+export const APP_NAME_PLACEHOLDER = '系统名称';
+
+const appName = {
+  name: APP_NAME_PLACEHOLDER,
+  description: '系统的名称，可以在本页的「系统名称」里改',
+  example: DEFAULT_APP_NAME,
+};
+
 /** The built-in templates, which the settings page may change and restore. */
 export const MAIL_TEMPLATES: Record<MailTemplateKey, MailTemplateDefinition> = {
   'password-reset': {
     name: '重置密码',
-    subject: `重设你的 ${APP_NAME} 密码`,
+    subject: '重设你的 {{系统名称}} 密码',
     body: [
       '{{姓名}}，你好：',
       '',
@@ -39,11 +48,12 @@ export const MAIL_TEMPLATES: Record<MailTemplateKey, MailTemplateDefinition> = {
         description: '链接多少分钟内有效',
         example: String(PASSWORD_RESET_MINUTES),
       },
+      appName,
     ],
   },
   'email-change': {
     name: '修改邮箱确认',
-    subject: `确认你的 ${APP_NAME} 新邮箱`,
+    subject: '确认你的 {{系统名称}} 新邮箱',
     body: [
       '{{姓名}}，你好：',
       '',
@@ -71,6 +81,7 @@ export const MAIL_TEMPLATES: Record<MailTemplateKey, MailTemplateDefinition> = {
         description: '链接多少分钟内有效',
         example: String(EMAIL_CHANGE_MINUTES),
       },
+      appName,
     ],
   },
 };

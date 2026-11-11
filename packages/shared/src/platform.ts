@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { emailSchema } from './account.js';
+import { APP_NAME_MAX_LENGTH } from './app.js';
 import { idSchema } from './id.js';
 import { pageSchema } from './pagination.js';
 
@@ -28,6 +29,8 @@ export type SmtpSecurity = z.infer<typeof smtpSecuritySchema>;
 
 /** Mail and site settings, null where unset. The SMTP password is never sent back, only whether one is set. */
 export const platformSettingsSchema = z.object({
+  /** What the product is called, null for the default name. No environment variable sets it. */
+  appName: z.string().nullable(),
   smtpHost: z.string().nullable(),
   smtpPort: z.number().int().nullable(),
   smtpSecurity: smtpSecuritySchema.nullable(),
@@ -60,6 +63,13 @@ function unlessBlank<T extends z.ZodType>(schema: T) {
 }
 
 export const updatePlatformSettingsSchema = z.object({
+  appName: unlessBlank(
+    z
+      .string()
+      .trim()
+      .max(APP_NAME_MAX_LENGTH, `系统名称最长 ${APP_NAME_MAX_LENGTH} 个字`)
+      .regex(/^\P{Cc}*$/u, '系统名称不能包含换行等控制字符'),
+  ),
   smtpHost: unlessBlank(z.string().trim().max(253)),
   smtpPort: unlessBlank(
     z.coerce

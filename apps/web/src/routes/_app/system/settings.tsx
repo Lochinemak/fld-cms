@@ -1,5 +1,6 @@
 import {
-  APP_NAME,
+  APP_NAME_MAX_LENGTH,
+  DEFAULT_APP_NAME,
   renderMailTemplate,
   testMailSchema,
   updateLogtoSettingsSchema,
@@ -49,6 +50,7 @@ import {
   updateMailTemplate,
   updatePlatformSettings,
 } from '@/lib/platform';
+import { refreshSite, useAppName } from '@/lib/site';
 
 export const Route = createFileRoute('/_app/system/settings')({
   component: () => (
@@ -84,7 +86,7 @@ function SettingsPage() {
     <div className="max-w-3xl space-y-6">
       <PageHeader
         title="平台设置"
-        description="邮件服务、站点地址和 Logto 登录。这里填的值优先于环境变量，留空就用环境变量的值。"
+        description="系统名称、邮件服务、站点地址和 Logto 登录。除系统名称外，这里填的值优先于环境变量，留空就用环境变量的值。"
       />
       {error && (
         <Alert variant="destructive">
@@ -136,6 +138,7 @@ function blankHint(envValue: string | number | null, otherwise?: string): string
 function MailSettingsCard({ view }: { view: PlatformSettingsView }) {
   const canUpdate = useCan('system:settings:update');
   const queryClient = useQueryClient();
+  const appName = useAppName();
   const { page, env } = view;
   const [security, setSecurity] = useState<SmtpSecurity | null>(page.smtpSecurity);
   const [password, setPassword] = useState('');
@@ -148,6 +151,9 @@ function MailSettingsCard({ view }: { view: PlatformSettingsView }) {
       queryClient.setQueryData(platformSettingsQuery.queryKey, next);
       // Logto's callback address follows the site address.
       void queryClient.invalidateQueries({ queryKey: logtoSettingsQuery.queryKey });
+      // Every page shows the name, and so do the previews of the mail templates.
+      void refreshSite(queryClient);
+      void queryClient.invalidateQueries({ queryKey: mailTemplatesQuery.queryKey });
       setPassword('');
       setClearPassword(false);
       setSaved(true);
@@ -161,6 +167,7 @@ function MailSettingsCard({ view }: { view: PlatformSettingsView }) {
     const input = parseForm(
       updatePlatformSettingsSchema,
       {
+        appName: form.get('appName'),
         smtpHost: form.get('smtpHost'),
         smtpPort: form.get('smtpPort'),
         smtpSecurity: security,
@@ -283,13 +290,23 @@ function MailSettingsCard({ view }: { view: PlatformSettingsView }) {
               name="mailFromName"
               label="发件人名称"
               defaultValue={page.mailFromName ?? ''}
-              placeholder={APP_NAME}
+              placeholder={appName}
               hint={blankHint(env.mailFromName)}
               error={errors['mailFromName']}
               disabled={!canUpdate}
             />
           </div>
           <Separator />
+          <TextField
+            name="appName"
+            label="系统名称"
+            defaultValue={page.appName ?? ''}
+            placeholder={DEFAULT_APP_NAME}
+            maxLength={APP_NAME_MAX_LENGTH}
+            hint={`显示在浏览器标签页、登录页、侧边栏和邮件里。留空则用默认名称 ${DEFAULT_APP_NAME}。`}
+            error={errors['appName']}
+            disabled={!canUpdate}
+          />
           <TextField
             name="siteUrl"
             label="站点地址"
@@ -575,6 +592,7 @@ function LogtoStatus({ view }: { view: LogtoSettingsView }) {
 }
 
 function LogtoSettingsCard({ view }: { view: LogtoSettingsView }) {
+  const appName = useAppName();
   const canUpdate = useCan('system:settings:update');
   const queryClient = useQueryClient();
   const { page, env, callbackUrl } = view;
@@ -641,7 +659,7 @@ function LogtoSettingsCard({ view }: { view: LogtoSettingsView }) {
       <CardHeader>
         <CardTitle>Logto 登录</CardTitle>
         <CardDescription>
-          让用户在登录页用 Logto 账号登录。第一次登录按 Logto 里已验证的邮箱对应到 {APP_NAME}{' '}
+          让用户在登录页用 Logto 账号登录。第一次登录按 Logto 里已验证的邮箱对应到 {appName}{' '}
           账号，之后认 Logto 账号；没有对应账号的不能登录。
         </CardDescription>
       </CardHeader>

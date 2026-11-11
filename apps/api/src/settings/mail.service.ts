@@ -1,5 +1,6 @@
-import { APP_NAME, renderMailTemplate, type MailTemplateKey } from '@fld/shared';
+import { renderMailTemplate, type MailTemplateKey } from '@fld/shared';
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { APP_NAME_PLACEHOLDER } from './mail-templates.js';
 import { MailTransport } from './mail.transport.js';
 import { PlatformSettingsService } from './platform-settings.service.js';
 
@@ -10,23 +11,28 @@ export class MailService {
     private readonly transport: MailTransport,
   ) {}
 
-  /** Sends the template filled in with `values`. Rejects without a mail server, or when it refuses. */
+  /**
+   * Sends the template filled in with `values` and the product's name. Rejects without a mail
+   * server, or when it refuses.
+   */
   async sendTemplate(
     key: MailTemplateKey,
     to: string,
     values: Readonly<Record<string, string>>,
   ): Promise<void> {
-    const [server, template] = await Promise.all([
+    const [server, template, appName] = await Promise.all([
       this.settings.smtpServer(),
       this.settings.mailTemplate(key),
+      this.settings.appName(),
     ]);
     if (!server) {
       throw new Error('No mail server is set');
     }
-    const text = renderMailTemplate(template.body, values);
+    const filled = { [APP_NAME_PLACEHOLDER]: appName, ...values };
+    const text = renderMailTemplate(template.body, filled);
     await this.transport.send(server, {
       to,
-      subject: renderMailTemplate(template.subject, values),
+      subject: renderMailTemplate(template.subject, filled),
       text,
       html: toHtml(text),
     });
@@ -34,15 +40,18 @@ export class MailService {
 
   /** Sends a test message, with the mail server's answer when it fails. */
   async sendTest(to: string): Promise<void> {
-    const server = await this.settings.smtpServer();
+    const [server, appName] = await Promise.all([
+      this.settings.smtpServer(),
+      this.settings.appName(),
+    ]);
     if (!server) {
       throw new BadRequestException('请先填写 SMTP 服务器和发件人地址');
     }
-    const text = `这是一封测试邮件。\n\n收到它，说明 ${APP_NAME} 的邮件服务配置正确。`;
+    const text = `这是一封测试邮件。\n\n收到它，说明 ${appName} 的邮件服务配置正确。`;
     try {
       await this.transport.send(server, {
         to,
-        subject: `${APP_NAME} 测试邮件`,
+        subject: `${appName} 测试邮件`,
         text,
         html: toHtml(text),
       });

@@ -1,4 +1,4 @@
-import { APP_NAME, permissionDefinition, type PermissionCode } from '@fld/shared';
+import { permissionDefinition, type PermissionCode } from '@fld/shared';
 import { Link, useMatchRoute } from '@tanstack/react-router';
 import {
   Building2,
@@ -29,6 +29,7 @@ import {
   SidebarRail,
 } from '@/components/ui/sidebar';
 import { hasPermission, useMe } from '@/lib/auth';
+import { useAppName } from '@/lib/site';
 
 interface MenuPage {
   to:
@@ -87,6 +88,7 @@ const MENU: MenuGroup[] = [
 /** The menu lists only the pages the user may open in the current tenant. */
 export function AppSidebar() {
   const me = useMe();
+  const appName = useAppName();
   const matchRoute = useMatchRoute();
 
   return (
@@ -96,9 +98,9 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<Link to="/" />}>
               <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground">
-                {APP_NAME.charAt(0)}
+                {Array.from(appName)[0]}
               </span>
-              <span className="font-semibold">{APP_NAME}</span>
+              <span className="font-semibold">{appName}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

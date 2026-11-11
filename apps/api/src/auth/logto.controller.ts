@@ -1,4 +1,4 @@
-import { LOGTO_SIGN_IN_ERRORS, type LogtoSignInError } from '@fld/shared';
+import { logtoSignInErrors, type LogtoSignInError } from '@fld/shared';
 import {
   BadGatewayException,
   Controller,
@@ -13,6 +13,7 @@ import { OidcService, Public } from '@nestjs/authentication';
 import { ApiTags } from '@nestjs/swagger';
 import { AuditService } from '../audit/audit.service.js';
 import { AccountRoute } from '../authz/account-route.decorator.js';
+import { PlatformSettingsService } from '../settings/platform-settings.service.js';
 import { AccountService } from './account.service.js';
 import { LOGTO, logtoAttempts, LogtoRefusedException, type LogtoAttempt } from './logto.js';
 
@@ -34,6 +35,7 @@ export class LogtoController {
     private readonly oidc: OidcService,
     private readonly accounts: AccountService,
     private readonly audit: AuditService,
+    private readonly settings: PlatformSettingsService,
   ) {}
 
   /** Sends the browser to Logto, which sends it to the callback once the user has signed in. */
@@ -64,7 +66,7 @@ export class LogtoController {
           action: 'auth.sign-in-logto',
           account: attempt.actor,
           success: false,
-          reason: LOGTO_SIGN_IN_ERRORS[reason],
+          reason: logtoSignInErrors(await this.settings.appName())[reason],
         });
       }
       return signInPage(reason);

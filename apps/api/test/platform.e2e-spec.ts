@@ -1,6 +1,6 @@
 import {
-  APP_NAME,
   auditLogPageSchema,
+  DEFAULT_APP_NAME,
   mailTemplateSchema,
   memberSchema,
   meSchema,
@@ -8,6 +8,8 @@ import {
   platformAccountPageSchema,
   platformSettingsViewSchema,
   resetAccountPasswordResultSchema,
+  siteSchema,
+  TENANT_HEADER,
 } from '@fld/shared';
 import type { INestApplication } from '@nestjs/common';
 import { PasswordHasher } from '@nestjs/authentication';
@@ -30,6 +32,8 @@ type TestAgent = ReturnType<typeof request.agent>;
 
 const PASSWORD = 'plat-test-password';
 const SYSTEM_TENANT = 1n;
+/** What a test names the product, for the ones after it to find in their mail. */
+const APP_NAME = '星河后台';
 const ENV_SERVER: SmtpServer = {
   host: 'smtp.fld.test',
   port: 2525,
@@ -40,6 +44,7 @@ const ENV_SERVER: SmtpServer = {
   fromName: 'Admin Dashboard',
 };
 const BLANK_SETTINGS = {
+  appName: null,
   smtpHost: null,
   smtpPort: null,
   smtpSecurity: null,
@@ -231,6 +236,7 @@ describe('Platform accounts, settings and password reset (e2e)', () => {
     expect(initial).toEqual({
       page: { ...BLANK_SETTINGS, smtpPassword: false },
       env: {
+        appName: null,
         smtpHost: 'smtp.fld.test',
         smtpPort: 2525,
         smtpSecurity: 'none',
@@ -247,6 +253,7 @@ describe('Platform accounts, settings and password reset (e2e)', () => {
     const saved = await admin
       .put('/api/system/settings')
       .send({
+        appName: '',
         smtpHost: 'smtp.page.test',
         smtpPort: '465',
         smtpSecurity: 'ssl',
@@ -258,6 +265,7 @@ describe('Platform accounts, settings and password reset (e2e)', () => {
       })
       .expect(200);
     expect(platformSettingsViewSchema.parse(saved.body).page).toEqual({
+      appName: null,
       smtpHost: 'smtp.page.test',
       smtpPort: 465,
       smtpSecurity: 'ssl',
@@ -291,6 +299,7 @@ describe('Platform accounts, settings and password reset (e2e)', () => {
     const kept = await admin
       .put('/api/system/settings')
       .send({
+        appName: '',
         smtpHost: '',
         smtpPort: '',
         smtpSecurity: '',
@@ -330,6 +339,57 @@ describe('Platform accounts, settings and password reset (e2e)', () => {
       .send({ ...BLANK_SETTINGS, smtpPort: 0 })
       .expect(400);
     await tenantAdmin.get('/api/system/settings').expect(403);
+  });
+
+  it('names the product on the settings page, for every page and mail to show', async () => {
+    const anyone = request.agent(app.getHttpServer());
+    const site = async (agent: TestAgent, query: Record<string, string> = {}) =>
+      siteSchema.parse((await agent.get('/api/site').query(query).expect(200)).body);
+    const rename = (agent: TestAgent, appName: string) =>
+      agent.put('/api/system/settings').send({ ...BLANK_SETTINGS, appName });
+    expect(await site(anyone)).toEqual({ name: DEFAULT_APP_NAME });
+
+    const renamed = await rename(admin, ' 旧名字 ').expect(200);
+    expect(platformSettingsViewSchema.parse(renamed.body)).toMatchObject({
+      page: { appName: '旧名字' },
+      env: { appName: null },
+    });
+    expect(await site(anyone)).toEqual({ name: '旧名字' });
+    // Left blank, it goes by the default name again.
+    await rename(admin, ' ').expect(200);
+    expect(await site(anyone)).toEqual({ name: DEFAULT_APP_NAME });
+
+    await rename(admin, '长'.repeat(31)).expect(400);
+    await rename(admin, '星河\n后台').expect(400);
+    await rename(tenantAdmin, APP_NAME).expect(403);
+    await rename(admin, APP_NAME).expect(200);
+    const [log] = await auditLogs(admin, { actor: 'plat-admin', action: 'settings.update' });
+    expect(log).toMatchObject({
+      success: true,
+      changes: [{ field: '系统名称', from: null, to: APP_NAME }],
+    });
+
+    // Signed in or not, and whichever the tenant: tenants have nothing of their own to show yet,
+    // and one that does not exist is answered like the others.
+    const queries: Record<string, string>[] = [
+      {},
+      { tenant: acmeId.toString() },
+      { tenant: 'no-such-tenant' },
+    ];
+    for (const query of queries) {
+      expect(await site(anyone, query)).toEqual({ name: APP_NAME });
+      expect(await site(tenantAdmin, query)).toEqual({ name: APP_NAME });
+    }
+    // A tab still in another tenant than the session's is not told to reload for it.
+    await tenantAdmin.get('/api/site').set(TENANT_HEADER, SYSTEM_TENANT.toString()).expect(200);
+
+    // The previews of the mail templates show the name as it is.
+    const templates = z
+      .array(mailTemplateSchema)
+      .parse((await admin.get('/api/system/mail-templates').expect(200)).body);
+    for (const template of templates) {
+      expect(template.placeholders.at(-1)).toMatchObject({ name: '系统名称', example: APP_NAME });
+    }
   });
 
   it("sends a test mail, or says why the mail server wouldn't", async () => {
@@ -375,6 +435,7 @@ describe('Platform accounts, settings and password reset (e2e)', () => {
       '新邮箱',
       '确认链接',
       '有效分钟',
+      '系统名称',
     ]);
     expect(builtin).toMatchObject({ key: 'password-reset', name: '重置密码', customized: false });
     expect(builtin!.placeholders.map(({ name }) => name)).toEqual([
@@ -382,14 +443,15 @@ describe('Platform accounts, settings and password reset (e2e)', () => {
       '用户名',
       '重设链接',
       '有效分钟',
+      '系统名称',
     ]);
 
     const edited = await admin
       .put('/api/system/mail-templates/password-reset')
-      .send({ subject: '{{用户名}} 的新密码', body: '{{姓名}}：\n{{重设链接}}' })
+      .send({ subject: '{{用户名}} 的 {{系统名称}} 新密码', body: '{{姓名}}：\n{{重设链接}}' })
       .expect(200);
     expect(mailTemplateSchema.parse(edited.body)).toMatchObject({
-      subject: '{{用户名}} 的新密码',
+      subject: '{{用户名}} 的 {{系统名称}} 新密码',
       customized: true,
     });
     expect((await list())[1]).toEqual(emailChange);
@@ -397,7 +459,7 @@ describe('Platform accounts, settings and password reset (e2e)', () => {
     const sent = outbox.sent.length;
     await forgotPassword('plat-carol');
     const mail = await outbox.next('plat-carol@fld.test', sent);
-    expect(mail.subject).toBe('plat-carol 的新密码');
+    expect(mail.subject).toBe(`plat-carol 的 ${APP_NAME} 新密码`);
     expect(mail.text).toMatch(/^卡罗尔：\nhttp:\/\/crm\.fld\.test\/reset-password\?token=/);
 
     const restored = await admin.delete('/api/system/mail-templates/password-reset').expect(200);

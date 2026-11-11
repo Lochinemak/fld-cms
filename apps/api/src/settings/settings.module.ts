@@ -5,9 +5,10 @@ import { MailTransport, SmtpMailTransport } from './mail.transport.js';
 import { PlatformSettingsService } from './platform-settings.service.js';
 import { SettingsController } from './settings.controller.js';
 import { SettingsStore } from './settings.store.js';
+import { SiteController } from './site.controller.js';
 
 @Module({
-  controllers: [SettingsController],
+  controllers: [SettingsController, SiteController],
   providers: [
     SettingsStore,
     PlatformSettingsService,

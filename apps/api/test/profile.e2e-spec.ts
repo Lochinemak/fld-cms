@@ -1,7 +1,7 @@
 import {
-  APP_NAME,
   auditLogPageSchema,
   confirmEmailResultSchema,
+  DEFAULT_APP_NAME,
   meSchema,
   updateProfileResultSchema,
   type AuditLog,
@@ -277,7 +277,7 @@ describe('Own profile (e2e)', () => {
     });
     expect(outbox.sent).toHaveLength(1);
     const mail = mailTo('prof-anne@fld.test');
-    expect(mail.subject).toBe(`确认你的 ${APP_NAME} 新邮箱`);
+    expect(mail.subject).toBe(`确认你的 ${DEFAULT_APP_NAME} 新邮箱`);
     expect(mail.text).toContain('小安，你好');
     expect(mail.text).toContain('如果不是你本人操作，请忽略这封邮件');
     expect(mail.text).toContain('账号 prof-ann 申请把邮箱改为 prof-anne@fld.test');
@@ -618,6 +618,6 @@ describe('Own profile (e2e)', () => {
     await admin.delete('/api/system/mail-templates/email-change').expect(200);
     await aMinuteLater('prof-boss');
     await ask();
-    expect(mailTo('prof-boss-home@fld.test').subject).toBe(`确认你的 ${APP_NAME} 新邮箱`);
+    expect(mailTo('prof-boss-home@fld.test').subject).toBe(`确认你的 ${DEFAULT_APP_NAME} 新邮箱`);
   });
 });

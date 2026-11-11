@@ -1,4 +1,5 @@
 import {
+  DEFAULT_APP_NAME,
   mailTemplateKeySchema,
   smtpSecuritySchema,
   type MailTemplate,
@@ -13,7 +14,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuditService, changesOf } from '../audit/audit.service.js';
 import type { Env } from '../config/env.js';
-import { MAIL_TEMPLATES } from './mail-templates.js';
+import { APP_NAME_PLACEHOLDER, MAIL_TEMPLATES } from './mail-templates.js';
 import type { SmtpServer } from './mail.transport.js';
 import { SettingsStore } from './settings.store.js';
 
@@ -23,6 +24,7 @@ type Field = Exclude<keyof PlatformSettings, 'smtpPassword'>;
 export const SITE_URL_KEY = 'site.url';
 
 const KEYS: Record<Field, string> = {
+  appName: 'site.name',
   smtpHost: 'mail.smtp.host',
   smtpPort: 'mail.smtp.port',
   smtpSecurity: 'mail.smtp.security',
@@ -68,6 +70,7 @@ export class PlatformSettingsService {
   ) {
     this.envPassword = config.get('SMTP_PASSWORD', { infer: true }) ?? null;
     this.env = {
+      appName: null,
       smtpHost: config.get('SMTP_HOST', { infer: true }) ?? null,
       smtpPort: config.get('SMTP_PORT', { infer: true }) ?? null,
       smtpSecurity: config.get('SMTP_SECURITY', { infer: true }) ?? null,
@@ -96,6 +99,7 @@ export class PlatformSettingsService {
 
   async update(input: UpdatePlatformSettingsInput): Promise<PlatformSettingsView> {
     const values: [string, string | null][] = [
+      [KEYS.appName, input.appName],
       [KEYS.smtpHost, input.smtpHost],
       [KEYS.smtpPort, input.smtpPort === null ? null : String(input.smtpPort)],
       [KEYS.smtpSecurity, input.smtpSecurity],
@@ -123,6 +127,7 @@ export class PlatformSettingsService {
     const cleared = before.smtpPassword && !after.smtpPassword;
     const password = input.smtpPassword ? '已更换' : cleared ? '已清除' : null;
     const changes = changesOf([
+      ['系统名称', before.appName, after.appName],
       ['SMTP 服务器', before.smtpHost, after.smtpHost],
       ['端口', before.smtpPort, after.smtpPort],
       ['加密方式', security(before.smtpSecurity), security(after.smtpSecurity)],
@@ -152,23 +157,35 @@ export class PlatformSettingsService {
     return this.effective((await this.page()).settings, 'siteUrl');
   }
 
+  /** What the product is called: the name the page saved, or the default one. */
+  async appName(): Promise<string> {
+    const rows = await this.store.read([KEYS.appName]);
+    return rows.get(KEYS.appName) ?? DEFAULT_APP_NAME;
+  }
+
   mailTemplates(): Promise<MailTemplate[]> {
     return Promise.all(mailTemplateKeySchema.options.map((key) => this.mailTemplate(key)));
   }
 
   async mailTemplate(key: MailTemplateKey): Promise<MailTemplate> {
     const keys = templateKeys(key);
-    const rows = await this.store.read([keys.subject, keys.body]);
+    const rows = await this.store.read([keys.subject, keys.body, KEYS.appName]);
+    const appName = rows.get(KEYS.appName) ?? DEFAULT_APP_NAME;
     const { name, subject, body, placeholders } = MAIL_TEMPLATES[key];
     return {
       key,
       name,
       subject: rows.get(keys.subject) ?? subject,
       body: rows.get(keys.body) ?? body,
-      customized: rows.size > 0,
+      customized: rows.has(keys.subject) || rows.has(keys.body),
       defaultSubject: subject,
       defaultBody: body,
-      placeholders,
+      // The preview shows the product's name as it is, not an example of one.
+      placeholders: placeholders.map((placeholder) =>
+        placeholder.name === APP_NAME_PLACEHOLDER
+          ? { ...placeholder, example: appName }
+          : placeholder,
+      ),
     };
   }
 
@@ -220,6 +237,7 @@ export class PlatformSettingsService {
     const security = smtpSecuritySchema.safeParse(rows.get(KEYS.smtpSecurity));
     return {
       settings: {
+        appName: rows.get(KEYS.appName) ?? null,
         smtpHost: rows.get(KEYS.smtpHost) ?? null,
         smtpPort: port === undefined ? null : Number(port),
         smtpSecurity: security.success ? security.data : null,

@@ -16,6 +16,9 @@
         document.documentElement.classList.add(theme);
         document.documentElement.style.colorScheme = theme;
       })();
+      // The product's name as this browser saw it last, which lib/site.ts keeps, so that the tab is
+      // not titled with the default name while the app loads.
+      document.title = localStorage.getItem('app-name') || document.title;
     </script>
   </head>
   <body>

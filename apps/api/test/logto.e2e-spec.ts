@@ -1,6 +1,6 @@
 import {
-  LOGTO_SIGN_IN_ERRORS,
   logtoSettingsViewSchema,
+  logtoSignInErrors,
   meSchema,
   signInOptionsSchema,
   type LogtoSignInError,
@@ -21,6 +21,9 @@ type TestAgent = ReturnType<typeof request.agent>;
 const PASSWORD = 'logto-test-password';
 const SYSTEM_TENANT = 1n;
 const CALLBACK_URL = 'http://crm.fld.test/api/auth/oidc/logto/callback';
+/** What the platform settings call the product here, as the refusals have to. */
+const APP_NAME = '星河后台';
+const SIGN_IN_ERRORS = logtoSignInErrors(APP_NAME);
 const ANN: LogtoUser = {
   sub: 'logto-user-ann',
   email: 'Logto-Ann@fld.test',
@@ -144,6 +147,7 @@ describe('Signing in with Logto (e2e)', () => {
       });
     });
     admin = await signIn('logto-admin');
+    await prisma.platformSetting.create({ data: { key: 'site.name', value: APP_NAME } });
   });
 
   beforeEach(async () => {
@@ -157,7 +161,9 @@ describe('Signing in with Logto (e2e)', () => {
     const users = Object.values(ids);
     const userIds = users.map((id) => BigInt(id));
     await prisma.session.deleteMany({ where: { userId: { in: users } } });
-    await prisma.platformSetting.deleteMany({ where: { key: { startsWith: 'logto.' } } });
+    await prisma.platformSetting.deleteMany({
+      where: { OR: [{ key: { startsWith: 'logto.' } }, { key: 'site.name' }] },
+    });
     await prisma.auditLog.deleteMany({
       where: { OR: [{ action: 'auth.sign-in-logto' }, { actorId: { in: userIds } }] },
     });
@@ -288,7 +294,7 @@ describe('Signing in with Logto (e2e)', () => {
       await agent.get('/api/me').expect(401);
       expect(await lastAttempt()).toMatchObject({
         success: false,
-        reason: LOGTO_SIGN_IN_ERRORS[error],
+        reason: SIGN_IN_ERRORS[error],
         actorUsername,
       });
     };
@@ -352,7 +358,7 @@ describe('Signing in with Logto (e2e)', () => {
     await elsewhere.get('/api/me').expect(401);
     expect(await lastAttempt()).toMatchObject({
       success: false,
-      reason: LOGTO_SIGN_IN_ERRORS.failed,
+      reason: SIGN_IN_ERRORS.failed,
       actorUsername: null,
     });
 

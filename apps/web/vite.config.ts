@@ -1,5 +1,5 @@
 import { resolve } from 'node:path';
-import { APP_NAME } from '@fld/shared';
+import { DEFAULT_APP_NAME } from '@fld/shared';
 import tailwindcss from '@tailwindcss/vite';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import react from '@vitejs/plugin-react';
@@ -12,9 +12,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
     {
-      // index.html cannot import the product's name, so it is written into its title here.
+      // index.html cannot import the default name, so it is written into its title here.
       name: 'app-name',
-      transformIndexHtml: (html) => html.replace('%APP_NAME%', () => APP_NAME),
+      transformIndexHtml: (html) => html.replace('%APP_NAME%', () => DEFAULT_APP_NAME),
     },
   ],
   resolve: {

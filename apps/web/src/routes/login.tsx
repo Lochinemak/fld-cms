@@ -1,4 +1,4 @@
-import { APP_NAME, LOGTO_SIGN_IN_ERRORS, signInSchema, type LogtoSignInError } from '@fld/shared';
+import { logtoSignInErrors, signInSchema, type LogtoSignInError } from '@fld/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { applyMe, logtoSignInHref, meQuery, signIn, signInOptionsQuery } from '@/lib/auth';
 import { fieldErrors, safeRedirect, type FieldErrors } from '@/lib/form';
+import { useAppName } from '@/lib/site';
 
 export const Route = createFileRoute('/login')({
   validateSearch: z.object({
@@ -34,9 +35,10 @@ export const Route = createFileRoute('/login')({
   component: LoginPage,
 });
 
-function logtoErrorMessage(code: string | undefined): string | undefined {
-  return code !== undefined && Object.hasOwn(LOGTO_SIGN_IN_ERRORS, code)
-    ? LOGTO_SIGN_IN_ERRORS[code as LogtoSignInError]
+function logtoErrorMessage(code: string | undefined, appName: string): string | undefined {
+  const messages = logtoSignInErrors(appName);
+  return code !== undefined && Object.hasOwn(messages, code)
+    ? messages[code as LogtoSignInError]
     : undefined;
 }
 
@@ -46,6 +48,7 @@ function LoginPage() {
   const queryClient = useQueryClient();
   const [errors, setErrors] = useState<FieldErrors>({});
   const options = useQuery(signInOptionsQuery);
+  const appName = useAppName();
   const mutation = useMutation({
     mutationFn: signIn,
     onSuccess: async (me) => {
@@ -59,7 +62,8 @@ function LoginPage() {
 
   // What Logto's sign-in came back with stays until the form is used.
   const failure =
-    mutation.error?.message ?? (mutation.isIdle ? logtoErrorMessage(search.error) : undefined);
+    mutation.error?.message ??
+    (mutation.isIdle ? logtoErrorMessage(search.error, appName) : undefined);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -78,7 +82,7 @@ function LoginPage() {
     <main className="flex min-h-svh items-center justify-center p-6">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>登录 {APP_NAME}</CardTitle>
+          <CardTitle>登录 {appName}</CardTitle>
           <CardDescription>用用户名或邮箱登录，进入你上次使用的租户</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">

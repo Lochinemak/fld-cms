@@ -1,15 +1,26 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { Link, Outlet, createRootRouteWithContext } from '@tanstack/react-router';
+import { useEffect } from 'react';
 import { buttonVariants } from '@/components/ui/button';
+import { useAppName } from '@/lib/site';
 
 export interface RouterContext {
   queryClient: QueryClient;
 }
 
 export const Route = createRootRouteWithContext<RouterContext>()({
-  component: Outlet,
+  component: Root,
   notFoundComponent: NotFound,
 });
+
+/** Keeps the tab titled with the product's name. */
+function Root() {
+  const appName = useAppName();
+  useEffect(() => {
+    document.title = appName;
+  }, [appName]);
+  return <Outlet />;
+}
 
 function NotFound() {
   return (
