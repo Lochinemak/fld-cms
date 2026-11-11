@@ -5,6 +5,9 @@ import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
+// Where /api goes: the local API, or the one the browser tests start (see playwright.config.ts).
+const apiProxy = { '/api': process.env['API_PROXY_TARGET'] ?? 'http://localhost:3011' };
+
 export default defineConfig({
   // The router plugin must run before the React plugin.
   plugins: [
@@ -25,8 +28,9 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
-    proxy: {
-      '/api': 'http://localhost:3011',
-    },
+    proxy: apiProxy,
+  },
+  preview: {
+    proxy: apiProxy,
   },
 });

@@ -52,6 +52,7 @@ API 第一次连上空数据库时，会创建系统租户（ID 1，编码 `syst
 - `pnpm db:deploy`：只应用已有迁移（部署环境）
 - `pnpm db:studio`：打开 Prisma Studio
 - `pnpm --filter @fld/api test:e2e`：后端端到端测试（需要先 `pnpm infra:up`）。用单独的 `fld_asset_test` 库和 Redis 1 号库，每次运行重建，不影响开发数据
+- `pnpm test:ui`：在真实浏览器里跑一遍冒烟流程（超级管理员首次登录、建租户、租户管理员登录、建客户、上传文件、查看登录设备），会先构建全部代码。需要先 `pnpm infra:up`，第一次还要 `pnpm --filter @fld/web exec playwright install chromium`。用单独的 `fld_asset_ui` 库和 Redis 2 号库，每次运行清空；后端和页面分别跑在 3021 和 4183 端口，不影响正在开发的服务。失败时的录屏和页面快照在 `apps/web/test-results/`，用 `pnpm --filter @fld/web exec playwright show-trace <trace.zip>` 查看
 - `pnpm --filter @fld/api reset-password <用户名或邮箱>`：重置密码（先 `pnpm build`），新密码打印在终端，下次登录必须修改，该账号所有登录立即失效。镜像里用 `node dist/cli.js reset-password <用户名或邮箱>`
 - `pnpm format`：用根目录的 Prettier 配置格式化全部代码
 - `pnpm infra:down`：停止本地容器（数据保留在 Docker 卷里）

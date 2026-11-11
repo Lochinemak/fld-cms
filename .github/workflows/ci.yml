@@ -68,6 +68,14 @@ jobs:
       - run: pnpm test
       - run: pnpm --filter @fld/api test:e2e
       - run: pnpm build
+      - run: pnpm --filter @fld/web exec playwright install --with-deps chromium
+      - run: pnpm --filter @fld/web test:ui
+      - if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-traces
+          path: apps/web/test-results/
+          retention-days: 7
 
   images:
     needs: check

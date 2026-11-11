@@ -23,6 +23,10 @@
     },
     "test": {
       "dependsOn": ["^build", "db:generate"]
+    },
+    "test:ui": {
+      "dependsOn": ["build", "@fld/api#build"],
+      "cache": false
     }
   }
 }

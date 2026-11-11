@@ -16,3 +16,7 @@ apps/api/src/generated/
 
 # Local assistant workspace rules and notes
 .cursor/rules/bajie-*.mdc
+
+# Playwright
+apps/web/test-results/
+apps/web/playwright-report/
