@@ -4,7 +4,7 @@ import type { Principal } from '../auth/principal.js';
 import { dataScopeWhere } from '../authz/data-scope.js';
 import { TENANT_PRISMA, type TenantPrisma } from '../authz/tenant-prisma.js';
 import type { Prisma } from '../generated/prisma/client.js';
-import { toNamedRef } from './crm-scope.js';
+import { toNamedRef } from '../common/refs.js';
 
 const MAX_OPTIONS = 50;
 

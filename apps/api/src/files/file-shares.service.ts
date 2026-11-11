@@ -4,7 +4,7 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { AuditService, changesOf } from '../audit/audit.service.js';
 import type { Principal } from '../auth/principal.js';
 import { TENANT_PRISMA, tenantIdOf, type TenantPrisma } from '../authz/tenant-prisma.js';
-import { toUserRef } from '../crm/crm-scope.js';
+import { toUserRef } from '../common/refs.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { SnowflakeService } from '../snowflake/snowflake.service.js';
 import { lockFile, requireVisibleFile, visibleFiles } from './file-scope.js';

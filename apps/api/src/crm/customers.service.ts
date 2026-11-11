@@ -13,14 +13,9 @@ import { TENANT_PRISMA, tenantIdOf, type TenantPrisma } from '../authz/tenant-pr
 import { Prisma } from '../generated/prisma/client.js';
 import { FileRefsService } from '../files/file-refs.service.js';
 import { SnowflakeService } from '../snowflake/snowflake.service.js';
-import {
-  lockCustomer,
-  ownDept,
-  requireVisibleCustomer,
-  toNamedRef,
-  toUserRef,
-  visibleCustomers,
-} from './crm-scope.js';
+import { lockCustomer, requireVisibleCustomer, visibleCustomers } from './crm-scope.js';
+import { toNamedRef, toUserRef } from '../common/refs.js';
+import { ownDept } from '../authz/data-scope.js';
 import { customerTarget } from './customer-attachments.service.js';
 import { OwnersService } from './owners.service.js';
 

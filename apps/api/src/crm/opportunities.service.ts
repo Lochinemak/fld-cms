@@ -14,13 +14,9 @@ import type { Principal } from '../auth/principal.js';
 import { TENANT_PRISMA, tenantIdOf, type TenantPrisma } from '../authz/tenant-prisma.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { SnowflakeService } from '../snowflake/snowflake.service.js';
-import {
-  ownDept,
-  requireVisibleCustomer,
-  toNamedRef,
-  toUserRef,
-  visibleOpportunities,
-} from './crm-scope.js';
+import { requireVisibleCustomer, visibleOpportunities } from './crm-scope.js';
+import { toNamedRef, toUserRef } from '../common/refs.js';
+import { ownDept } from '../authz/data-scope.js';
 import { OwnersService } from './owners.service.js';
 
 const opportunitySelect = {

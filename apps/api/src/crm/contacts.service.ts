@@ -11,7 +11,8 @@ import type { Principal } from '../auth/principal.js';
 import { TENANT_PRISMA, tenantIdOf, type TenantPrisma } from '../authz/tenant-prisma.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { SnowflakeService } from '../snowflake/snowflake.service.js';
-import { lockCustomer, requireVisibleCustomer, toNamedRef, visibleCustomers } from './crm-scope.js';
+import { lockCustomer, requireVisibleCustomer, visibleCustomers } from './crm-scope.js';
+import { toNamedRef } from '../common/refs.js';
 
 const contactSelect = {
   id: true,

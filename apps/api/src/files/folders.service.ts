@@ -15,7 +15,7 @@ import {
 import { AuditService, changesOf } from '../audit/audit.service.js';
 import type { Principal } from '../auth/principal.js';
 import { TENANT_PRISMA, tenantIdOf, type TenantPrisma } from '../authz/tenant-prisma.js';
-import { toNamedRef } from '../crm/crm-scope.js';
+import { toNamedRef } from '../common/refs.js';
 import { SnowflakeService } from '../snowflake/snowflake.service.js';
 import { FileRefsService } from './file-refs.service.js';
 import {
@@ -151,26 +151,38 @@ export class FoldersService {
     const removed = await this.db.$transaction(async (tx) => {
       await lockFolderTree(tx, tenantId);
       const folder = await requireVisibleFolder(tx, user, folderId);
-      const folders = await tx.$queryRaw<{ id: bigint }[]>`
-        ${folderTree(tenantId, folderId)}
-        SELECT id FROM file_folders
-        WHERE tenant_id = ${tenantId} AND id IN (SELECT id FROM tree) AND deleted_at IS NULL
-        ORDER BY id FOR UPDATE`;
+      // Every statement works on the tree in SQL, so a folder of any size takes the same few.
       const files = await tx.$queryRaw<{ id: bigint }[]>`
         ${folderTree(tenantId, folderId)}
         SELECT id FROM files
         WHERE tenant_id = ${tenantId} AND folder_id IN (SELECT id FROM tree) AND deleted_at IS NULL
         ORDER BY id FOR UPDATE`;
-      const fileIds = files.map((file) => file.id);
-      await this.refs.assertFolderUnused(tx, user, fileIds);
+      const used = await tx.$queryRaw<{ file_id: bigint }[]>`
+        ${folderTree(tenantId, folderId)}
+        SELECT DISTINCT r.file_id FROM file_refs r JOIN files f ON f.id = r.file_id
+        WHERE r.tenant_id = ${tenantId} AND f.tenant_id = ${tenantId}
+          AND f.folder_id IN (SELECT id FROM tree) AND f.deleted_at IS NULL`;
+      await this.refs.assertFolderUnused(
+        tx,
+        user,
+        used.map((row) => row.file_id),
+      );
       const deletedAt = new Date();
-      await tx.fileFolder.updateMany({
-        where: { id: { in: folders.map((folder) => folder.id) } },
-        data: { deletedAt },
-      });
-      await tx.storedFile.updateMany({ where: { id: { in: fileIds } }, data: { deletedAt } });
-      await tx.fileShare.deleteMany({ where: { fileId: { in: fileIds } } });
-      return { name: folder.name, files: fileIds.length };
+      await tx.$executeRaw`
+        ${folderTree(tenantId, folderId)}
+        DELETE FROM file_shares
+        WHERE tenant_id = ${tenantId} AND file_id IN (
+          SELECT id FROM files
+          WHERE tenant_id = ${tenantId} AND folder_id IN (SELECT id FROM tree) AND deleted_at IS NULL)`;
+      await tx.$executeRaw`
+        ${folderTree(tenantId, folderId)}
+        UPDATE files SET deleted_at = ${deletedAt}
+        WHERE tenant_id = ${tenantId} AND folder_id IN (SELECT id FROM tree) AND deleted_at IS NULL`;
+      await tx.$executeRaw`
+        ${folderTree(tenantId, folderId)}
+        UPDATE file_folders SET deleted_at = ${deletedAt}
+        WHERE tenant_id = ${tenantId} AND id IN (SELECT id FROM tree) AND deleted_at IS NULL`;
+      return { name: folder.name, files: files.length };
     });
     await this.audit.record({
       action: 'folder.delete',

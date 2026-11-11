@@ -8,11 +8,10 @@ import { SnowflakeService } from '../snowflake/snowflake.service.js';
 import {
   lockCustomer,
   requireVisibleCustomer,
-  toNamedRef,
-  toUserRef,
   visibleCustomers,
   type RawExecutor,
 } from './crm-scope.js';
+import { toNamedRef, toUserRef } from '../common/refs.js';
 
 const followUpSelect = {
   id: true,

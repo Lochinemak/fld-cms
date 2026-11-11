@@ -3,7 +3,8 @@ import { NotFoundException } from '@nestjs/common';
 import type { Principal } from '../auth/principal.js';
 import { dataScopeWhere } from '../authz/data-scope.js';
 import type { TenantPrisma } from '../authz/tenant-prisma.js';
-import { ownDept, toNamedRef, toUserRef } from '../crm/crm-scope.js';
+import { toNamedRef, toUserRef } from '../common/refs.js';
+import { ownDept } from '../authz/data-scope.js';
 import { Prisma } from '../generated/prisma/client.js';
 
 /** The tenant Prisma client, or a transaction of it. */

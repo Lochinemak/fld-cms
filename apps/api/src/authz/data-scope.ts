@@ -31,3 +31,9 @@ export function dataScopeWhere<W extends object>(
   // Prisma matches no row for an empty OR.
   return { OR: covered } as W;
 }
+
+/** The user's department in the current tenant, which the rows they create record. */
+export function ownDept(user: Principal): bigint | null {
+  const deptId = user.context?.deptId;
+  return deptId ? BigInt(deptId) : null;
+}

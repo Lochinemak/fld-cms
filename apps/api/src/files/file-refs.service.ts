@@ -8,7 +8,8 @@ import {
 } from '@nestjs/common';
 import type { Principal } from '../auth/principal.js';
 import { TENANT_PRISMA, tenantIdOf, type TenantPrisma } from '../authz/tenant-prisma.js';
-import { toUserRef, visibleCustomers } from '../crm/crm-scope.js';
+import { visibleCustomers } from '../crm/crm-scope.js';
+import { toUserRef } from '../common/refs.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { SnowflakeService } from '../snowflake/snowflake.service.js';
 import type { FileContent } from './file-content.js';

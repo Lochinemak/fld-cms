@@ -21,7 +21,7 @@ import type { Request, Response } from 'express';
 import { AuditService, changesOf } from '../audit/audit.service.js';
 import type { Principal } from '../auth/principal.js';
 import { TENANT_PRISMA, tenantIdOf, type TenantPrisma } from '../authz/tenant-prisma.js';
-import { toNamedRef, toUserRef } from '../crm/crm-scope.js';
+import { toNamedRef, toUserRef } from '../common/refs.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { SnowflakeService } from '../snowflake/snowflake.service.js';
 import { Storage, StorageObjectNotFoundError } from '../storage/storage.js';

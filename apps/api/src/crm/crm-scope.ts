@@ -1,4 +1,3 @@
-import type { UserRef } from '@fld/shared';
 import { NotFoundException } from '@nestjs/common';
 import type { Principal } from '../auth/principal.js';
 import { dataScopeWhere } from '../authz/data-scope.js';
@@ -44,18 +43,4 @@ export async function lockCustomer(
 ): Promise<void> {
   await tx.$executeRaw`
     SELECT 1 FROM customers WHERE tenant_id = ${tenantId} AND id = ${customerId} FOR UPDATE`;
-}
-
-/** The user's department in the current tenant, which new customers and opportunities record. */
-export function ownDept(user: Principal): bigint | null {
-  const deptId = user.context?.deptId;
-  return deptId ? BigInt(deptId) : null;
-}
-
-export function toUserRef(user: { id: bigint; displayName: string }): UserRef {
-  return { id: user.id.toString(), displayName: user.displayName };
-}
-
-export function toNamedRef(row: { id: bigint; name: string }): { id: string; name: string } {
-  return { id: row.id.toString(), name: row.name };
 }
