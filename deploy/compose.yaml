@@ -1,4 +1,4 @@
-# Runs a released FLD CRM on one host. In this directory: cp .env.example .env, edit it, then
+# Runs a released Admin Dashboard on one host. In this directory: cp .env.example .env, edit it, then
 # docker compose up -d
 name: fld-cms
 

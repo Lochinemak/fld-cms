@@ -1,6 +1,6 @@
-# FLD CRM
+# Admin Dashboard
 
-基础 CRM：多租户、RBAC（权限控制到页面元素 + 行级数据权限）、预留 OIDC 接入。
+后台管理系统的基座项目：多租户、RBAC（权限控制到页面元素 + 行级数据权限）、Logto 登录、文件管理、审计日志，另带一套基础的客户关系管理（客户、联系人、跟进记录、商机）。要加功能或页面，从这里开分支。
 
 ## 技术栈
 
@@ -113,7 +113,7 @@ docker compose logs api | grep 'Initial password'   # 首次启动时超级管�
 
 「忘记密码」的重设链接和修改邮箱的确认邮件都靠邮件发。超级管理员在「平台设置」页面里填 SMTP 服务器、发件人和站点地址，也可以写在 `.env` 的 `SMTP_*`、`MAIL_FROM_*`、`SITE_URL` 里（说明见 `.env.example`）。页面上填了的项优先，留空的项用环境变量。三项都有了，登录页的「忘记密码」才能用，用户也才能修改自己的邮箱（见下面的「个人资料」）。
 
-- 站点地址是用户在浏览器里打开系统的地址（比如 `https://crm.example.com`），邮件里的链接以它开头。
+- 站点地址是用户在浏览器里打开系统的地址（比如 `https://admin.example.com`），邮件里的链接以它开头。
 - 要在页面上保存 SMTP 密码，先在 `.env` 里设 `SETTINGS_ENCRYPTION_KEY`（用 `openssl rand -base64 32` 生成），密码加密后才存进数据库。这个密钥和数据库备份分开保管；换了或丢了，页面上存过的密码要重新填。不想配密钥，就把密码写在 `SMTP_PASSWORD` 里。
 - 重设链接 30 分钟内有效，只能用一次，重新申请后旧链接作废；同一个账号每分钟最多发 1 封、每小时最多 5 封。重设后该账号所有登录立即失效。没有绑定邮箱的账号不能自己重设，只能请管理员重置。
 - 两种邮件（「重置密码」「修改邮箱确认」）的标题和正文都可以在「平台设置」页面里改，随时能恢复默认；正文里必须留着链接的占位符。
@@ -138,13 +138,13 @@ docker compose logs api | grep 'Initial password'   # 首次启动时超级管�
 登录页可以多一个「使用 Logto 登录」按钮，让用户用 [Logto](https://logto.io) 的账号登录；用户名和密码照常能用。
 
 1. 在 Logto 控制台新建应用，类型选「传统网页应用」（Traditional web，框架选 Express 之类的也是这一类）。只有这一类应用有 App secret，类型建好后不能改。
-2. 在应用的 Redirect URIs 里填回调地址：站点地址加 `/api/auth/oidc/logto/callback`，比如 `https://crm.example.com/api/auth/oidc/logto/callback`，本地开发是 `http://localhost:5173/api/auth/oidc/logto/callback`。「平台设置」页面上会给出这个地址。
+2. 在应用的 Redirect URIs 里填回调地址：站点地址加 `/api/auth/oidc/logto/callback`，比如 `https://admin.example.com/api/auth/oidc/logto/callback`，本地开发是 `http://localhost:5173/api/auth/oidc/logto/callback`。「平台设置」页面上会给出这个地址。
 3. 超级管理员在「平台设置 → Logto 登录」里填 Logto 地址（比如 `https://auth.example.com`）、应用 ID 和应用密钥，也可以写在 `.env` 的 `LOGTO_AUTH_URL`、`LOGTO_APP_ID`、`LOGTO_APP_SECRET` 里（改了 `.env` 要重启 API）。页面上填了的项优先，留空的项用环境变量。这三项加上站点地址都有了，登录页才出现按钮；在页面上取消勾选可以随时关掉。
 
-- 不会自动建账号。第一次用 Logto 登录时，按 Logto 里已验证的邮箱找 CRM 账号（不区分大小写），找到就记下两边的对应关系，之后只认 Logto 账号，哪边的邮箱改了都不影响。所以要先在 CRM 里建好账号并填上邮箱；已有的账号没填邮箱、或者填的不是 Logto 里的那个，本人可以在「个人资料」里改（见上面）。
-- 下面几种情况会拒绝登录，回到登录页并提示联系管理员：没有这个邮箱的 CRM 账号；Logto 里没有已验证的邮箱；这个 CRM 账号已经对应了另一个 Logto 账号；账号已停用或已锁定。
+- 不会自动建账号。第一次用 Logto 登录时，按 Logto 里已验证的邮箱找本系统的账号（不区分大小写），找到就记下两边的对应关系，之后只认 Logto 账号，哪边的邮箱改了都不影响。所以要先在本系统里建好账号并填上邮箱；已有的账号没填邮箱、或者填的不是 Logto 里的那个，本人可以在「个人资料」里改（见上面）。
+- 下面几种情况会拒绝登录，回到登录页并提示联系管理员：本系统里没有这个邮箱的账号；Logto 里没有已验证的邮箱；这个账号已经对应了另一个 Logto 账号；账号已停用或已锁定。
 - 用 Logto 登录的人不会被要求修改初始密码；用密码登录时照旧要先改。
-- 在 CRM 里退出登录只退出 CRM，不退出 Logto。
+- 在本系统里退出登录只退出本系统，不退出 Logto。
 - 换成另一个 Logto（地址变了）之后，原来的对应关系不再生效，用户下次登录时重新按邮箱对应；换回原来的地址，原来的对应关系照旧有效。
 - Logto 地址要用 `https://`，只有本机地址（`localhost`）可以用 `http://`。要在页面上保存应用密钥，同样要先设 `SETTINGS_ENCRYPTION_KEY`（见上面的「邮件」）；不想配密钥，就把应用密钥写在 `LOGTO_APP_SECRET` 里。
 - 用 Logto 登录，成功和被拒绝的都记在审计日志里（「通过 Logto 登录」）。
@@ -167,6 +167,7 @@ docker compose logs api | grep 'Initial password'   # 首次启动时超级管�
 - 删除、转交和管理类的操作完成后用 `AuditService.record()` 写审计日志，操作先在 `packages/shared/src/audit.ts` 里登记。改动用 `changesOf()` 写成文字，不要放密码、密钥和链接。
 - 表名、字段名用 snake_case，在 Prisma 模型里用 `@map` / `@@map` 映射。
 - 本地开发只用根目录一份 `.env`；部署时由容器环境变量提供同名配置。
+- 系统的名字只写在 `packages/shared/src/app.ts` 的 `APP_NAME` 里，浏览器标签页、登录页、侧边栏、邮件标题和接口文档都从这里取。基于本项目的分支要换名字，改这一行；README 和 `.env.example` 里的文字要另外改。
 
 ## 加一个新模块
 
