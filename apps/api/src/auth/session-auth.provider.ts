@@ -4,6 +4,7 @@ import {
   SessionCookieProvider,
   type SessionRecord,
 } from '@nestjs/authentication';
+import { currentRequest } from '../common/request-context.js';
 import { signedInWithLogto } from './logto.js';
 import { PrismaSessionStore } from './prisma-session.store.js';
 import { toPrincipal, type Principal } from './principal.js';
@@ -35,6 +36,11 @@ export class SessionAuth extends SessionCookieProvider<Principal> {
     }
     // The initial password is to be replaced by whoever signs in with it. Someone who came in
     // through Logto didn't, and may never have been given it.
+    const request = currentRequest();
+    if (request) {
+      request.userId = user.id;
+      request.tenantId = context?.tenant.id;
+    }
     const mustChangePassword = user.mustChangePassword && !signedInWithLogto(session);
     return toPrincipal({ ...user, mustChangePassword }, context);
   }

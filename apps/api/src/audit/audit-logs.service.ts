@@ -41,6 +41,7 @@ function toAuditLog(row: AuditLogRow): AuditLog {
     changes: (row.changes as AuditChange[] | null) ?? [],
     ip: row.ip,
     userAgent: row.userAgent,
+    requestId: row.requestId,
   };
 }
 

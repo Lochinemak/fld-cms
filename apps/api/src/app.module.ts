@@ -1,5 +1,5 @@
 import { PASSWORD_RESET_MINUTES } from '@fld/shared';
-import { Module } from '@nestjs/common';
+import { Module, RequestMethod, type MiddlewareConsumer, type NestModule } from '@nestjs/common';
 import { AuthenticationModule } from '@nestjs/authentication';
 import { AuthorizationModule } from '@nestjs/authorization';
 import { ConfigService } from '@nestjs/config';
@@ -11,6 +11,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { LOGTO, logtoAttempts } from './auth/logto.js';
 import { RESET_PASSWORD_PATH } from './auth/password-reset.mailer.js';
 import { AuthzModule } from './authz/authz.module.js';
+import { requestContext } from './common/request-context.js';
 import { AppConfigModule } from './config/app-config.module.js';
 import type { Env } from './config/env.js';
 import { CrmModule } from './crm/crm.module.js';
@@ -99,4 +100,8 @@ import { ThrottleModule } from './throttle/throttle.module.js';
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(requestContext).forRoutes({ path: '{*path}', method: RequestMethod.ALL });
+  }
+}

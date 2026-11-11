@@ -110,6 +110,8 @@ export const auditLogSchema = z.object({
   changes: z.array(auditChangeSchema),
   ip: z.string().nullable(),
   userAgent: z.string().nullable(),
+  /** Finds the request's lines in the API's log. */
+  requestId: z.string().nullable(),
 });
 export type AuditLog = z.infer<typeof auditLogSchema>;
 

@@ -4,11 +4,14 @@ import type { z } from 'zod';
 export class ApiError extends Error {
   readonly status: number;
   readonly body: unknown;
+  /** The API's id for the request, which finds it in the API's log. */
+  readonly requestId: string | null;
 
-  constructor(status: number, message: string, body: unknown) {
+  constructor(status: number, message: string, body: unknown, requestId: string | null = null) {
     super(message);
     this.status = status;
     this.body = body;
+    this.requestId = requestId;
   }
 }
 
@@ -44,14 +47,18 @@ function errorMessage(status: number, body: unknown): string {
   return status === 413 ? '文件太大，超过了上传上限' : `请求失败（${status}）`;
 }
 
-function failure(status: number, body: unknown): ApiError {
+function failure(status: number, body: unknown, requestId: string | null): ApiError {
   if (
     status === 409 &&
     (body as { error?: unknown } | undefined)?.error === TENANT_SWITCHED_ERROR
   ) {
     window.location.reload();
   }
-  return new ApiError(status, errorMessage(status, body), body);
+  const message = errorMessage(status, body);
+  // An error of the server's own is one to report: the id finds it in the API's log.
+  const reported =
+    status >= 500 && requestId ? `${message}（请求 ID：${requestId.slice(0, 8)}）` : message;
+  return new ApiError(status, reported, body, requestId);
 }
 
 interface ApiOptions<T> extends Omit<RequestInit, 'body'> {
@@ -77,7 +84,7 @@ export async function api<T = void>(path: string, options: ApiOptions<T> = {}): 
   });
   const body: unknown = res.status === 204 ? undefined : await res.json().catch(() => undefined);
   if (!res.ok) {
-    throw failure(res.status, body);
+    throw failure(res.status, body, res.headers.get('X-Request-Id'));
   }
   return schema ? schema.parse(body) : (body as T);
 }
@@ -111,7 +118,7 @@ export function upload<T = void>(
         body = undefined;
       }
       if (xhr.status < 200 || xhr.status >= 300) {
-        reject(failure(xhr.status, body));
+        reject(failure(xhr.status, body, xhr.getResponseHeader('X-Request-Id')));
         return;
       }
       try {

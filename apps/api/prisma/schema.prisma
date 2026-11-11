@@ -316,6 +316,8 @@ model AuditLog {
   changes       Json?
   ip            String?  @db.VarChar(64)
   userAgent     String?  @map("user_agent") @db.VarChar(500)
+  /// The X-Request-Id of the request, to find its lines in the API's log.
+  requestId     String?  @map("request_id") @db.VarChar(64)
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   @@index([tenantId, createdAt])

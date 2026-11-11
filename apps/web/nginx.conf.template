@@ -25,6 +25,8 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        # The API logs and records the request under nginx's own id for it.
+        proxy_set_header X-Request-Id $request_id;
     }
 
     # Build output under /assets is named by content hash, so it never changes.

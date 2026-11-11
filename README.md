@@ -83,6 +83,12 @@ docker compose logs api | grep 'Initial password'   # 首次启动时超级管�
 - 重置密码：`docker compose exec api node dist/cli.js reset-password <用户名或邮箱>`。
 - 时区：时间在数据库里按 UTC 存，页面按浏览器所在的时区显示。后端连接数据库时把会话时区固定为 UTC，所以数据库或 postgres 容器的时区（`TZ`、`timezone`）设成什么都不影响存取的时间。只有在 `DATABASE_URL` 里自己加了 `options` 参数时，它会盖掉这个设置，要一并写上 `-c TimeZone=UTC`。
 
+### 日志和请求 ID
+
+- 正式环境（`NODE_ENV=production`）的日志每行一个 JSON 对象，用 `docker compose logs api` 查看，也可以交给日志系统收集。
+- 每个请求有一个请求 ID：web 容器里的 nginx 生成，后端沿用；直接访问后端时由后端生成。它写在响应头 `X-Request-Id` 里，这个请求期间的每行日志都带着它（`requestId`），登录后还带 `userId`、`tenantId`。每个请求结束时记一行访问日志（方法、路径、状态码、耗时），健康检查除外。
+- 接口出了服务器错误（5xx）时，页面上的提示末尾带着请求 ID 的前 8 位，用户报告问题时提供它，就能在日志里找到这次请求：`docker compose logs api | grep <请求 ID>`。审计日志的详情里也有完整的请求 ID。
+
 ### 文件存储
 
 上传的文件默认存在 api 容器的 `/data/storage`，也就是 compose 里的 `file-storage` 卷。这种方式只支持跑一个 api 实例。

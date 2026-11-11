@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { AuthenticationContext } from '@nestjs/authentication';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SnowflakeService } from '../snowflake/snowflake.service.js';
-import { currentRequestInfo } from './request-info.js';
+import { currentRequest } from '../common/request-context.js';
 
 type Id = string | bigint;
 
@@ -79,14 +79,14 @@ export class AuditService {
   }
 
   /**
-   * Adds the event to the audit log, with the current request's address and browser. Never
+   * Adds the event to the audit log, with the current request's address, browser and id. Never
    * throws: a failure to record is logged, and what was done stays done.
    */
   async record(event: AuditEvent): Promise<void> {
     const ofAccount = event.account !== undefined;
     const user = this.auth.user;
     const actor = ofAccount ? event.account : user;
-    const request = currentRequestInfo();
+    const request = currentRequest();
     try {
       await this.prisma.auditLog.create({
         data: {
@@ -105,6 +105,7 @@ export class AuditService {
           changes: event.changes?.length ? event.changes : undefined,
           ip: request?.ip ?? null,
           userAgent: request?.userAgent ?? null,
+          requestId: request?.requestId ?? null,
         },
       });
     } catch (error) {
