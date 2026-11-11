@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { APP_NAME } from './app.js';
 import { idSchema } from './id.js';
 
 export const SYSTEM_TENANT_ID = '1';
@@ -70,9 +71,9 @@ export type SignInOptions = z.infer<typeof signInOptionsSchema>;
  * says the words.
  */
 export const LOGTO_SIGN_IN_ERRORS = {
-  'no-email': '你的 Logto 账号没有已验证的邮箱，无法对应到 CRM 账号，请联系管理员',
-  'no-account': '还没有与你的 Logto 账号对应的 CRM 账号，请联系管理员',
-  linked: '这个邮箱的 CRM 账号已经对应了另一个 Logto 账号，请联系管理员',
+  'no-email': `你的 Logto 账号没有已验证的邮箱，无法对应到 ${APP_NAME} 账号，请联系管理员`,
+  'no-account': `还没有与你的 Logto 账号对应的 ${APP_NAME} 账号，请联系管理员`,
+  linked: `这个邮箱的 ${APP_NAME} 账号已经对应了另一个 Logto 账号，请联系管理员`,
   disabled: '账号已停用，请联系管理员',
   locked: '账号已锁定，请联系管理员解锁，或用忘记密码重设',
   cancelled: '已取消 Logto 登录',

@@ -78,7 +78,7 @@ export const envSchema = z
     SMTP_PASSWORD: z.string().min(1).optional(),
     MAIL_FROM_ADDRESS: z.email().optional(),
     MAIL_FROM_NAME: z.string().trim().min(1).optional(),
-    /** The web app's address, which links in mail point to, such as https://crm.example.com. */
+    /** The web app's address, which links in mail point to, such as https://admin.example.com. */
     SITE_URL: z
       .url({ protocol: /^https?$/ })
       .transform((url) => url.replace(/\/+$/, ''))

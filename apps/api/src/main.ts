@@ -1,3 +1,4 @@
+import { APP_NAME } from '@fld/shared';
 import { ConsoleLogger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
@@ -21,7 +22,7 @@ async function bootstrap() {
   if (swaggerEnabled) {
     const document = SwaggerModule.createDocument(
       app,
-      new DocumentBuilder().setTitle('FLD CRM API').setVersion('0.0.1').build(),
+      new DocumentBuilder().setTitle(`${APP_NAME} API`).setVersion('0.0.1').build(),
     );
     SwaggerModule.setup('api/docs', app, document);
   }

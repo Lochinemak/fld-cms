@@ -48,7 +48,7 @@ export function testEnv() {
     SMTP_USERNAME: 'crm-mailer',
     SMTP_PASSWORD: 'env-smtp-password',
     MAIL_FROM_ADDRESS: 'crm@fld.test',
-    MAIL_FROM_NAME: 'FLD CRM',
+    MAIL_FROM_NAME: 'Admin Dashboard',
     SITE_URL: 'http://crm.fld.test',
     SETTINGS_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
     // Unset, whatever a developer's .env says: the tests set Logto up on the settings page.

@@ -1,4 +1,5 @@
 import {
+  APP_NAME,
   auditLogPageSchema,
   mailTemplateSchema,
   memberSchema,
@@ -36,7 +37,7 @@ const ENV_SERVER: SmtpServer = {
   username: 'crm-mailer',
   password: 'env-smtp-password',
   fromAddress: 'crm@fld.test',
-  fromName: 'FLD CRM',
+  fromName: 'Admin Dashboard',
 };
 const BLANK_SETTINGS = {
   smtpHost: null,
@@ -236,7 +237,7 @@ describe('Platform accounts, settings and password reset (e2e)', () => {
         smtpUsername: 'crm-mailer',
         smtpPassword: true,
         mailFromAddress: 'crm@fld.test',
-        mailFromName: 'FLD CRM',
+        mailFromName: 'Admin Dashboard',
         siteUrl: 'http://crm.fld.test',
       },
       mailReady: true,
@@ -283,7 +284,7 @@ describe('Platform accounts, settings and password reset (e2e)', () => {
       username: 'page-mailer',
       password: 'page-smtp-password',
       fromAddress: 'noreply@page.test',
-      fromName: 'FLD CRM',
+      fromName: 'Admin Dashboard',
     });
 
     // Without smtpPassword, the saved one stays; blank fields fall back to the environment.
@@ -337,7 +338,7 @@ describe('Platform accounts, settings and password reset (e2e)', () => {
       .send({ to: 'plat-admin@fld.test' })
       .expect(204);
     const { message } = outbox.sent.at(-1)!;
-    expect(message).toMatchObject({ to: 'plat-admin@fld.test', subject: 'FLD CRM 测试邮件' });
+    expect(message).toMatchObject({ to: 'plat-admin@fld.test', subject: `${APP_NAME} 测试邮件` });
     expect(message.html).toContain('<br>');
 
     outbox.failure = new Error('Invalid login: 535 Authentication failed');
@@ -410,7 +411,7 @@ describe('Platform accounts, settings and password reset (e2e)', () => {
     const sent = outbox.sent.length;
     await forgotPassword(' Plat-Alice ');
     const mail = await outbox.next('plat-alice@fld.test', sent);
-    expect(mail.subject).toBe('重设你的 FLD CRM 密码');
+    expect(mail.subject).toBe(`重设你的 ${APP_NAME} 密码`);
     expect(mail.text).toContain('爱丽丝，你好');
     expect(mail.text).toContain('plat-alice');
     expect(mail.text).toContain('30 分钟');

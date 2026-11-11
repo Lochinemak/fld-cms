@@ -1,4 +1,9 @@
-import { EMAIL_CHANGE_MINUTES, PASSWORD_RESET_MINUTES, type MailTemplateKey } from '@fld/shared';
+import {
+  APP_NAME,
+  EMAIL_CHANGE_MINUTES,
+  PASSWORD_RESET_MINUTES,
+  type MailTemplateKey,
+} from '@fld/shared';
 
 export interface MailTemplateDefinition {
   name: string;
@@ -11,7 +16,7 @@ export interface MailTemplateDefinition {
 export const MAIL_TEMPLATES: Record<MailTemplateKey, MailTemplateDefinition> = {
   'password-reset': {
     name: '重置密码',
-    subject: '重设你的 FLD CRM 密码',
+    subject: `重设你的 ${APP_NAME} 密码`,
     body: [
       '{{姓名}}，你好：',
       '',
@@ -27,7 +32,7 @@ export const MAIL_TEMPLATES: Record<MailTemplateKey, MailTemplateDefinition> = {
       {
         name: '重设链接',
         description: '打开后设置新密码的链接，只能用一次',
-        example: 'https://crm.example.com/reset-password?token=…',
+        example: 'https://admin.example.com/reset-password?token=…',
       },
       {
         name: '有效分钟',
@@ -38,7 +43,7 @@ export const MAIL_TEMPLATES: Record<MailTemplateKey, MailTemplateDefinition> = {
   },
   'email-change': {
     name: '修改邮箱确认',
-    subject: '确认你的 FLD CRM 新邮箱',
+    subject: `确认你的 ${APP_NAME} 新邮箱`,
     body: [
       '{{姓名}}，你好：',
       '',
@@ -59,7 +64,7 @@ export const MAIL_TEMPLATES: Record<MailTemplateKey, MailTemplateDefinition> = {
       {
         name: '确认链接',
         description: '打开后确认修改邮箱的链接，只能用一次',
-        example: 'https://crm.example.com/confirm-email?token=…',
+        example: 'https://admin.example.com/confirm-email?token=…',
       },
       {
         name: '有效分钟',

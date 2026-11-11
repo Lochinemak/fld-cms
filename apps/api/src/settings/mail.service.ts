@@ -1,4 +1,4 @@
-import { renderMailTemplate, type MailTemplateKey } from '@fld/shared';
+import { APP_NAME, renderMailTemplate, type MailTemplateKey } from '@fld/shared';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { MailTransport } from './mail.transport.js';
 import { PlatformSettingsService } from './platform-settings.service.js';
@@ -38,11 +38,11 @@ export class MailService {
     if (!server) {
       throw new BadRequestException('请先填写 SMTP 服务器和发件人地址');
     }
-    const text = '这是一封测试邮件。\n\n收到它，说明 FLD CRM 的邮件服务配置正确。';
+    const text = `这是一封测试邮件。\n\n收到它，说明 ${APP_NAME} 的邮件服务配置正确。`;
     try {
       await this.transport.send(server, {
         to,
-        subject: 'FLD CRM 测试邮件',
+        subject: `${APP_NAME} 测试邮件`,
         text,
         html: toHtml(text),
       });
