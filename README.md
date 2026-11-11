@@ -13,7 +13,7 @@
 ```
 apps/
   api/         NestJS 后端（接口前缀 /api，Swagger 在 /api/docs）
-  web/         React 前端（开发时 /api 代理到 :3000）
+  web/         React 前端（开发时 /api 代理到 :3011）
 packages/
   shared/      前后端共用的 zod schema 和类型
 deploy/        单机部署示例（docker compose）
@@ -30,7 +30,7 @@ cp .env.example .env   # 首次：改掉里面的 change-me 密码
 pnpm install
 pnpm infra:up          # 启动 Postgres（127.0.0.1:15432）和 Redis（127.0.0.1:16379）
 pnpm db:deploy         # 应用数据库迁移
-pnpm dev               # 同时启动 shared（监听编译）、api（:3000）、web（:5173）
+pnpm dev               # 同时启动 shared（监听编译）、api（:3011）、web（:5173）
 ```
 
 打开 http://localhost:5173 ，用超级管理员登录（见下一节），会进入「租户管理」。租户里的成员登录后，首页是工作台：显示当前租户、你在该租户的页面和按钮权限，后端、数据库和 Redis 的状态，以及你能看到的文件里最近上传或更新的 10 个（有「文件库」页面权限才有这张卡片）。每个人可以在「编辑工作台」里调整显示哪些卡片、顺序和大小，布局记在浏览器里。

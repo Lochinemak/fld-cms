@@ -10,7 +10,7 @@ describe('envSchema', () => {
     const env = envSchema.parse(required);
 
     expect(env.NODE_ENV).toBe('development');
-    expect(env.PORT).toBe(3000);
+    expect(env.PORT).toBe(3011);
     expect(env.SWAGGER_ENABLED).toBeUndefined();
   });
 
