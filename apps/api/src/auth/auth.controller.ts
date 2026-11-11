@@ -6,11 +6,13 @@ import {
   type Me,
   type ResetPasswordInput,
   type SignInInput,
+  type SignInOptions,
 } from '@fld/shared';
 import {
   BadRequestException,
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
@@ -28,6 +30,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { minutes, Throttle } from '@nestjs/throttler';
 import { AuditService, changesOf } from '../audit/audit.service.js';
 import { AccountRoute } from '../authz/account-route.decorator.js';
+import { LogtoSettingsService } from '../settings/logto-settings.service.js';
 import { normalizeAccount } from './account-name.js';
 import { AccountService } from './account.service.js';
 import { CredentialsService, SIGN_IN_ATTEMPTS, type SignInRefusal } from './credentials.service.js';
@@ -52,7 +55,15 @@ export class AuthController {
     private readonly recovery: PasswordRecoveryService,
     private readonly passwordReset: PasswordResetService,
     private readonly audit: AuditService,
+    private readonly logto: LogtoSettingsService,
   ) {}
+
+  /** What the sign-in page offers besides a password. */
+  @Public()
+  @Get('sign-in-options')
+  async signInOptions(): Promise<SignInOptions> {
+    return { logto: (await this.logto.app()) !== null };
+  }
 
   /** Signs in with a username or email and password, in the tenant used last. */
   @Public()

@@ -53,6 +53,27 @@ export const signInSchema = z.object({
 });
 export type SignInInput = z.infer<typeof signInSchema>;
 
+/** The ways to sign in, besides a password, that the sign-in page offers. */
+export const signInOptionsSchema = z.object({ logto: z.boolean() });
+export type SignInOptions = z.infer<typeof signInOptionsSchema>;
+
+/**
+ * Why a sign-in with Logto didn't go through: the sign-in page gets the code as its `error`, and
+ * says the words.
+ */
+export const LOGTO_SIGN_IN_ERRORS = {
+  'no-email': '你的 Logto 账号没有已验证的邮箱，无法对应到 CRM 账号，请联系管理员',
+  'no-account': '还没有与你的 Logto 账号对应的 CRM 账号，请联系管理员',
+  linked: '这个邮箱的 CRM 账号已经对应了另一个 Logto 账号，请联系管理员',
+  disabled: '账号已停用，请联系管理员',
+  locked: '账号已锁定，请联系管理员解锁，或用忘记密码重设',
+  cancelled: '已取消 Logto 登录',
+  off: 'Logto 登录没有开启',
+  unavailable: '暂时连不上 Logto，请稍后再试',
+  failed: 'Logto 登录没有完成，请再试一次',
+} as const;
+export type LogtoSignInError = keyof typeof LOGTO_SIGN_IN_ERRORS;
+
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, '请输入当前密码').max(PASSWORD_MAX_LENGTH),

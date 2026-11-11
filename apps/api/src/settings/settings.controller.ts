@@ -1,12 +1,15 @@
 import {
   mailTemplateKeySchema,
   testMailSchema,
+  updateLogtoSettingsSchema,
   updateMailTemplateSchema,
   updatePlatformSettingsSchema,
+  type LogtoSettingsView,
   type MailTemplate,
   type MailTemplateKey,
   type PlatformSettingsView,
   type TestMailInput,
+  type UpdateLogtoSettingsInput,
   type UpdateMailTemplateInput,
   type UpdatePlatformSettingsInput,
 } from '@fld/shared';
@@ -25,15 +28,17 @@ import { ApiTags } from '@nestjs/swagger';
 import { minutes, Throttle } from '@nestjs/throttler';
 import { AuditService, changesOf, type AuditEvent } from '../audit/audit.service.js';
 import { RequirePermission } from '../authz/permission.policy.js';
+import { LogtoSettingsService } from './logto-settings.service.js';
 import { MailService } from './mail.service.js';
 import { PlatformSettingsService } from './platform-settings.service.js';
 
-/** Mail and site settings, which only the system tenant's permissions grant. */
+/** Mail, site and Logto sign-in settings, which only the system tenant's permissions grant. */
 @ApiTags('system')
 @Controller('system')
 export class SettingsController {
   constructor(
     private readonly settings: PlatformSettingsService,
+    private readonly logto: LogtoSettingsService,
     private readonly mail: MailService,
     private readonly audit: AuditService,
   ) {}
@@ -71,6 +76,28 @@ export class SettingsController {
       throw error;
     }
     await this.audit.record(event);
+  }
+
+  @RequirePermission('system:settings')
+  @Get('settings/logto')
+  logtoSettings(): Promise<LogtoSettingsView> {
+    return this.logto.view();
+  }
+
+  @RequirePermission('system:settings:update')
+  @Put('settings/logto')
+  async updateLogtoSettings(
+    @Body({ schema: updateLogtoSettingsSchema }) input: UpdateLogtoSettingsInput,
+  ): Promise<LogtoSettingsView> {
+    const { view, changes } = await this.logto.update(input);
+    if (changes.length > 0) {
+      await this.audit.record({
+        action: 'settings.update',
+        target: { type: 'settings', name: 'Logto 登录' },
+        changes,
+      });
+    }
+    return view;
   }
 
   @RequirePermission('system:settings')

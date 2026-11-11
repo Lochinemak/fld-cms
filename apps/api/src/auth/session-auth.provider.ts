@@ -4,6 +4,7 @@ import {
   SessionCookieProvider,
   type SessionRecord,
 } from '@nestjs/authentication';
+import { signedInWithLogto } from './logto.js';
 import { toPrincipal, type Principal } from './principal.js';
 import { TenantContextService } from './tenant-context.service.js';
 
@@ -24,6 +25,9 @@ export class SessionAuth extends SessionCookieProvider<Principal> {
       return null;
     }
     const context = await this.tenantContexts.resolve(user, session.extra?.tenantId ?? null);
-    return toPrincipal(user, context);
+    // The initial password is to be replaced by whoever signs in with it. Someone who came in
+    // through Logto didn't, and may never have been given it.
+    const mustChangePassword = user.mustChangePassword && !signedInWithLogto(session);
+    return toPrincipal({ ...user, mustChangePassword }, context);
   }
 }

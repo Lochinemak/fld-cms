@@ -51,6 +51,10 @@ export function testEnv() {
     MAIL_FROM_NAME: 'FLD CRM',
     SITE_URL: 'http://crm.fld.test',
     SETTINGS_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
+    // Unset, whatever a developer's .env says: the tests set Logto up on the settings page.
+    LOGTO_AUTH_URL: '',
+    LOGTO_APP_ID: '',
+    LOGTO_APP_SECRET: '',
     ...Object.fromEntries(S3_SETTINGS.flatMap((key) => (env[key] ? [[key, env[key]]] : []))),
     S3_BUCKET: TEST_BUCKET,
   };

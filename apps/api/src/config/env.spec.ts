@@ -105,6 +105,31 @@ describe('envSchema', () => {
     });
   });
 
+  describe('Logto', () => {
+    it('counts an empty variable as unset', () => {
+      const env = envSchema.parse({
+        ...required,
+        LOGTO_AUTH_URL: '',
+        LOGTO_APP_ID: '',
+        LOGTO_APP_SECRET: '',
+      });
+
+      expect(env.LOGTO_AUTH_URL).toBeUndefined();
+      expect(env.LOGTO_APP_ID).toBeUndefined();
+      expect(env.LOGTO_APP_SECRET).toBeUndefined();
+    });
+
+    it('takes its address without a trailing slash, over https unless it is on this machine', () => {
+      const url = (value: string) => envSchema.safeParse({ ...required, LOGTO_AUTH_URL: value });
+
+      expect(url('https://auth.example.com/').data?.LOGTO_AUTH_URL).toBe(
+        'https://auth.example.com',
+      );
+      expect(url('http://localhost:3001').data?.LOGTO_AUTH_URL).toBe('http://localhost:3001');
+      expect(url('http://auth.example.com').success).toBe(false);
+    });
+  });
+
   describe('AUDIT_RETENTION_DAYS', () => {
     it('keeps audit records for a year by default, and never less than 180 days', () => {
       const days = (value?: string) =>

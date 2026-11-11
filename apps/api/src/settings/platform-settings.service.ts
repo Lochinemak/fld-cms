@@ -13,12 +13,14 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuditService, changesOf } from '../audit/audit.service.js';
 import type { Env } from '../config/env.js';
-import { PrismaService } from '../prisma/prisma.service.js';
 import { MAIL_TEMPLATES } from './mail-templates.js';
 import type { SmtpServer } from './mail.transport.js';
-import { SecretBox } from './secret-box.js';
+import { SettingsStore } from './settings.store.js';
 
 type Field = Exclude<keyof PlatformSettings, 'smtpPassword'>;
+
+/** The site address the page saved. */
+export const SITE_URL_KEY = 'site.url';
 
 const KEYS: Record<Field, string> = {
   smtpHost: 'mail.smtp.host',
@@ -27,7 +29,7 @@ const KEYS: Record<Field, string> = {
   smtpUsername: 'mail.smtp.username',
   mailFromAddress: 'mail.from.address',
   mailFromName: 'mail.from.name',
-  siteUrl: 'site.url',
+  siteUrl: SITE_URL_KEY,
 };
 const PASSWORD_KEY = 'mail.smtp.password';
 const DEFAULT_PORTS: Record<SmtpSecurity, number> = { ssl: 465, starttls: 587, none: 25 };
@@ -56,17 +58,14 @@ interface PageSettings {
 @Injectable()
 export class PlatformSettingsService {
   private readonly logger = new Logger(PlatformSettingsService.name);
-  private readonly box: SecretBox | null;
   private readonly env: PlatformSettings;
   private readonly envPassword: string | null;
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly store: SettingsStore,
     private readonly audit: AuditService,
     config: ConfigService<Env, true>,
   ) {
-    const key = config.get('SETTINGS_ENCRYPTION_KEY', { infer: true });
-    this.box = key ? new SecretBox(Buffer.from(key, 'base64')) : null;
     this.envPassword = config.get('SMTP_PASSWORD', { infer: true }) ?? null;
     this.env = {
       smtpHost: config.get('SMTP_HOST', { infer: true }) ?? null,
@@ -86,7 +85,7 @@ export class PlatformSettingsService {
       page: page.settings,
       env: this.env,
       mailReady: this.ready(page),
-      canStoreSecrets: this.box !== null,
+      canStoreSecrets: this.store.box !== null,
     };
   }
 
@@ -106,17 +105,17 @@ export class PlatformSettingsService {
       [KEYS.siteUrl, input.siteUrl],
     ];
     if (input.smtpPassword) {
-      if (!this.box) {
+      if (!this.store.box) {
         throw new BadRequestException(
           '没有配置 SETTINGS_ENCRYPTION_KEY，不能在页面上保存密码；可以改用环境变量 SMTP_PASSWORD',
         );
       }
-      values.push([PASSWORD_KEY, this.box.seal(PASSWORD_KEY, input.smtpPassword)]);
+      values.push([PASSWORD_KEY, this.store.box.seal(PASSWORD_KEY, input.smtpPassword)]);
     } else if (input.smtpPassword !== undefined) {
       values.push([PASSWORD_KEY, null]);
     }
     const before = (await this.page()).settings;
-    await this.write(values);
+    await this.store.write(values);
     const view = await this.view();
     const after = view.page;
     const security = (value: SmtpSecurity | null) => value && SECURITY_WORDS[value];
@@ -159,7 +158,7 @@ export class PlatformSettingsService {
 
   async mailTemplate(key: MailTemplateKey): Promise<MailTemplate> {
     const keys = templateKeys(key);
-    const rows = await this.read([keys.subject, keys.body]);
+    const rows = await this.store.read([keys.subject, keys.body]);
     const { name, subject, body, placeholders } = MAIL_TEMPLATES[key];
     return {
       key,
@@ -179,7 +178,7 @@ export class PlatformSettingsService {
   ): Promise<MailTemplate> {
     const keys = templateKeys(key);
     const before = await this.mailTemplate(key);
-    await this.write([
+    await this.store.write([
       [keys.subject, input.subject],
       [keys.body, input.body],
     ]);
@@ -201,7 +200,7 @@ export class PlatformSettingsService {
 
   async resetMailTemplate(key: MailTemplateKey): Promise<MailTemplate> {
     const keys = templateKeys(key);
-    await this.write([
+    await this.store.write([
       [keys.subject, null],
       [keys.body, null],
     ]);
@@ -214,7 +213,7 @@ export class PlatformSettingsService {
   }
 
   private async page(): Promise<PageSettings> {
-    const rows = await this.read([...Object.values(KEYS), PASSWORD_KEY]);
+    const rows = await this.store.read([...Object.values(KEYS), PASSWORD_KEY]);
     const sealed = rows.get(PASSWORD_KEY);
     const password = sealed === undefined ? null : this.open(sealed);
     const port = rows.get(KEYS.smtpPort);
@@ -236,7 +235,7 @@ export class PlatformSettingsService {
   }
 
   private open(sealed: string): string | null {
-    const password = this.box?.open(PASSWORD_KEY, sealed) ?? null;
+    const password = this.store.box?.open(PASSWORD_KEY, sealed) ?? null;
     if (password === null) {
       this.logger.warn(
         'The SMTP password saved on the settings page does not decrypt with SETTINGS_ENCRYPTION_KEY: save it again',
@@ -271,25 +270,5 @@ export class PlatformSettingsService {
 
   private effective<K extends Field>(page: PlatformSettings, field: K): PlatformSettings[K] {
     return page[field] ?? this.env[field];
-  }
-
-  private async read(keys: string[]): Promise<Map<string, string>> {
-    const rows = await this.prisma.platformSetting.findMany({ where: { key: { in: keys } } });
-    return new Map(rows.map((row) => [row.key, row.value]));
-  }
-
-  /** Stores each value, or deletes it for null. */
-  private async write(values: [string, string | null][]): Promise<void> {
-    await this.prisma.$transaction(
-      values.map(([key, value]) =>
-        value === null
-          ? this.prisma.platformSetting.deleteMany({ where: { key } })
-          : this.prisma.platformSetting.upsert({
-              where: { key },
-              create: { key, value },
-              update: { value },
-            }),
-      ),
-    );
   }
 }

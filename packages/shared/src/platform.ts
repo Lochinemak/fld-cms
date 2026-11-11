@@ -82,6 +82,48 @@ export const updatePlatformSettingsSchema = z.object({
 });
 export type UpdatePlatformSettingsInput = z.infer<typeof updatePlatformSettingsSchema>;
 
+/** Where Logto is reached, without a trailing slash: over https, or on this machine. */
+export const logtoUrlSchema = z
+  .url({ protocol: /^https?$/, error: '请输入 https:// 开头的地址' })
+  .refine(
+    (url) => /^https:|^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/|$)/i.test(url),
+    'Logto 地址要以 https:// 开头，本机地址除外',
+  )
+  .transform((url) => url.replace(/\/+$/, ''));
+
+/** Logto sign-in settings, null where unset. The app secret is never sent back, only whether one is set. */
+export const logtoSettingsSchema = z.object({
+  url: z.string().nullable(),
+  appId: z.string().nullable(),
+  appSecret: z.boolean(),
+});
+export type LogtoSettings = z.infer<typeof logtoSettingsSchema>;
+
+export const logtoSettingsViewSchema = z.object({
+  /** On unless the settings page turned it off. */
+  enabled: z.boolean(),
+  /** Set on the settings page; each one overrides its environment variable. */
+  page: logtoSettingsSchema,
+  /** Set by environment variables. */
+  env: logtoSettingsSchema,
+  /** The redirect URI to register with the Logto application, or null while the site address is unset. */
+  callbackUrl: z.string().nullable(),
+  /** Whether the sign-in page offers Logto: it is on, and Logto's address, the app, its secret and the site address are set. */
+  ready: z.boolean(),
+  /** Whether the page may store the app secret, which takes SETTINGS_ENCRYPTION_KEY. */
+  canStoreSecrets: z.boolean(),
+});
+export type LogtoSettingsView = z.infer<typeof logtoSettingsViewSchema>;
+
+export const updateLogtoSettingsSchema = z.object({
+  enabled: z.boolean(),
+  url: unlessBlank(logtoUrlSchema),
+  appId: unlessBlank(z.string().trim().max(128)),
+  /** A new secret; null clears the page's one; absent keeps it. */
+  appSecret: z.string().max(1024).nullable().optional(),
+});
+export type UpdateLogtoSettingsInput = z.infer<typeof updateLogtoSettingsSchema>;
+
 export const testMailSchema = z.object({ to: emailSchema });
 export type TestMailInput = z.infer<typeof testMailSchema>;
 

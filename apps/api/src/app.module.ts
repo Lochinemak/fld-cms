@@ -8,6 +8,7 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import { AccountsModule } from './accounts/accounts.module.js';
 import { AuditModule } from './audit/audit.module.js';
 import { AuthModule } from './auth/auth.module.js';
+import { LOGTO, logtoAttempts } from './auth/logto.js';
 import { RESET_PASSWORD_PATH } from './auth/password-reset.mailer.js';
 import { AuthzModule } from './authz/authz.module.js';
 import { AppConfigModule } from './config/app-config.module.js';
@@ -20,6 +21,7 @@ import { MembersModule } from './members/members.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { RedisModule } from './redis/redis.module.js';
 import { RolesModule } from './roles/roles.module.js';
+import { LogtoSettingsService } from './settings/logto-settings.service.js';
 import { SettingsModule } from './settings/settings.module.js';
 import { SnowflakeModule } from './snowflake/snowflake.module.js';
 import { StorageModule } from './storage/storage.module.js';
@@ -39,24 +41,47 @@ import { ThrottleModule } from './throttle/throttle.module.js';
     ThrottleModule,
     AuthenticationModule.forRootAsync({
       isGlobal: true,
-      inject: [ConfigService],
-      useFactory: (config: ConfigService<Env, true>) => ({
-        session: {
-          absoluteTtl: '7d',
-          idleTtl: '1d',
-          cookie: { secure: config.get('SESSION_COOKIE_SECURE', { infer: true }) },
-          trustedOrigins: config.get('TRUSTED_ORIGINS', { infer: true }),
-          metadata: (request) => ({
-            userAgent: request.headers['user-agent'],
-            ip: request.ip,
-          }),
-        },
-        // PasswordResetMailer puts the site address of the moment in front of the path.
-        passwordReset: {
-          url: `http://localhost${RESET_PASSWORD_PATH}`,
-          ttl: `${PASSWORD_RESET_MINUTES}m`,
-        },
-      }),
+      imports: [SettingsModule],
+      inject: [ConfigService, LogtoSettingsService],
+      useFactory: (config: ConfigService<Env, true>, logto: LogtoSettingsService) => {
+        const secure = config.get('SESSION_COOKIE_SECURE', { infer: true });
+        return {
+          session: {
+            absoluteTtl: '7d',
+            idleTtl: '1d',
+            cookie: { secure },
+            trustedOrigins: config.get('TRUSTED_ORIGINS', { infer: true }),
+            metadata: (request) => ({
+              userAgent: request.headers['user-agent'],
+              ip: request.ip,
+              // For SessionAuth, of a session that LogtoController's callback signs in.
+              ...(logtoAttempts.getStore() && { method: LOGTO }),
+            }),
+          },
+          // PasswordResetMailer puts the site address of the moment in front of the path.
+          passwordReset: {
+            url: `http://localhost${RESET_PASSWORD_PATH}`,
+            ttl: `${PASSWORD_RESET_MINUTES}m`,
+          },
+          // Logto is set up on the settings page, so each sign-in asks how to reach it.
+          oidc: {
+            callbackUrl: async () => (await logto.app())?.callbackUrl ?? '',
+            providers: async (name) => {
+              const app = name === LOGTO ? await logto.app() : null;
+              return (
+                app && {
+                  issuer: app.issuer,
+                  clientId: app.appId,
+                  clientSecret: app.appSecret,
+                  // Logto signs with ES384, or with RS256 once its keys were rotated to RSA.
+                  idTokenAlgorithms: ['ES384', 'RS256'],
+                }
+              );
+            },
+            cookie: { secure },
+          },
+        };
+      },
     }),
     AuthModule,
     AuthzModule,

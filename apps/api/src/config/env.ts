@@ -1,5 +1,10 @@
-import { smtpSecuritySchema, usernameSchema } from '@fld/shared';
+import { logtoUrlSchema, smtpSecuritySchema, usernameSchema } from '@fld/shared';
 import { z } from 'zod';
+
+/** An optional variable whose empty value (`NAME=`) counts as unset. */
+function unlessEmpty<T extends z.ZodType>(schema: T) {
+  return z.preprocess((value) => (value === '' ? undefined : value), schema.optional());
+}
 
 export const envSchema = z
   .object({
@@ -78,6 +83,14 @@ export const envSchema = z
       .url({ protocol: /^https?$/ })
       .transform((url) => url.replace(/\/+$/, ''))
       .optional(),
+    /**
+     * Signing in with Logto: its endpoint, such as https://example.logto.app, and the ID and the
+     * secret of a Traditional web application there. Defaults, like the mail settings; one left
+     * empty counts as unset.
+     */
+    LOGTO_AUTH_URL: unlessEmpty(logtoUrlSchema),
+    LOGTO_APP_ID: unlessEmpty(z.string().trim().min(1)),
+    LOGTO_APP_SECRET: unlessEmpty(z.string().min(1)),
     /**
      * Encrypts the secrets saved on the platform settings page, such as the SMTP password: 32
      * random bytes, base64 (`openssl rand -base64 32`). Without it the page can't save them, and

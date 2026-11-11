@@ -16,6 +16,7 @@ export type AuditGroup = keyof typeof AUDIT_GROUPS;
  */
 export const AUDIT_ACTIONS = {
   'auth.sign-in': { label: '登录', group: 'security' },
+  'auth.sign-in-logto': { label: '通过 Logto 登录', group: 'security' },
   'auth.sign-out': { label: '退出登录', group: 'security' },
   'auth.switch-tenant': { label: '切换租户', group: 'security' },
   'auth.change-password': { label: '修改密码', group: 'security' },
