@@ -141,6 +141,9 @@ export const resetMemberPassword = (id: string) =>
 export const unlockMember = (id: string) =>
   api(`/system/members/${id}/unlock`, { method: 'POST', schema: memberSchema });
 
+export const resetMemberMfa = (id: string) =>
+  api(`/system/members/${id}/reset-mfa`, { method: 'POST', schema: memberSchema });
+
 /**
  * Refetches after a change. The system pages show one another's data (members per department
  * and role), a role change may change the user's own permissions, and a member change may change

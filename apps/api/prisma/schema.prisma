@@ -245,6 +245,30 @@ model Session {
   @@map("sessions")
 }
 
+/// A user's authenticator app (TOTP) for signing in in two steps. The secret is sealed with
+/// SETTINGS_ENCRYPTION_KEY. Keyed by the user id as text, like sessions.
+model UserTotp {
+  userId        String   @id @map("user_id")
+  secret        String   @db.VarChar(512)
+  confirmed     Boolean
+  /// A replacement being set up; `secret` works until it is confirmed.
+  pendingSecret String?  @map("pending_secret") @db.VarChar(512)
+  /// The last 30-second step a code was accepted for: each works once.
+  lastUsedStep  BigInt?  @map("last_used_step")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("user_totp")
+}
+
+/// One-time codes for signing in without the authenticator app, stored hashed.
+model MfaRecoveryCode {
+  userId String @map("user_id")
+  hash   String @db.VarChar(255)
+
+  @@id([userId, hash])
+  @@map("mfa_recovery_codes")
+}
+
 /// An external identity (OIDC) linked to a user.
 model UserIdentity {
   id        BigInt   @id

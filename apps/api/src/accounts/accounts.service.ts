@@ -3,6 +3,8 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { SessionService } from '@nestjs/authentication';
 import { accountName, AuditService, changesOf } from '../audit/audit.service.js';
 import { CredentialsService, UNLOCKED } from '../auth/credentials.service.js';
+import { MfaSetupService } from '../auth/mfa-setup.service.js';
+import { mfaEnabledAmong } from '../auth/mfa.store.js';
 import type { Principal } from '../auth/principal.js';
 import { generatePassword } from '../common/password.js';
 import { Prisma } from '../generated/prisma/client.js';
@@ -31,6 +33,7 @@ export class AccountsService {
     private readonly credentials: CredentialsService,
     private readonly audit: AuditService,
     private readonly sessions: SessionService,
+    private readonly mfa: MfaSetupService,
   ) {}
 
   async list({ page, pageSize, keyword }: PageQuery): Promise<Page<PlatformAccount>> {
@@ -53,7 +56,11 @@ export class AccountsService {
       }),
       this.prisma.user.count({ where }),
     ]);
-    return { items: rows.map(toAccount), total };
+    const mfa = await mfaEnabledAmong(
+      this.prisma,
+      rows.map((row) => row.id),
+    );
+    return { items: rows.map((row) => toAccount(row, mfa)), total };
   }
 
   /**
@@ -96,14 +103,36 @@ export class AccountsService {
         ? new BadRequestException('该账号没有被锁定')
         : new NotFoundException('账号不存在');
     }
-    const account = toAccount(
-      await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: accountSelect }),
-    );
+    const account = await this.read(userId);
     await this.audit.record({
       action: 'account.unlock',
       target: { type: 'account', id: userId, name: accountName(account) },
     });
     return account;
+  }
+
+  /** Turns off two-step sign-in for someone who lost their phone and recovery codes. */
+  async resetMfa(id: string): Promise<PlatformAccount> {
+    const userId = BigInt(id);
+    if (!(await this.mfa.reset(id))) {
+      throw (await this.prisma.user.count({ where: { id: userId } }))
+        ? new BadRequestException('该账号没有开启两步验证')
+        : new NotFoundException('账号不存在');
+    }
+    const account = await this.read(userId);
+    await this.audit.record({
+      action: 'account.reset-mfa',
+      target: { type: 'account', id: userId, name: accountName(account) },
+    });
+    return account;
+  }
+
+  private async read(userId: bigint): Promise<PlatformAccount> {
+    const row = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: accountSelect,
+    });
+    return toAccount(row, await mfaEnabledAmong(this.prisma, [userId]));
   }
 
   /** Signs the account out on every device; its password stays as it is. */
@@ -123,7 +152,10 @@ export class AccountsService {
   }
 }
 
-function toAccount(row: Prisma.UserGetPayload<{ select: typeof accountSelect }>): PlatformAccount {
+function toAccount(
+  row: Prisma.UserGetPayload<{ select: typeof accountSelect }>,
+  mfa: ReadonlySet<string>,
+): PlatformAccount {
   return {
     id: row.id.toString(),
     username: row.username,
@@ -131,6 +163,7 @@ function toAccount(row: Prisma.UserGetPayload<{ select: typeof accountSelect }>)
     email: row.email,
     status: row.status,
     locked: row.lockedAt !== null,
+    mfaEnabled: mfa.has(row.id.toString()),
     lastSignInAt: row.lastSignInAt?.toISOString() ?? null,
     tenants: row.memberships.map(({ tenant }) => ({ id: tenant.id.toString(), name: tenant.name })),
   };

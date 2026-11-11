@@ -10,6 +10,7 @@
     "start": "node dist/main.js",
     "start:debug": "nest start --debug --watch",
     "reset-password": "node dist/cli.js reset-password",
+    "reset-mfa": "node dist/cli.js reset-mfa",
     "lint": "oxlint --type-aware src/ test/",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",

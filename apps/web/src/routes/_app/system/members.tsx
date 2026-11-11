@@ -8,7 +8,7 @@ import {
 } from '@fld/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { Ellipsis, KeyRound, LockOpen, Pencil, UserMinus, UserPlus } from 'lucide-react';
+import { Ellipsis, KeyRound, LockOpen, Pencil, ShieldOff, UserMinus, UserPlus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { z } from 'zod';
 import {
@@ -66,6 +66,7 @@ import {
   membersQuery,
   refreshSystem,
   removeMember,
+  resetMemberMfa,
   resetMemberPassword,
   rolesQuery,
   unlockMember,
@@ -95,6 +96,7 @@ type DialogState =
   | { kind: 'edit'; member: Member }
   | { kind: 'reset'; member: Member }
   | { kind: 'unlock'; member: Member }
+  | { kind: 'reset-mfa'; member: Member }
   | { kind: 'remove'; member: Member };
 
 const STATUS_FILTER = [
@@ -241,6 +243,21 @@ function MembersPage() {
           onClosed={closeDialog}
         />
       )}
+      {dialog?.kind === 'reset-mfa' && (
+        <ConfirmDialog
+          title={`关闭「${dialog.member.displayName}」的两步验证？`}
+          description={`对方手机和恢复码都丢了时用。关闭后只用密码就能登录${
+            dialog.member.sharedAccount ? '，在它所属的其他租户也一样' : ''
+          }；本人可以再重新开启。请先确认是本人在找你。`}
+          confirmLabel="关闭两步验证"
+          destructive
+          action={async () => {
+            await resetMemberMfa(dialog.member.id);
+            await refreshSystem(queryClient);
+          }}
+          onClosed={closeDialog}
+        />
+      )}
       {dialog?.kind === 'remove' && (
         <ConfirmDialog
           title={`将「${dialog.member.displayName}」移出本租户？`}
@@ -309,6 +326,7 @@ function MemberRow({ member, self, onAction }: MemberRowProps) {
   const canUpdate = useCan('system:member:update');
   const canReset = useCan('system:member:reset-password');
   const canUnlock = useCan('system:member:unlock') && member.locked;
+  const canResetMfa = useCan('system:member:reset-mfa') && member.mfaEnabled;
   const canRemove = useCan('system:member:remove');
 
   return (
@@ -338,11 +356,12 @@ function MemberRow({ member, self, onAction }: MemberRowProps) {
         <div className="flex flex-wrap gap-1">
           <StatusBadge status={member.status} />
           {member.locked && <Badge variant="destructive">已锁定</Badge>}
+          {member.mfaEnabled && <Badge variant="outline">两步验证</Badge>}
         </div>
       </TableCell>
       <TableCell>{formatDate(member.joinedAt)}</TableCell>
       <TableCell>
-        {!self && (canUpdate || canReset || canUnlock || canRemove) && (
+        {!self && (canUpdate || canReset || canUnlock || canResetMfa || canRemove) && (
           <DropdownMenu>
             <DropdownMenuTrigger
               className={buttonVariants({ variant: 'ghost', size: 'icon-sm' })}
@@ -361,6 +380,12 @@ function MemberRow({ member, self, onAction }: MemberRowProps) {
                 <DropdownMenuItem onClick={() => onAction({ kind: 'unlock', member })}>
                   <LockOpen />
                   解锁
+                </DropdownMenuItem>
+              )}
+              {canResetMfa && (
+                <DropdownMenuItem onClick={() => onAction({ kind: 'reset-mfa', member })}>
+                  <ShieldOff />
+                  重置两步验证
                 </DropdownMenuItem>
               )}
               {canReset && (

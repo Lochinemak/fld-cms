@@ -183,3 +183,52 @@ export const signInSessionSchema = z.object({
   lastActiveAt: z.iso.datetime(),
 });
 export type SignInSession = z.infer<typeof signInSessionSchema>;
+
+// Two-step sign-in
+
+/** A password sign-in that still needs the code from the authenticator app. */
+export const signInResultSchema = z.union([meSchema, z.object({ mfaRequired: z.literal(true) })]);
+export type SignInResult = z.infer<typeof signInResultSchema>;
+
+const totpCodeSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/, '请输入验证器里的 6 位数字');
+
+export const mfaStatusSchema = z.object({
+  /** False while the server has no SETTINGS_ENCRYPTION_KEY to seal the secrets with. */
+  available: z.boolean(),
+  enabled: z.boolean(),
+  recoveryCodesLeft: z.number().int(),
+});
+export type MfaStatus = z.infer<typeof mfaStatusSchema>;
+
+export const startMfaSetupSchema = z.object({
+  currentPassword: z.string().min(1, '请输入当前密码').max(PASSWORD_MAX_LENGTH),
+});
+export type StartMfaSetupInput = z.infer<typeof startMfaSetupSchema>;
+
+export const mfaSetupSchema = z.object({
+  /** For typing in by hand. */
+  secret: z.string(),
+  /** otpauth:// for the QR code. */
+  uri: z.string(),
+});
+export type MfaSetup = z.infer<typeof mfaSetupSchema>;
+
+export const confirmMfaSetupSchema = z.object({ code: totpCodeSchema });
+export type ConfirmMfaSetupInput = z.infer<typeof confirmMfaSetupSchema>;
+
+/** Shown once: each signs in once without the authenticator app. */
+export const recoveryCodesSchema = z.object({ recoveryCodes: z.array(z.string()) });
+export type RecoveryCodes = z.infer<typeof recoveryCodesSchema>;
+
+export const disableMfaSchema = startMfaSetupSchema;
+export type DisableMfaInput = StartMfaSetupInput;
+
+/** The second step of signing in: a code from the app, or a recovery code. */
+export const verifyMfaSchema = z.union([
+  z.object({ code: totpCodeSchema }),
+  z.object({ recoveryCode: z.string().trim().min(1, '请输入恢复码').max(64) }),
+]);
+export type VerifyMfaInput = z.infer<typeof verifyMfaSchema>;

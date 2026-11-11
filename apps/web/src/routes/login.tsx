@@ -51,7 +51,12 @@ function LoginPage() {
   const appName = useAppName();
   const mutation = useMutation({
     mutationFn: signIn,
-    onSuccess: async (me) => {
+    onSuccess: async (result) => {
+      if ('mfaRequired' in result) {
+        await navigate({ to: '/verify-mfa', search: { redirect: search.redirect }, replace: true });
+        return;
+      }
+      const me = result;
       applyMe(queryClient, me, { fresh: true });
       await navigate({
         href: me.user.mustChangePassword ? '/change-password' : safeRedirect(search.redirect),

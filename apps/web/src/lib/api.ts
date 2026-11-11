@@ -31,10 +31,25 @@ export function currentTenant(): string | null {
 
 const ACCOUNT_PATH = /^\/(auth|me)(\/|$)/;
 
+/** The API's code for a request that needs the second step of signing in first. */
+export const MFA_REQUIRED = 'mfa_required';
+
+/** Whether the error is a request refused for want of the second step of signing in. */
+export function needsMfa(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    (error.body as { errorCode?: unknown } | null)?.errorCode === MFA_REQUIRED
+  );
+}
+
 function errorMessage(status: number, body: unknown): string {
   const message = (body as { message?: unknown } | null)?.message;
   if (Array.isArray(message)) {
     return message.join('；');
+  }
+  // Asked of a browser that signed in without the second step, which this needs.
+  if ((body as { errorCode?: unknown } | null)?.errorCode === MFA_REQUIRED) {
+    return '这台设备登录时没有经过两步验证，请退出登录，用验证码重新登录后再操作';
   }
   if (typeof message === 'string') {
     return message;

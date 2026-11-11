@@ -16,9 +16,13 @@ import { AccountRoute } from '../authz/account-route.decorator.js';
 import { PlatformSettingsService } from '../settings/platform-settings.service.js';
 import { AccountService } from './account.service.js';
 import { LOGTO, logtoAttempts, LogtoRefusedException, type LogtoAttempt } from './logto.js';
+import { MfaSetupService } from './mfa-setup.service.js';
 
 /** The sign-in page, saying why the sign-in with Logto didn't go through. */
 const signInPage = (error: LogtoSignInError) => ({ url: `/login?error=${error}` });
+
+/** The web app's page asking for the code from the authenticator app. */
+const VERIFY_MFA_PATH = '/verify-mfa';
 
 /**
  * Signing in with Logto. Browsers are sent to both routes rather than calling them, so a failure
@@ -36,6 +40,7 @@ export class LogtoController {
     private readonly accounts: AccountService,
     private readonly audit: AuditService,
     private readonly settings: PlatformSettingsService,
+    private readonly mfa: MfaSetupService,
   ) {}
 
   /** Sends the browser to Logto, which sends it to the callback once the user has signed in. */
@@ -72,6 +77,10 @@ export class LogtoController {
       return signInPage(reason);
     }
     const account = attempt.actor;
+    // Signed in once the code from the authenticator app follows, on the page asking for it.
+    if (account?.id != null && (await this.mfa.isEnrolled(account.id.toString()))) {
+      return { url: `${VERIFY_MFA_PATH}?redirect=${encodeURIComponent(url)}` };
+    }
     if (account?.id != null) {
       await this.accounts.recordSignIn(account.id.toString());
     }

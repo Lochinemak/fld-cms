@@ -73,6 +73,7 @@ describe('Sign-in, tenants and permissions (e2e)', () => {
     // The system tenant only manages tenants.
     expect(me.permissions).toEqual([
       'system:account',
+      'system:account:reset-mfa',
       'system:account:reset-password',
       'system:account:sign-out',
       'system:account:unlock',

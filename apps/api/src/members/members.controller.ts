@@ -80,4 +80,14 @@ export class MembersController {
   ): Promise<Member> {
     return this.members.unlock(user, id);
   }
+
+  @RequirePermission('system:member:reset-mfa')
+  @Post(':id/reset-mfa')
+  @HttpCode(200)
+  resetMfa(
+    @CurrentUser() user: Principal,
+    @Param('id', { schema: idSchema }) id: string,
+  ): Promise<Member> {
+    return this.members.resetMfa(user, id);
+  }
 }

@@ -13,6 +13,8 @@ export const platformAccountSchema = z.object({
   status: z.enum(['ACTIVE', 'DISABLED']),
   /** Too many wrong passwords in a row locked it. */
   locked: z.boolean(),
+  /** Signs in in two steps, with an authenticator app. */
+  mfaEnabled: z.boolean(),
   lastSignInAt: z.iso.datetime().nullable(),
   /** The tenants it is an active member of. */
   tenants: z.array(z.object({ id: idSchema, name: z.string() })),

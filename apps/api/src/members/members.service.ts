@@ -18,6 +18,8 @@ import {
 import { accountName, AuditService, changesOf } from '../audit/audit.service.js';
 import { AccountProvisioning, type ProvisionedAccount } from '../auth/account-provisioning.js';
 import { CredentialsService, UNLOCKED } from '../auth/credentials.service.js';
+import { MfaSetupService } from '../auth/mfa-setup.service.js';
+import { mfaEnabledAmong } from '../auth/mfa.store.js';
 import type { Principal } from '../auth/principal.js';
 import { TenantContextCache } from '../auth/tenant-context.cache.js';
 import { dataScopeWhere } from '../authz/data-scope.js';
@@ -55,7 +57,10 @@ const memberSelect = {
   },
 } satisfies Prisma.TenantMemberSelect;
 
-function toMember(row: Prisma.TenantMemberGetPayload<{ select: typeof memberSelect }>): Member {
+function toMember(
+  row: Prisma.TenantMemberGetPayload<{ select: typeof memberSelect }>,
+  mfa: ReadonlySet<string>,
+): Member {
   return {
     id: row.id.toString(),
     userId: row.userId.toString(),
@@ -64,6 +69,7 @@ function toMember(row: Prisma.TenantMemberGetPayload<{ select: typeof memberSele
     email: row.user.email,
     status: row.status,
     locked: row.user.lockedAt !== null,
+    mfaEnabled: mfa.has(row.userId.toString()),
     dept: row.department ? { id: row.department.id.toString(), name: row.department.name } : null,
     roles: row.roles.map(({ role }) => ({
       id: role.id.toString(),
@@ -95,6 +101,7 @@ export class MembersService {
     private readonly credentials: CredentialsService,
     private readonly tenantContexts: TenantContextCache,
     private readonly audit: AuditService,
+    private readonly mfa: MfaSetupService,
   ) {}
 
   async list(user: Principal, query: MemberQuery): Promise<Page<Member>> {
@@ -129,7 +136,11 @@ export class MembersService {
       }),
       this.db.tenantMember.count({ where }),
     ]);
-    return { items: rows.map(toMember), total };
+    const mfa = await mfaEnabledAmong(
+      this.prisma,
+      rows.map((row) => row.userId),
+    );
+    return { items: rows.map((row) => toMember(row, mfa)), total };
   }
 
   /**
@@ -289,6 +300,17 @@ export class MembersService {
     return unlocked;
   }
 
+  /** Turns off two-step sign-in for a member who lost their phone and recovery codes. */
+  async resetMfa(user: Principal, id: string): Promise<Member> {
+    const member = await this.findManageable(user, id);
+    if (!(await this.mfa.reset(member.userId.toString()))) {
+      throw new BadRequestException('该账号没有开启两步验证');
+    }
+    const reset = await this.get(member.id);
+    await this.audit.record({ action: 'member.reset-mfa', target: memberTarget(reset) });
+    return reset;
+  }
+
   private visibleTo(user: Principal): Prisma.TenantMemberWhereInput {
     return dataScopeWhere<Prisma.TenantMemberWhereInput>(user, {
       dept: 'deptId',
@@ -297,9 +319,11 @@ export class MembersService {
   }
 
   private async get(id: bigint): Promise<Member> {
-    return toMember(
-      await this.db.tenantMember.findUniqueOrThrow({ where: { id }, select: memberSelect }),
-    );
+    const row = await this.db.tenantMember.findUniqueOrThrow({
+      where: { id },
+      select: memberSelect,
+    });
+    return toMember(row, await mfaEnabledAmong(this.prisma, [row.userId]));
   }
 
   /**

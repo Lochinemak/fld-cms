@@ -32,3 +32,24 @@ export async function resetPassword(
   ]);
   return { username: user.username, password };
 }
+
+/**
+ * Turns off the account's two-step sign-in, for whoever lost the phone and the recovery codes with
+ * no administrator to reset it. Its username, or null when no account has that username or email.
+ */
+export async function resetMfa(prisma: PrismaService, account: string): Promise<string | null> {
+  const normalized = normalizeAccount(account);
+  const user = await prisma.user.findFirst({
+    where: { OR: [{ username: normalized }, { email: normalized }] },
+    select: { id: true, username: true },
+  });
+  if (!user) {
+    return null;
+  }
+  const userId = user.id.toString();
+  await prisma.$transaction([
+    prisma.userTotp.deleteMany({ where: { userId } }),
+    prisma.mfaRecoveryCode.deleteMany({ where: { userId } }),
+  ]);
+  return user.username;
+}

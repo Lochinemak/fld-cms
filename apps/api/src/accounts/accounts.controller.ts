@@ -48,4 +48,11 @@ export class AccountsController {
   signOut(@Param('id', { schema: idSchema }) id: string): Promise<void> {
     return this.accounts.signOut(id);
   }
+
+  @RequirePermission('system:account:reset-mfa')
+  @Post(':id/reset-mfa')
+  @HttpCode(200)
+  resetMfa(@Param('id', { schema: idSchema }) id: string): Promise<PlatformAccount> {
+    return this.accounts.resetMfa(id);
+  }
 }

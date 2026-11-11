@@ -4,16 +4,18 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ThemeProvider } from '@/components/theme-provider';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { ApiError } from '@/lib/api';
+import { ApiError, needsMfa } from '@/lib/api';
 import { meQuery, reloadToSignIn } from '@/lib/auth';
 import './index.css';
 import { routeTree } from './routeTree.gen';
 
 function onApiError(error: unknown) {
-  // A 401 while signed in: the session ended elsewhere (expired, signed out, password reset).
+  // A 401 while signed in: the session ended elsewhere (expired, signed out, password reset). Not
+  // one asking for the second step, which the page that asked explains.
   if (
     error instanceof ApiError &&
     error.status === 401 &&
+    !needsMfa(error) &&
     queryClient.getQueryData(meQuery.queryKey)
   ) {
     reloadToSignIn();

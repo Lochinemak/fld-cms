@@ -48,6 +48,7 @@ import { ThrottleModule } from './throttle/throttle.module.js';
       inject: [ConfigService, LogtoSettingsService],
       useFactory: (config: ConfigService<Env, true>, logto: LogtoSettingsService) => {
         const secure = config.get('SESSION_COOKIE_SECURE', { infer: true });
+        const encryptionKey = config.get('SETTINGS_ENCRYPTION_KEY', { infer: true });
         return {
           session: {
             absoluteTtl: '7d',
@@ -83,6 +84,11 @@ import { ThrottleModule } from './throttle/throttle.module.js';
             },
             cookie: { secure },
           },
+          // Two-step sign-in seals each authenticator's secret with the settings key; without
+          // the key, it is unavailable.
+          ...(encryptionKey && {
+            mfa: { encryption: { keys: [Buffer.from(encryptionKey, 'base64')] } },
+          }),
         };
       },
     }),

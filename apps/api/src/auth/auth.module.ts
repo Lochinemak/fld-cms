@@ -8,6 +8,8 @@ import { CredentialsService } from './credentials.service.js';
 import { LogtoAccountResolver } from './logto-account.resolver.js';
 import { LogtoController } from './logto.controller.js';
 import { MeController } from './me.controller.js';
+import { PrismaMfaStore } from './mfa.store.js';
+import { MfaSetupService } from './mfa-setup.service.js';
 import { PasswordRecoveryService } from './password-recovery.service.js';
 import { PasswordResetMailer } from './password-reset.mailer.js';
 import { PrismaEmailTokenStore } from './prisma-email-token.store.js';
@@ -25,6 +27,8 @@ import { TenantContextService } from './tenant-context.service.js';
   providers: [
     PrismaSessionStore,
     PrismaEmailTokenStore,
+    PrismaMfaStore,
+    MfaSetupService,
     RedisOidcStateStore,
     SessionAuth,
     LogtoAccountResolver,
@@ -38,7 +42,7 @@ import { TenantContextService } from './tenant-context.service.js';
     PasswordRecoveryService,
     SignInSessionsService,
   ],
-  exports: [TenantContextCache, CredentialsService, AccountProvisioning],
+  exports: [TenantContextCache, CredentialsService, AccountProvisioning, MfaSetupService],
 })
 export class AuthModule {
   constructor(
@@ -46,7 +50,8 @@ export class AuthModule {
     sessions: PrismaSessionStore,
     emailTokens: PrismaEmailTokenStore,
     oidcStates: RedisOidcStateStore,
+    mfa: PrismaMfaStore,
   ) {
-    storage.registerSource({ sessions, emailTokens, oidcStates });
+    storage.registerSource({ sessions, emailTokens, oidcStates, mfa });
   }
 }

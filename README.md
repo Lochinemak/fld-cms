@@ -53,6 +53,7 @@ API 第一次连上空数据库时，会创建系统租户（ID 1，编码 `syst
 - `pnpm db:studio`：打开 Prisma Studio
 - `pnpm --filter @fld/api test:e2e`：后端端到端测试（需要先 `pnpm infra:up`）。用单独的 `fld_asset_test` 库和 Redis 1 号库，每次运行重建，不影响开发数据
 - `pnpm test:ui`：在真实浏览器里跑一遍冒烟流程（超级管理员首次登录、建租户、租户管理员登录、建客户、上传文件、查看登录设备），会先构建全部代码。需要先 `pnpm infra:up`，第一次还要 `pnpm --filter @fld/web exec playwright install chromium`。用单独的 `fld_asset_ui` 库和 Redis 2 号库，每次运行清空；后端和页面分别跑在 3021 和 4183 端口，不影响正在开发的服务。失败时的录屏和页面快照在 `apps/web/test-results/`，用 `pnpm --filter @fld/web exec playwright show-trace <trace.zip>` 查看
+- `pnpm --filter @fld/api reset-mfa <用户名或邮箱>`：关闭账号的两步验证（先 `pnpm build`），之后只用密码就能登录。给手机和恢复码都丢了、又没有别的管理员能重置的人用，比如唯一的超级管理员。镜像里用 `node dist/cli.js reset-mfa <用户名或邮箱>`
 - `pnpm --filter @fld/api reset-password <用户名或邮箱>`：重置密码（先 `pnpm build`），新密码打印在终端，下次登录必须修改，该账号所有登录立即失效。镜像里用 `node dist/cli.js reset-password <用户名或邮箱>`
 - `pnpm format`：用根目录的 Prettier 配置格式化全部代码
 - `pnpm infra:down`：停止本地容器（数据保留在 Docker 卷里）
@@ -149,6 +150,17 @@ docker compose logs api | grep 'Initial password'   # 首次启动时超级管�
 - 可以退出其中任何一个（当前设备用「退出登录」），或者一次退出其他所有设备。看到不认识的设备，退出它并修改密码。
 - 超级管理员在「账号管理」里可以让一个账号「退出全部登录」，密码不变。怀疑账号被别人登录时，先这样做，再重置密码。
 - 这些操作都记在审计日志里（「退出其他设备的登录」「退出账号的全部登录」）。
+
+### 两步验证
+
+每个人都可以在右上角用户菜单的「两步验证」里开启：登录时除了密码，还要输入手机上验证器应用（Google Authenticator、Microsoft Authenticator 等）里的 6 位验证码。
+
+- 要先在 `.env` 里设 `SETTINGS_ENCRYPTION_KEY`（见上面的「邮件」），验证器的密钥加密后才存进数据库；没设时页面上会说明，开不了。这个密钥换了或丢了，开了两步验证的人都登录不了，要管理员逐个重置。
+- 开启要输入当前密码，再扫二维码、输入一次验证码。开启后显示 10 个恢复码，只显示这一次：手机不在身边时，每个恢复码可以代替验证码登录一次。用完或丢了可以重新生成，旧的随即作废。
+- 用密码登录和用 Logto 登录都要过这一步。同一个验证码只能用一次；连续输错 5 次，15 分钟内什么码都不认。
+- 重新生成恢复码和关闭两步验证，只能在登录时过了两步验证的设备上做（关闭还要输入当前密码）。
+- 手机和恢复码都丢了：租户管理员在「成员管理」、超级管理员在「账号管理」里点「重置两步验证」，关闭后本人只用密码登录，再自己重新开启。连超级管理员也进不来时，用 `reset-mfa` 命令（见「常用命令」）。
+- 开启、关闭、重新生成恢复码、管理员重置，以及两步验证输错，都记在审计日志里。
 
 ### 后台任务
 

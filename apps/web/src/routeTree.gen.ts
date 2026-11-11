@@ -15,6 +15,7 @@ import { Route as ConfirmEmailRouteImport } from './routes/confirm-email'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as VerifyMfaRouteImport } from './routes/verify-mfa'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppFilesRouteImport } from './routes/_app/files'
 import { Route as STokenRouteImport } from './routes/s/$token'
@@ -58,6 +59,11 @@ const LoginRoute = LoginRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerifyMfaRoute = VerifyMfaRouteImport.update({
+  id: '/verify-mfa',
+  path: '/verify-mfa',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -144,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/verify-mfa': typeof VerifyMfaRoute
   '/files': typeof AppFilesRoute
   '/s/$token': typeof STokenRoute
   '/crm/contacts': typeof AppCrmContactsRoute
@@ -165,6 +172,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/verify-mfa': typeof VerifyMfaRoute
   '/files': typeof AppFilesRoute
   '/s/$token': typeof STokenRoute
   '/': typeof AppIndexRoute
@@ -189,6 +197,7 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/verify-mfa': typeof VerifyMfaRoute
   '/_app/files': typeof AppFilesRoute
   '/s/$token': typeof STokenRoute
   '/_app/': typeof AppIndexRoute
@@ -214,6 +223,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/reset-password'
+    | '/verify-mfa'
     | '/files'
     | '/s/$token'
     | '/crm/contacts'
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/reset-password'
+    | '/verify-mfa'
     | '/files'
     | '/s/$token'
     | '/'
@@ -258,6 +269,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/reset-password'
+    | '/verify-mfa'
     | '/_app/files'
     | '/s/$token'
     | '/_app/'
@@ -282,6 +294,7 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  VerifyMfaRoute: typeof VerifyMfaRoute
   STokenRoute: typeof STokenRoute
 }
 
@@ -327,6 +340,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/verify-mfa': {
+      id: '/verify-mfa'
+      path: '/verify-mfa'
+      fullPath: '/verify-mfa'
+      preLoaderRoute: typeof VerifyMfaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/': {
@@ -480,6 +500,7 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  VerifyMfaRoute: VerifyMfaRoute,
   STokenRoute: STokenRoute,
 }
 export const routeTree = rootRouteImport

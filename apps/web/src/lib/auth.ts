@@ -1,10 +1,18 @@
 import {
   confirmEmailResultSchema,
   meSchema,
+  mfaSetupSchema,
+  mfaStatusSchema,
+  recoveryCodesSchema,
+  signInResultSchema,
   signInOptionsSchema,
   signInSessionSchema,
   updateProfileResultSchema,
   type ChangePasswordInput,
+  type ConfirmMfaSetupInput,
+  type DisableMfaInput,
+  type StartMfaSetupInput,
+  type VerifyMfaInput,
   type ConfirmEmailInput,
   type ForgotPasswordInput,
   type Me,
@@ -32,8 +40,13 @@ export const meQuery = queryOptions({
   staleTime: 60_000,
 });
 
+/** Signs in with a password: the user, or that the code from the authenticator app comes next. */
 export const signIn = (input: SignInInput) =>
-  api('/auth/sign-in', { method: 'POST', json: input, schema: meSchema });
+  api('/auth/sign-in', { method: 'POST', json: input, schema: signInResultSchema });
+
+/** The second step of signing in, password or Logto. */
+export const verifyMfa = (input: VerifyMfaInput) =>
+  api('/auth/mfa', { method: 'POST', json: input, schema: meSchema });
 
 /** What the sign-in page offers besides a password. */
 export const signInOptionsQuery = queryOptions({
@@ -146,3 +159,21 @@ export function describeUserAgent(userAgent: string | null): string {
     ].find(([pattern]) => (pattern as RegExp).test(userAgent))?.[1] ?? null;
   return [browser, system].filter(Boolean).join(' · ') || userAgent.slice(0, 40);
 }
+
+export const mfaStatusQuery = queryOptions({
+  queryKey: ['mfa-status'],
+  queryFn: () => api('/me/mfa', { schema: mfaStatusSchema }),
+  staleTime: 0,
+});
+
+export const startMfaSetup = (input: StartMfaSetupInput) =>
+  api('/me/mfa/setup', { method: 'POST', json: input, schema: mfaSetupSchema });
+
+export const confirmMfaSetup = (input: ConfirmMfaSetupInput) =>
+  api('/me/mfa/confirm', { method: 'POST', json: input, schema: recoveryCodesSchema });
+
+export const renewRecoveryCodes = () =>
+  api('/me/mfa/recovery-codes', { method: 'POST', schema: recoveryCodesSchema });
+
+export const disableMfa = (input: DisableMfaInput) =>
+  api('/me/mfa/disable', { method: 'POST', json: input });

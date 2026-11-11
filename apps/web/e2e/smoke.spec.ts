@@ -1,9 +1,21 @@
 import { expect, test, type Page } from '@playwright/test';
+import { totp } from './totp.js';
 
 // One flow through the app, in a real browser, on an empty database: the super admin's first
-// sign-in, a new tenant, its administrator's first sign-in, a customer and a file. Each test
-// builds on the ones before.
+// sign-in, a new tenant, its administrator's first sign-in, a customer, a file and two-step
+// sign-in. Each test builds on the ones before, in one browser tab: signing in again for each
+// would run into the limit of 5 sign-ins per account in 15 minutes.
 test.describe.configure({ mode: 'serial' });
+
+let page: Page;
+
+test.beforeAll(async ({ browser }) => {
+  page = await browser.newPage();
+});
+
+test.afterAll(async () => {
+  await page.close();
+});
 
 const SUPER_ADMIN_PASSWORD = 'smoke-super-password-1';
 const ADMIN_PASSWORD = 'smoke-admin-password-1';
@@ -36,20 +48,20 @@ async function replacePassword(page: Page, current: string, next: string) {
   await page.getByRole('button', { name: '保存新密码' }).click();
 }
 
-async function signOut(page: Page) {
-  await page.getByRole('button', { name: /管理员|superadmin/ }).click();
+/** Signs out through the menu under the user's name. */
+async function signOut(page: Page, displayName: string) {
+  await page.getByRole('button', { name: displayName, exact: true }).click();
   await page.getByRole('menuitem', { name: '退出登录' }).click();
   await expect(page).toHaveURL(/\/login/);
 }
 
-test('the super admin signs in with the initial password and replaces it', async ({ page }) => {
+test('the super admin signs in with the initial password and replaces it', async () => {
   await signIn(page, 'superadmin', initialPassword());
   await replacePassword(page, initialPassword(), SUPER_ADMIN_PASSWORD);
   await expect(page.getByRole('heading', { name: '租户管理' })).toBeVisible();
 });
 
-test('the super admin creates a tenant with a new administrator', async ({ page }) => {
-  await signIn(page, 'superadmin', SUPER_ADMIN_PASSWORD);
+test('the super admin creates a tenant with a new administrator', async () => {
   await page.getByRole('button', { name: '新建租户' }).click();
   const dialog = page.getByRole('dialog', { name: '新建租户' });
   await dialog.getByLabel('租户编码').fill('smoke');
@@ -64,16 +76,16 @@ test('the super admin creates a tenant with a new administrator', async ({ page 
   expect(adminInitialPassword).not.toBe('');
   await secret.getByRole('button', { name: '我已记下' }).click();
   await expect(page.getByRole('cell', { name: '冒烟测试公司' })).toBeVisible();
+  await signOut(page, '超级管理员');
 });
 
-test('the administrator signs in and lands on the workbench', async ({ page }) => {
+test('the administrator signs in and lands on the workbench', async () => {
   await signIn(page, 'smoke-admin', adminInitialPassword);
   await replacePassword(page, adminInitialPassword, ADMIN_PASSWORD);
   await expect(page.getByText('冒烟测试公司').first()).toBeVisible();
 });
 
-test('the administrator adds a customer', async ({ page }) => {
-  await signIn(page, 'smoke-admin', ADMIN_PASSWORD);
+test('the administrator adds a customer', async () => {
   await page.goto('/crm/customers');
   await page.getByRole('button', { name: '新建客户' }).click();
   const dialog = page.getByRole('dialog', { name: '新建客户' });
@@ -83,8 +95,7 @@ test('the administrator adds a customer', async ({ page }) => {
   await expect(page.getByRole('link', { name: '冒烟客户' })).toBeVisible();
 });
 
-test('the administrator uploads a file', async ({ page }) => {
-  await signIn(page, 'smoke-admin', ADMIN_PASSWORD);
+test('the administrator uploads a file', async () => {
   await page.goto('/files');
   const chooser = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: '上传' }).click();
@@ -94,13 +105,34 @@ test('the administrator uploads a file', async ({ page }) => {
   await expect(page.getByRole('cell', { name: /冒烟\.txt/ }).first()).toBeVisible();
 });
 
-test('the administrator sees where they are signed in', async ({ page }) => {
-  await signIn(page, 'smoke-admin', ADMIN_PASSWORD);
-  await expect(page.getByText('冒烟测试公司').first()).toBeVisible();
+test('the administrator sees where they are signed in', async () => {
   await page.getByRole('button', { name: '冒烟管理员' }).click();
   await page.getByRole('menuitem', { name: '登录设备' }).click();
   const dialog = page.getByRole('dialog', { name: '登录设备' });
   await expect(dialog.getByText('当前设备')).toBeVisible();
   await page.keyboard.press('Escape');
-  await signOut(page);
+  await expect(dialog).toBeHidden();
+});
+
+test('the administrator turns on two-step sign-in, and signs in with a code', async () => {
+  await page.getByRole('button', { name: '冒烟管理员' }).click();
+  await page.getByRole('menuitem', { name: '两步验证' }).click();
+  const dialog = page.getByRole('dialog', { name: '两步验证' });
+  await dialog.getByRole('button', { name: '开启两步验证' }).click();
+  await dialog.getByLabel('当前密码').fill(ADMIN_PASSWORD);
+  await dialog.getByRole('button', { name: '下一步' }).click();
+  await expect(dialog.getByRole('img', { name: '两步验证的二维码' })).toBeVisible();
+  const secret = (await dialog.locator('p.font-mono').textContent())!.trim();
+  await dialog.getByLabel('验证码').fill(totp(secret, -1));
+  await dialog.getByRole('button', { name: '开启' }).click();
+  await expect(dialog.getByText('这些恢复码只显示这一次')).toBeVisible();
+  await dialog.getByRole('button', { name: '我已保存' }).click();
+  await expect(dialog).toBeHidden();
+  await signOut(page, '冒烟管理员');
+
+  await signIn(page, 'smoke-admin', ADMIN_PASSWORD);
+  await expect(page).toHaveURL(/\/verify-mfa/);
+  await page.getByLabel('验证码').fill(totp(secret));
+  await page.getByRole('button', { name: '验证' }).click();
+  await expect(page.getByText('冒烟测试公司').first()).toBeVisible();
 });

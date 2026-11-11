@@ -25,7 +25,13 @@ import {
 } from '@/components/ui/table';
 import { useMe } from '@/lib/auth';
 import { formatDateTime } from '@/lib/crm';
-import { accountsQuery, resetAccountPassword, signOutAccount, unlockAccount } from '@/lib/platform';
+import {
+  accountsQuery,
+  resetAccountMfa,
+  resetAccountPassword,
+  signOutAccount,
+  unlockAccount,
+} from '@/lib/platform';
 import { PAGE_SIZE } from '@/lib/system';
 
 const searchSchema = z.object({
@@ -52,6 +58,7 @@ function AccountsPage() {
   const [resetting, setResetting] = useState<PlatformAccount | null>(null);
   const [unlocking, setUnlocking] = useState<PlatformAccount | null>(null);
   const [signingOut, setSigningOut] = useState<PlatformAccount | null>(null);
+  const [resettingMfa, setResettingMfa] = useState<PlatformAccount | null>(null);
   const [secret, setSecret] = useState<OneTimePassword | null>(null);
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['system', 'accounts'] });
@@ -112,6 +119,7 @@ function AccountsPage() {
                     <div className="flex flex-wrap gap-1">
                       <StatusBadge status={account.status} />
                       {account.locked && <Badge variant="destructive">已锁定</Badge>}
+                      {account.mfaEnabled && <Badge variant="outline">两步验证</Badge>}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -123,6 +131,17 @@ function AccountsPage() {
                         <Can code="system:account:unlock">
                           <Button variant="ghost" size="sm" onClick={() => setUnlocking(account)}>
                             解锁
+                          </Button>
+                        </Can>
+                      )}
+                      {!self && account.mfaEnabled && (
+                        <Can code="system:account:reset-mfa">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setResettingMfa(account)}
+                          >
+                            重置两步验证
                           </Button>
                         </Can>
                       )}
@@ -179,6 +198,19 @@ function AccountsPage() {
             await refresh();
           }}
           onClosed={() => setUnlocking(null)}
+        />
+      )}
+      {resettingMfa && (
+        <ConfirmDialog
+          title={`关闭「${resettingMfa.displayName}」的两步验证？`}
+          description="对方手机和恢复码都丢了时用。关闭后只用密码就能登录，在它所属的每个租户都一样；本人可以再重新开启。请先确认是本人在找你。"
+          confirmLabel="关闭两步验证"
+          destructive
+          action={async () => {
+            await resetAccountMfa(resettingMfa.id);
+            await refresh();
+          }}
+          onClosed={() => setResettingMfa(null)}
         />
       )}
       {signingOut && (

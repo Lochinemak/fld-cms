@@ -3,6 +3,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   signInSchema,
+  verifyMfaSchema,
   type ConfirmEmailInput,
   type ConfirmEmailResult,
   type ForgotPasswordInput,
@@ -10,6 +11,8 @@ import {
   type ResetPasswordInput,
   type SignInInput,
   type SignInOptions,
+  type SignInResult,
+  type VerifyMfaInput,
 } from '@fld/shared';
 import {
   BadRequestException,
@@ -19,6 +22,7 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Req,
   UnauthorizedException,
 } from '@nestjs/common';
 import {
@@ -26,6 +30,7 @@ import {
   CurrentUser,
   PasswordResetService,
   Public,
+  SessionService,
   SignInService,
 } from '@nestjs/authentication';
 import { Can } from '@nestjs/authorization';
@@ -34,12 +39,19 @@ import { minutes, Throttle } from '@nestjs/throttler';
 import { AuditService, changesOf } from '../audit/audit.service.js';
 import { AccountRoute } from '../authz/account-route.decorator.js';
 import { LogtoSettingsService } from '../settings/logto-settings.service.js';
+import type { Request } from 'express';
 import { normalizeAccount } from './account-name.js';
+import { LOGTO } from './logto.js';
+import { PrismaMfaStore } from './mfa.store.js';
 import { AccountService } from './account.service.js';
 import { CredentialsService, SIGN_IN_ATTEMPTS, type SignInRefusal } from './credentials.service.js';
 import { PasswordRecoveryService } from './password-recovery.service.js';
 import type { Principal } from './principal.js';
 import { ProfileService } from './profile.service.js';
+
+/** MfaService's defaults: this many wrong codes within 15 minutes, and every code is refused. */
+const MFA_ATTEMPTS = 5;
+const MFA_LOCKOUT_MS = 15 * 60 * 1000;
 
 const REFUSALS: Record<SignInRefusal, string> = {
   'unknown-account': '账号不存在',
@@ -61,6 +73,8 @@ export class AuthController {
     private readonly profile: ProfileService,
     private readonly audit: AuditService,
     private readonly logto: LogtoSettingsService,
+    private readonly sessions: SessionService,
+    private readonly mfaStore: PrismaMfaStore,
   ) {}
 
   /** What the sign-in page offers besides a password. */
@@ -78,7 +92,9 @@ export class AuthController {
   })
   @Post('sign-in')
   @HttpCode(HttpStatus.OK)
-  async signInWithPassword(@Body({ schema: signInSchema }) input: SignInInput): Promise<Me> {
+  async signInWithPassword(
+    @Body({ schema: signInSchema }) input: SignInInput,
+  ): Promise<SignInResult> {
     const verification = await this.credentials.verify(input.account, input.password);
     if (!verification.ok) {
       const { refusal, lockedNow = false } = verification;
@@ -107,10 +123,51 @@ export class AuthController {
       );
     }
     const { user } = verification;
-    await this.signIn.signIn(user.id, { method: 'password' });
+    const { session } = await this.signIn.signIn(user.id, { method: 'password' });
+    // Signed in once the code from the authenticator app follows, at POST /auth/mfa.
+    if (session.mfa === 'pending') {
+      return { mfaRequired: true };
+    }
     await this.accounts.recordSignIn(user.id);
     await this.audit.record({ action: 'auth.sign-in', account: user });
     return this.accounts.describeUser(user.id);
+  }
+
+  /**
+   * The second step of a sign-in, password or Logto, for an account with two-step sign-in on: a
+   * code from its authenticator app, or one of its recovery codes.
+   */
+  @Public()
+  @Throttle({ default: { limit: 30, ttl: minutes(15) } })
+  @Post('mfa')
+  @HttpCode(HttpStatus.OK)
+  async verifyMfa(
+    @Req() request: Request,
+    @Body({ schema: verifyMfaSchema }) input: VerifyMfaInput,
+  ): Promise<Me> {
+    const pending = await this.sessions.validate(this.sessions.tokenFrom(request));
+    if (pending?.mfa !== 'pending') {
+      throw new UnauthorizedException('登录已过期，请重新登录');
+    }
+    const account = await this.audit.account(pending.userId);
+    const viaLogto = pending.metadata?.['method'] === LOGTO;
+    const action = viaLogto ? 'auth.sign-in-logto' : 'auth.sign-in';
+    const issued = await this.signIn.completeMfa(input);
+    if (!issued) {
+      const tooMany =
+        (await this.mfaStore.countMfaFailures(pending.userId, MFA_LOCKOUT_MS, Date.now())) >=
+        MFA_ATTEMPTS;
+      await this.audit.record({
+        action,
+        account,
+        success: false,
+        reason: tooMany ? '两步验证输错太多次' : '两步验证码不正确',
+      });
+      throw new BadRequestException(tooMany ? '输错太多次，请 15 分钟后再试' : '验证码不正确');
+    }
+    await this.accounts.recordSignIn(pending.userId);
+    await this.audit.record({ action, account });
+    return this.accounts.describeUser(pending.userId);
   }
 
   /** Ends this browser's session, if it has one. */
