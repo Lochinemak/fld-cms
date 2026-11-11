@@ -118,6 +118,22 @@ docker compose logs api | grep 'Initial password'   # 首次启动时超级管�
 - 重设链接 30 分钟内有效，只能用一次，重新申请后旧链接作废；同一个账号每分钟最多发 1 封、每小时最多 5 封。重设后该账号所有登录立即失效。没有绑定邮箱的账号不能自己重设，只能请管理员重置。
 - 本地开发用 Mailpit 收信：`docker compose --profile mail up -d`，在平台设置里填服务器 `localhost`、端口 `11025`、加密方式「不加密」，站点地址 `http://localhost:5173`。邮件不会真的发出去，都在 http://localhost:18025 里看。
 
+### Logto 登录
+
+登录页可以多一个「使用 Logto 登录」按钮，让用户用 [Logto](https://logto.io) 的账号登录；用户名和密码照常能用。
+
+1. 在 Logto 控制台新建应用，类型选「传统网页应用」（Traditional web，框架选 Express 之类的也是这一类）。只有这一类应用有 App secret，类型建好后不能改。
+2. 在应用的 Redirect URIs 里填回调地址：站点地址加 `/api/auth/oidc/logto/callback`，比如 `https://crm.example.com/api/auth/oidc/logto/callback`，本地开发是 `http://localhost:5173/api/auth/oidc/logto/callback`。「平台设置」页面上会给出这个地址。
+3. 超级管理员在「平台设置 → Logto 登录」里填 Logto 地址（比如 `https://auth.example.com`）、应用 ID 和应用密钥，也可以写在 `.env` 的 `LOGTO_AUTH_URL`、`LOGTO_APP_ID`、`LOGTO_APP_SECRET` 里（改了 `.env` 要重启 API）。页面上填了的项优先，留空的项用环境变量。这三项加上站点地址都有了，登录页才出现按钮；在页面上取消勾选可以随时关掉。
+
+- 不会自动建账号。第一次用 Logto 登录时，按 Logto 里已验证的邮箱找 CRM 账号（不区分大小写），找到就记下两边的对应关系，之后只认 Logto 账号，哪边的邮箱改了都不影响。所以要先在 CRM 里建好账号并填上邮箱。
+- 下面几种情况会拒绝登录，回到登录页并提示联系管理员：没有这个邮箱的 CRM 账号；Logto 里没有已验证的邮箱；这个 CRM 账号已经对应了另一个 Logto 账号；账号已停用或已锁定。
+- 用 Logto 登录的人不会被要求修改初始密码；用密码登录时照旧要先改。
+- 在 CRM 里退出登录只退出 CRM，不退出 Logto。
+- 换成另一个 Logto（地址变了）之后，原来的对应关系不再生效，用户下次登录时重新按邮箱对应；换回原来的地址，原来的对应关系照旧有效。
+- Logto 地址要用 `https://`，只有本机地址（`localhost`）可以用 `http://`。要在页面上保存应用密钥，同样要先设 `SETTINGS_ENCRYPTION_KEY`（见上面的「邮件」）；不想配密钥，就把应用密钥写在 `LOGTO_APP_SECRET` 里。
+- 用 Logto 登录，成功和被拒绝的都记在审计日志里（「通过 Logto 登录」）。
+
 ### 审计日志
 
 「系统管理 → 审计日志」记录谁在什么时候做了什么：登录（包括失败的尝试）、改密码和重设密码；成员、部门、角色、租户和平台设置的管理；删除和转交业务数据，以及文件的删除、恢复版本和分享。新建和普通编辑不记录。每条记录带操作人、IP、浏览器和改动前后的值；密码、密钥和分享链接不会写进去。
