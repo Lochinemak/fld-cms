@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CustomFieldsModule } from '../custom-fields/custom-fields.module.js';
 import { FilesModule } from '../files/files.module.js';
 import { ContactsController } from './contacts.controller.js';
 import { ContactsService } from './contacts.service.js';
@@ -14,7 +15,7 @@ import { OwnersController } from './owners.controller.js';
 import { OwnersService } from './owners.service.js';
 
 @Module({
-  imports: [FilesModule],
+  imports: [FilesModule, CustomFieldsModule],
   controllers: [
     CustomersController,
     CustomerAttachmentsController,

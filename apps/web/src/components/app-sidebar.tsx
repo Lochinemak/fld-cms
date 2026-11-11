@@ -2,9 +2,11 @@ import { permissionDefinition, type PermissionCode } from '@fld/shared';
 import { Link, useMatchRoute } from '@tanstack/react-router';
 import {
   Building2,
+  BookA,
   ContactRound,
   FolderOpen,
   Handshake,
+  ListPlus,
   LayoutDashboard,
   MessagesSquare,
   Network,
@@ -44,6 +46,8 @@ interface MenuPage {
     | '/system/members'
     | '/system/depts'
     | '/system/roles'
+    | '/system/dictionaries'
+    | '/system/custom-fields'
     | '/system/audit-logs';
   icon: LucideIcon;
   /** The permission that opens the page; its name in the registry titles the menu item. */
@@ -80,6 +84,8 @@ const MENU: MenuGroup[] = [
       { to: '/system/members', icon: Users, code: 'system:member' },
       { to: '/system/depts', icon: Network, code: 'system:dept' },
       { to: '/system/roles', icon: ShieldCheck, code: 'system:role' },
+      { to: '/system/dictionaries', icon: BookA, code: 'system:dictionary' },
+      { to: '/system/custom-fields', icon: ListPlus, code: 'system:custom-field' },
       { to: '/system/audit-logs', icon: ScrollText, code: 'system:audit' },
     ],
   },

@@ -39,6 +39,9 @@ model Tenant {
   fileVersions    FileVersion[]
   fileShares      FileShare[]
   fileRefs        FileRef[]
+  dictionaries    Dictionary[]
+  dictionaryItems DictionaryItem[]
+  customFields    CustomField[]
 
   @@map("tenants")
 }
@@ -356,26 +359,29 @@ model AuditLog {
 
 /// A company or person the tenant sells to.
 model Customer {
-  id             BigInt          @id
-  tenantId       BigInt          @map("tenant_id")
-  name           String          @db.VarChar(128)
-  industry       String?         @db.VarChar(64)
-  source         CustomerSource?
-  level          CustomerLevel   @default(B)
-  status         CustomerStatus  @default(POTENTIAL)
-  phone          String?         @db.VarChar(32)
-  address        String?         @db.VarChar(255)
-  remark         String?         @db.VarChar(1000)
-  ownerId        BigInt          @map("owner_id")
+  id             BigInt         @id
+  tenantId       BigInt         @map("tenant_id")
+  name           String         @db.VarChar(128)
+  industry       String?        @db.VarChar(64)
+  /// A value of the tenant's crm.customer-source dictionary.
+  source         String?        @db.VarChar(64)
+  level          CustomerLevel  @default(B)
+  status         CustomerStatus @default(POTENTIAL)
+  phone          String?        @db.VarChar(32)
+  address        String?        @db.VarChar(255)
+  remark         String?        @db.VarChar(1000)
+  ownerId        BigInt         @map("owner_id")
   /// The owner's department when the customer was created or last transferred.
-  deptId         BigInt?         @map("dept_id")
-  creatorId      BigInt          @map("creator_id")
+  deptId         BigInt?        @map("dept_id")
+  creatorId      BigInt         @map("creator_id")
   /// Copied from the latest follow-up.
-  lastFollowUpAt DateTime?       @map("last_follow_up_at") @db.Timestamptz(3)
+  lastFollowUpAt DateTime?      @map("last_follow_up_at") @db.Timestamptz(3)
   /// Copied from the latest follow-up.
-  nextFollowUpAt DateTime?       @map("next_follow_up_at") @db.Timestamptz(3)
-  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  nextFollowUpAt DateTime?      @map("next_follow_up_at") @db.Timestamptz(3)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  /// The tenant's custom fields for customers, by key (see CustomField).
+  custom         Json           @default("{}")
 
   tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   owner         User          @relation("CustomerOwner", fields: [ownerId], references: [id], onDelete: Restrict)
@@ -391,16 +397,6 @@ model Customer {
   @@index([creatorId])
   @@index([tenantId, nextFollowUpAt])
   @@map("customers")
-}
-
-enum CustomerSource {
-  ONLINE
-  REFERRAL
-  EVENT
-  OUTBOUND
-  OTHER
-
-  @@map("customer_source")
 }
 
 enum CustomerLevel {
@@ -433,6 +429,8 @@ model Contact {
   remark     String?  @db.VarChar(500)
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  /// The tenant's custom fields for contacts, by key (see CustomField).
+  custom     Json     @default("{}")
 
   tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   customer  Customer   @relation(fields: [tenantId, customerId], references: [tenantId, id], onDelete: Cascade)
@@ -676,4 +674,83 @@ enum FileRefTarget {
   CUSTOMER
 
   @@map("file_ref_target")
+}
+
+/// A list of options a tenant keeps, which select fields offer. Built-in ones (BUILTIN_DICTIONARIES
+/// in packages/shared) are created for a tenant the first time it needs them.
+model Dictionary {
+  id        BigInt   @id
+  tenantId  BigInt   @map("tenant_id")
+  code      String   @db.VarChar(64)
+  name      String   @db.VarChar(64)
+  builtin   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items  DictionaryItem[]
+  fields CustomField[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, code])
+  @@map("dictionaries")
+}
+
+/// One option of a dictionary. Records store its value; disabled ones are offered no more.
+model DictionaryItem {
+  id           BigInt   @id
+  tenantId     BigInt   @map("tenant_id")
+  dictionaryId BigInt   @map("dictionary_id")
+  value        String   @db.VarChar(64)
+  label        String   @db.VarChar(64)
+  sort         Int      @default(0)
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  dictionary Dictionary @relation(fields: [tenantId, dictionaryId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@unique([dictionaryId, value])
+  @@index([tenantId, dictionaryId])
+  @@map("dictionary_items")
+}
+
+/// A field a tenant added to a model. Records keep its value under `key` in their `custom` column;
+/// deleting the field leaves the values there, for a field of the same key to show again.
+model CustomField {
+  id           BigInt          @id
+  tenantId     BigInt          @map("tenant_id")
+  /// One of CUSTOM_FIELD_ENTITIES in packages/shared, e.g. crm.customer.
+  entity       String          @db.VarChar(64)
+  key          String          @db.VarChar(64)
+  label        String          @db.VarChar(64)
+  type         CustomFieldType
+  required     Boolean         @default(false)
+  showInList   Boolean         @default(false) @map("show_in_list")
+  sort         Int             @default(0)
+  /// For select fields: the dictionary offering the options.
+  dictionaryId BigInt?         @map("dictionary_id")
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  dictionary Dictionary? @relation(fields: [tenantId, dictionaryId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, entity, key])
+  @@map("custom_fields")
+}
+
+enum CustomFieldType {
+  TEXT
+  TEXTAREA
+  NUMBER
+  DATE
+  SELECT
+  MULTI_SELECT
+  BOOLEAN
+
+  @@map("custom_field_type")
 }

@@ -11,15 +11,16 @@ import { CustomerContacts } from '@/components/crm/customer-contacts';
 import { CustomerFollowUps } from '@/components/crm/customer-follow-ups';
 import { CustomerFormDialog } from '@/components/crm/customer-form-dialog';
 import { CustomerOpportunities } from '@/components/crm/customer-opportunities';
+import { CustomFieldList } from '@/components/custom-fields';
 import { NextFollowUp } from '@/components/crm/next-follow-up';
 import { TransferDialog } from '@/components/crm/transfer-dialog';
 import { ErrorAlert } from '@/components/error-alert';
 import { PageHeader } from '@/components/page-header';
 import { RequirePermission } from '@/components/require-permission';
+import { builtinItemsQuery, customFieldsQuery, itemLabel } from '@/lib/custom-fields';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  CUSTOMER_SOURCE_LABELS,
   customerQuery,
   deleteCustomer,
   formatDateTime,
@@ -153,6 +154,8 @@ function CustomerDetail({ customer }: { customer: Customer }) {
 }
 
 function CustomerInfo({ customer }: { customer: Customer }) {
+  const sources = useQuery(builtinItemsQuery('crm.customer-source')).data;
+  const fields = useQuery(customFieldsQuery('crm.customer')).data ?? [];
   return (
     <Card>
       <CardHeader>
@@ -163,7 +166,7 @@ function CustomerInfo({ customer }: { customer: Customer }) {
           <InfoRow label="负责人">{customer.owner.displayName}</InfoRow>
           <InfoRow label="部门">{customer.dept?.name ?? '—'}</InfoRow>
           <InfoRow label="来源">
-            {customer.source ? CUSTOMER_SOURCE_LABELS[customer.source] : '—'}
+            {customer.source ? itemLabel(sources, customer.source) : '—'}
           </InfoRow>
           <InfoRow label="行业">{customer.industry ?? '—'}</InfoRow>
           <InfoRow label="电话">{customer.phone ?? '—'}</InfoRow>
@@ -177,6 +180,7 @@ function CustomerInfo({ customer }: { customer: Customer }) {
           <InfoRow label="创建">
             {customer.creator.displayName} · {formatDateTime(customer.createdAt)}
           </InfoRow>
+          <CustomFieldList fields={fields} values={customer.custom} />
         </dl>
         {customer.remark && (
           <p className="rounded-md bg-muted p-3 text-sm whitespace-pre-wrap">{customer.remark}</p>

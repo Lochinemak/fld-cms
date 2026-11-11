@@ -5,11 +5,13 @@ import { useState } from 'react';
 import { z } from 'zod';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ContactFormDialog } from '@/components/crm/contact-form-dialog';
+import { formatCustomValue } from '@/components/custom-fields';
 import { ErrorAlert } from '@/components/error-alert';
 import { PageHeader } from '@/components/page-header';
 import { PaginationBar } from '@/components/pagination-bar';
 import { RequirePermission } from '@/components/require-permission';
 import { SearchBox } from '@/components/search-box';
+import { customFieldsQuery } from '@/lib/custom-fields';
 import { TableMessage } from '@/components/table-message';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -53,7 +55,11 @@ function ContactsPage() {
   const canUpdate = useCan('crm:contact:update');
   const canDelete = useCan('crm:contact:delete');
   const hasActions = canUpdate || canDelete;
-  const columns = hasActions ? 6 : 5;
+  // The custom fields the tenant shows in the list, after the built-in columns.
+  const listed = (useQuery(customFieldsQuery('crm.contact')).data ?? []).filter(
+    (field) => field.showInList,
+  );
+  const columns = (hasActions ? 6 : 5) + listed.length;
 
   return (
     <div className="space-y-6">
@@ -77,6 +83,9 @@ function ContactsPage() {
                 <TableHead>职务</TableHead>
                 <TableHead>电话</TableHead>
                 <TableHead>邮箱</TableHead>
+                {listed.map((field) => (
+                  <TableHead key={field.key}>{field.label}</TableHead>
+                ))}
                 {hasActions && <TableHead className="w-0" />}
               </TableRow>
             </TableHeader>
@@ -110,6 +119,11 @@ function ContactsPage() {
                     <TableCell className="text-muted-foreground">{contact.title ?? '—'}</TableCell>
                     <TableCell>{contact.phone ?? '—'}</TableCell>
                     <TableCell className="break-all">{contact.email ?? '—'}</TableCell>
+                    {listed.map((field) => (
+                      <TableCell key={field.key}>
+                        {formatCustomValue(field, contact.custom[field.key])}
+                      </TableCell>
+                    ))}
                     {hasActions && (
                       <TableCell>
                         <div className="flex justify-end gap-1">

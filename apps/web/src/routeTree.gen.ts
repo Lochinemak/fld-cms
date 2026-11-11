@@ -24,7 +24,9 @@ import { Route as AppCrmFollowUpsRouteImport } from './routes/_app/crm/follow-up
 import { Route as AppCrmOpportunitiesRouteImport } from './routes/_app/crm/opportunities'
 import { Route as AppSystemAccountsRouteImport } from './routes/_app/system/accounts'
 import { Route as AppSystemAuditLogsRouteImport } from './routes/_app/system/audit-logs'
+import { Route as AppSystemCustomFieldsRouteImport } from './routes/_app/system/custom-fields'
 import { Route as AppSystemDeptsRouteImport } from './routes/_app/system/depts'
+import { Route as AppSystemDictionariesRouteImport } from './routes/_app/system/dictionaries'
 import { Route as AppSystemMembersRouteImport } from './routes/_app/system/members'
 import { Route as AppSystemRolesRouteImport } from './routes/_app/system/roles'
 import { Route as AppSystemSettingsRouteImport } from './routes/_app/system/settings'
@@ -106,9 +108,19 @@ const AppSystemAuditLogsRoute = AppSystemAuditLogsRouteImport.update({
   path: '/system/audit-logs',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSystemCustomFieldsRoute = AppSystemCustomFieldsRouteImport.update({
+  id: '/system/custom-fields',
+  path: '/system/custom-fields',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSystemDeptsRoute = AppSystemDeptsRouteImport.update({
   id: '/system/depts',
   path: '/system/depts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSystemDictionariesRoute = AppSystemDictionariesRouteImport.update({
+  id: '/system/dictionaries',
+  path: '/system/dictionaries',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSystemMembersRoute = AppSystemMembersRouteImport.update({
@@ -158,7 +170,9 @@ export interface FileRoutesByFullPath {
   '/crm/opportunities': typeof AppCrmOpportunitiesRoute
   '/system/accounts': typeof AppSystemAccountsRoute
   '/system/audit-logs': typeof AppSystemAuditLogsRoute
+  '/system/custom-fields': typeof AppSystemCustomFieldsRoute
   '/system/depts': typeof AppSystemDeptsRoute
+  '/system/dictionaries': typeof AppSystemDictionariesRoute
   '/system/members': typeof AppSystemMembersRoute
   '/system/roles': typeof AppSystemRolesRoute
   '/system/settings': typeof AppSystemSettingsRoute
@@ -181,7 +195,9 @@ export interface FileRoutesByTo {
   '/crm/opportunities': typeof AppCrmOpportunitiesRoute
   '/system/accounts': typeof AppSystemAccountsRoute
   '/system/audit-logs': typeof AppSystemAuditLogsRoute
+  '/system/custom-fields': typeof AppSystemCustomFieldsRoute
   '/system/depts': typeof AppSystemDeptsRoute
+  '/system/dictionaries': typeof AppSystemDictionariesRoute
   '/system/members': typeof AppSystemMembersRoute
   '/system/roles': typeof AppSystemRolesRoute
   '/system/settings': typeof AppSystemSettingsRoute
@@ -206,7 +222,9 @@ export interface FileRoutesById {
   '/_app/crm/opportunities': typeof AppCrmOpportunitiesRoute
   '/_app/system/accounts': typeof AppSystemAccountsRoute
   '/_app/system/audit-logs': typeof AppSystemAuditLogsRoute
+  '/_app/system/custom-fields': typeof AppSystemCustomFieldsRoute
   '/_app/system/depts': typeof AppSystemDeptsRoute
+  '/_app/system/dictionaries': typeof AppSystemDictionariesRoute
   '/_app/system/members': typeof AppSystemMembersRoute
   '/_app/system/roles': typeof AppSystemRolesRoute
   '/_app/system/settings': typeof AppSystemSettingsRoute
@@ -231,7 +249,9 @@ export interface FileRouteTypes {
     | '/crm/opportunities'
     | '/system/accounts'
     | '/system/audit-logs'
+    | '/system/custom-fields'
     | '/system/depts'
+    | '/system/dictionaries'
     | '/system/members'
     | '/system/roles'
     | '/system/settings'
@@ -254,7 +274,9 @@ export interface FileRouteTypes {
     | '/crm/opportunities'
     | '/system/accounts'
     | '/system/audit-logs'
+    | '/system/custom-fields'
     | '/system/depts'
+    | '/system/dictionaries'
     | '/system/members'
     | '/system/roles'
     | '/system/settings'
@@ -278,7 +300,9 @@ export interface FileRouteTypes {
     | '/_app/crm/opportunities'
     | '/_app/system/accounts'
     | '/_app/system/audit-logs'
+    | '/_app/system/custom-fields'
     | '/_app/system/depts'
+    | '/_app/system/dictionaries'
     | '/_app/system/members'
     | '/_app/system/roles'
     | '/_app/system/settings'
@@ -405,11 +429,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSystemAuditLogsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/system/custom-fields': {
+      id: '/_app/system/custom-fields'
+      path: '/system/custom-fields'
+      fullPath: '/system/custom-fields'
+      preLoaderRoute: typeof AppSystemCustomFieldsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/system/depts': {
       id: '/_app/system/depts'
       path: '/system/depts'
       fullPath: '/system/depts'
       preLoaderRoute: typeof AppSystemDeptsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/system/dictionaries': {
+      id: '/_app/system/dictionaries'
+      path: '/system/dictionaries'
+      fullPath: '/system/dictionaries'
+      preLoaderRoute: typeof AppSystemDictionariesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/system/members': {
@@ -465,7 +503,9 @@ interface AppRouteChildren {
   AppCrmOpportunitiesRoute: typeof AppCrmOpportunitiesRoute
   AppSystemAccountsRoute: typeof AppSystemAccountsRoute
   AppSystemAuditLogsRoute: typeof AppSystemAuditLogsRoute
+  AppSystemCustomFieldsRoute: typeof AppSystemCustomFieldsRoute
   AppSystemDeptsRoute: typeof AppSystemDeptsRoute
+  AppSystemDictionariesRoute: typeof AppSystemDictionariesRoute
   AppSystemMembersRoute: typeof AppSystemMembersRoute
   AppSystemRolesRoute: typeof AppSystemRolesRoute
   AppSystemSettingsRoute: typeof AppSystemSettingsRoute
@@ -482,7 +522,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppCrmOpportunitiesRoute: AppCrmOpportunitiesRoute,
   AppSystemAccountsRoute: AppSystemAccountsRoute,
   AppSystemAuditLogsRoute: AppSystemAuditLogsRoute,
+  AppSystemCustomFieldsRoute: AppSystemCustomFieldsRoute,
   AppSystemDeptsRoute: AppSystemDeptsRoute,
+  AppSystemDictionariesRoute: AppSystemDictionariesRoute,
   AppSystemMembersRoute: AppSystemMembersRoute,
   AppSystemRolesRoute: AppSystemRolesRoute,
   AppSystemSettingsRoute: AppSystemSettingsRoute,

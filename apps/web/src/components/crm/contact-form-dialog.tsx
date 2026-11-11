@@ -1,6 +1,12 @@
 import { createContactSchema, updateContactSchema, type Contact } from '@fld/shared';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
+import {
+  CustomFieldInputs,
+  customDraft,
+  readCustomValues,
+  type CustomDraft,
+} from '@/components/custom-fields';
 import { FormDialog } from '@/components/form-dialog';
 import { TextField } from '@/components/text-field';
 import { TextareaField } from '@/components/textarea-field';
@@ -8,6 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useMountedDialog } from '@/hooks/use-mounted-dialog';
 import { createContact, refreshCrm, updateContact } from '@/lib/crm';
+import { customFieldsQuery } from '@/lib/custom-fields';
 import { parseForm, type FieldErrors } from '@/lib/form';
 
 interface ContactFormDialogProps {
@@ -23,6 +30,10 @@ export function ContactFormDialog({ customerId, contact, onClosed }: ContactForm
   const dialog = useMountedDialog(onClosed);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [primary, setPrimary] = useState(contact?.primary ?? false);
+  const fields = useQuery(customFieldsQuery('crm.contact')).data ?? [];
+  const [draft, setDraft] = useState<CustomDraft>();
+  // Until edited, the inputs show the record's values for the fields as they load.
+  const custom = draft ?? customDraft(fields, contact?.custom);
   const mutation = useMutation({
     mutationFn: (save: () => Promise<unknown>) => save(),
     onSuccess: async () => {
@@ -42,14 +53,21 @@ export function ContactFormDialog({ customerId, contact, onClosed }: ContactForm
       primary,
       remark: form.get('remark'),
     };
+    const extra = readCustomValues(fields, custom, contact?.custom);
+    const withErrors = (found: FieldErrors) => setErrors({ ...found, ...extra.errors });
+    const valid = Object.keys(extra.errors).length === 0;
     if (contact) {
-      const input = parseForm(updateContactSchema, values, setErrors);
-      if (input) {
+      const input = parseForm(updateContactSchema, { ...values, custom: extra.values }, withErrors);
+      if (input && valid) {
         mutation.mutate(() => updateContact(contact.id, input));
       }
     } else {
-      const input = parseForm(createContactSchema, { ...values, customerId }, setErrors);
-      if (input) {
+      const input = parseForm(
+        createContactSchema,
+        { ...values, customerId, custom: extra.values },
+        withErrors,
+      );
+      if (input && valid) {
         mutation.mutate(() => createContact(input));
       }
     }
@@ -109,6 +127,13 @@ export function ContactFormDialog({ customerId, contact, onClosed }: ContactForm
         rows={2}
         defaultValue={contact?.remark ?? ''}
         error={errors.remark}
+      />
+      <CustomFieldInputs
+        fields={fields}
+        draft={custom}
+        onChange={setDraft}
+        errors={errors}
+        stored={contact?.custom}
       />
     </FormDialog>
   );

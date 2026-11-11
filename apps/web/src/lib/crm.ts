@@ -10,7 +10,6 @@ import {
   type CreateFollowUpInput,
   type CreateOpportunityInput,
   type CustomerLevel,
-  type CustomerSource,
   type CustomerStatus,
   type FollowUpMethod,
   type OpportunityStage,
@@ -33,14 +32,6 @@ export const CUSTOMER_LEVEL_LABELS: Record<CustomerLevel, string> = {
   A: 'A 重点',
   B: 'B 普通',
   C: 'C 一般',
-};
-
-export const CUSTOMER_SOURCE_LABELS: Record<CustomerSource, string> = {
-  ONLINE: '线上',
-  REFERRAL: '转介绍',
-  EVENT: '活动',
-  OUTBOUND: '主动开拓',
-  OTHER: '其他',
 };
 
 export const FOLLOW_UP_METHOD_LABELS: Record<FollowUpMethod, string> = {

@@ -18,6 +18,8 @@ import { toNamedRef, toUserRef } from '../common/refs.js';
 import { ownDept } from '../authz/data-scope.js';
 import { customerTarget } from './customer-attachments.service.js';
 import { OwnersService } from './owners.service.js';
+import { customOf, CustomFieldsService } from '../custom-fields/custom-fields.service.js';
+import { DictionariesService } from '../custom-fields/dictionaries.service.js';
 
 const customerSelect = {
   id: true,
@@ -33,6 +35,7 @@ const customerSelect = {
   nextFollowUpAt: true,
   createdAt: true,
   updatedAt: true,
+  custom: true,
   owner: { select: { id: true, displayName: true } },
   creator: { select: { id: true, displayName: true } },
   department: { select: { id: true, name: true } },
@@ -56,6 +59,7 @@ function toCustomer(row: Prisma.CustomerGetPayload<{ select: typeof customerSele
     nextFollowUpAt: row.nextFollowUpAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    custom: customOf(row.custom),
   };
 }
 
@@ -71,6 +75,8 @@ export class CustomersService {
     private readonly owners: OwnersService,
     private readonly refs: FileRefsService,
     private readonly audit: AuditService,
+    private readonly customFields: CustomFieldsService,
+    private readonly dictionaries: DictionariesService,
   ) {}
 
   async list(user: Principal, query: CustomerQuery): Promise<Page<Customer>> {
@@ -121,9 +127,13 @@ export class CustomersService {
   /** The user creating a customer owns it, in the department the user is in. */
   async create(user: Principal, input: CreateCustomerInput): Promise<Customer> {
     const me = BigInt(user.id);
+    const { custom: given, ...fields } = input;
+    await this.dictionaries.assertValue(user, 'crm.customer-source', fields.source);
+    const custom = await this.customFields.values('crm.customer', given, {}, { creating: true });
     const { id } = await this.db.customer.create({
       data: {
-        ...input,
+        ...fields,
+        custom: custom as Prisma.InputJsonObject,
         id: this.snowflake.next(),
         tenantId: tenantIdOf(user),
         ownerId: me,
@@ -137,9 +147,16 @@ export class CustomersService {
 
   async update(user: Principal, id: string, input: UpdateCustomerInput): Promise<Customer> {
     const customerId = await requireVisibleCustomer(this.db, user, id);
+    const stored = await this.db.customer.findUniqueOrThrow({
+      where: { id: customerId },
+      select: { source: true, custom: true },
+    });
+    const { custom: given, ...fields } = input;
+    await this.dictionaries.assertValue(user, 'crm.customer-source', fields.source, stored.source);
+    const custom = await this.customFields.values('crm.customer', given, customOf(stored.custom));
     await this.db.customer.update({
       where: { id: customerId },
-      data: input,
+      data: { ...fields, custom: custom as Prisma.InputJsonObject },
       select: { id: true },
     });
     return this.read(customerId);

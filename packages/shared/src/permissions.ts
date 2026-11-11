@@ -89,6 +89,20 @@ export const PERMISSIONS = {
 
   'system:audit': { name: '审计日志', kind: 'page', parent: 'system' },
 
+  'system:dictionary': { name: '数据字典', kind: 'page', parent: 'system' },
+  'system:dictionary:update': {
+    name: '编辑数据字典',
+    kind: 'element',
+    parent: 'system:dictionary',
+  },
+
+  'system:custom-field': { name: '自定义字段', kind: 'page', parent: 'system' },
+  'system:custom-field:update': {
+    name: '编辑自定义字段',
+    kind: 'element',
+    parent: 'system:custom-field',
+  },
+
   crm: { name: '客户关系', kind: 'directory' },
 
   'crm:customer': { name: '客户', kind: 'page', parent: 'crm' },

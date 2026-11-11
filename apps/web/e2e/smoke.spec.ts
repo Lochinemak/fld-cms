@@ -105,6 +105,73 @@ test('the administrator uploads a file', async () => {
   await expect(page.getByRole('cell', { name: /冒烟\.txt/ }).first()).toBeVisible();
 });
 
+test('the administrator adds a field to customers, and fills it in', async () => {
+  const submit = (scope: ReturnType<Page['getByRole']>) =>
+    scope.getByRole('button', { name: /^(保存|创建)$/ }).click();
+
+  await page.goto('/system/dictionaries');
+  await page.getByRole('button', { name: '新建字典' }).click();
+  const create = page.getByRole('dialog', { name: '新建字典' });
+  await create.getByLabel('编码').fill('region');
+  await create.getByLabel('名称').fill('区域');
+  await submit(create);
+  await expect(create).toBeHidden();
+  await page.getByText('区域', { exact: true }).first().click();
+  for (const label of ['华东', '华南']) {
+    await page.getByRole('button', { name: '新增选项' }).click();
+    const item = page.getByRole('dialog', { name: /新增选项/ });
+    await item.getByLabel('名称').fill(label);
+    await submit(item);
+    await expect(item).toBeHidden();
+  }
+  await expect(page.getByRole('cell', { name: '华南' })).toBeVisible();
+
+  await page.goto('/system/custom-fields');
+  await page.getByRole('button', { name: '新增字段' }).click();
+  const field = page.getByRole('dialog', { name: /新增字段/ });
+  await field.getByLabel('字段标识').fill('region');
+  await field.getByLabel('字段名称').fill('区域');
+  await field.getByRole('combobox', { name: '类型' }).click();
+  await page.getByRole('option', { name: '单选' }).click();
+  await field.getByRole('combobox', { name: '数据字典' }).click();
+  await page.getByRole('option', { name: '区域' }).click();
+  await field.getByText('必填', { exact: true }).click();
+  await field.getByText('在列表中显示', { exact: true }).click();
+  await submit(field);
+  await expect(field).toBeHidden();
+  await expect(page.getByRole('cell', { name: 'region' })).toBeVisible();
+
+  // A yes/no field needs no dictionary: it is a switch.
+  await page.getByRole('button', { name: '新增字段' }).click();
+  const vip = page.getByRole('dialog', { name: /新增字段/ });
+  await expect(vip.getByText(/填一行文字/)).toBeVisible();
+  await vip.getByLabel('字段标识').fill('vip');
+  await vip.getByLabel('字段名称').fill('VIP');
+  await vip.getByRole('combobox', { name: '类型' }).click();
+  await page.getByRole('option', { name: '是/否' }).click();
+  await expect(vip.getByText(/一个开关/)).toBeVisible();
+  await expect(vip.getByRole('combobox', { name: '数据字典' })).toHaveCount(0);
+  await vip.getByText('在列表中显示', { exact: true }).click();
+  await submit(vip);
+  await expect(vip).toBeHidden();
+
+  await page.goto('/crm/customers');
+  await page.getByRole('button', { name: '新建客户' }).click();
+  const customer = page.getByRole('dialog', { name: '新建客户' });
+  await customer.getByLabel('客户名称').fill('带字段的客户');
+  await customer.getByRole('button', { name: '保存' }).click();
+  await expect(customer.getByText('请填写区域')).toBeVisible();
+  await customer.getByRole('combobox', { name: '区域 *' }).click();
+  await page.getByRole('option', { name: '华东' }).click();
+  await customer.getByRole('switch', { name: 'VIP' }).click();
+  await customer.getByRole('button', { name: '保存' }).click();
+  await expect(customer).toBeHidden();
+  await expect(page.getByRole('columnheader', { name: '区域' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '华东' })).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'VIP' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '是', exact: true })).toBeVisible();
+});
+
 test('the administrator sees where they are signed in', async () => {
   await page.getByRole('button', { name: '冒烟管理员' }).click();
   await page.getByRole('menuitem', { name: '登录设备' }).click();

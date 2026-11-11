@@ -20,6 +20,9 @@ export const TENANT_MODELS: ReadonlySet<string> = new Set([
   'FileVersion',
   'FileShare',
   'FileRef',
+  'Dictionary',
+  'DictionaryItem',
+  'CustomField',
 ]);
 
 const FILTERED = new Set([

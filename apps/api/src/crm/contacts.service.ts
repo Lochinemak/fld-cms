@@ -13,6 +13,7 @@ import type { Prisma } from '../generated/prisma/client.js';
 import { SnowflakeService } from '../snowflake/snowflake.service.js';
 import { lockCustomer, requireVisibleCustomer, visibleCustomers } from './crm-scope.js';
 import { toNamedRef } from '../common/refs.js';
+import { customOf, CustomFieldsService } from '../custom-fields/custom-fields.service.js';
 
 const contactSelect = {
   id: true,
@@ -24,6 +25,7 @@ const contactSelect = {
   remark: true,
   createdAt: true,
   updatedAt: true,
+  custom: true,
   customer: { select: { id: true, name: true } },
 } satisfies Prisma.ContactSelect;
 
@@ -39,6 +41,7 @@ function toContact(row: Prisma.ContactGetPayload<{ select: typeof contactSelect 
     remark: row.remark,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    custom: customOf(row.custom),
   };
 }
 
@@ -49,6 +52,7 @@ export class ContactsService {
     @Inject(TENANT_PRISMA) private readonly db: TenantPrisma,
     private readonly snowflake: SnowflakeService,
     private readonly audit: AuditService,
+    private readonly customFields: CustomFieldsService,
   ) {}
 
   async list(user: Principal, query: ContactQuery): Promise<Page<Contact>> {
@@ -85,8 +89,9 @@ export class ContactsService {
 
   /** A new primary contact takes over from the customer's previous one. */
   async create(user: Principal, input: CreateContactInput): Promise<Contact> {
-    const { customerId: customer, ...fields } = input;
+    const { customerId: customer, custom: given, ...fields } = input;
     const customerId = await requireVisibleCustomer(this.db, user, customer);
+    const custom = await this.customFields.values('crm.contact', given, {}, { creating: true });
     const tenantId = tenantIdOf(user);
     const id = this.snowflake.next();
     await this.db.$transaction(async (tx) => {
@@ -98,7 +103,7 @@ export class ContactsService {
         });
       }
       await tx.contact.create({
-        data: { ...fields, id, tenantId, customerId },
+        data: { ...fields, custom: custom as Prisma.InputJsonObject, id, tenantId, customerId },
         select: { id: true },
       });
     });
@@ -107,16 +112,22 @@ export class ContactsService {
 
   async update(user: Principal, id: string, input: UpdateContactInput): Promise<Contact> {
     const contact = await this.findVisible(user, id);
+    const { custom: given, ...fields } = input;
+    const custom = await this.customFields.values('crm.contact', given, customOf(contact.custom));
     const tenantId = tenantIdOf(user);
     await this.db.$transaction(async (tx) => {
-      if (input.primary) {
+      if (fields.primary) {
         await lockCustomer(tx, tenantId, contact.customerId);
         await tx.contact.updateMany({
           where: { customerId: contact.customerId, primary: true, id: { not: contact.id } },
           data: { primary: false },
         });
       }
-      await tx.contact.update({ where: { id: contact.id }, data: input, select: { id: true } });
+      await tx.contact.update({
+        where: { id: contact.id },
+        data: { ...fields, custom: custom as Prisma.InputJsonObject },
+        select: { id: true },
+      });
     });
     return this.read(contact.id);
   }
@@ -137,7 +148,7 @@ export class ContactsService {
   private async findVisible(user: Principal, id: string) {
     const contact = await this.db.contact.findFirst({
       where: { id: BigInt(id), customer: visibleCustomers(user) },
-      select: { id: true, customerId: true },
+      select: { id: true, customerId: true, custom: true },
     });
     if (!contact) {
       throw new NotFoundException('联系人不存在');

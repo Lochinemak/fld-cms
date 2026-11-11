@@ -2,6 +2,7 @@ export * from './account.js';
 export * from './app.js';
 export * from './audit.js';
 export * from './crm.js';
+export * from './custom-fields.js';
 export * from './department.js';
 export * from './file.js';
 export * from './health.js';

@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { z } from 'zod';
 import { Can } from '@/components/can';
+import { formatCustomValue } from '@/components/custom-fields';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { CustomerLevelBadge, CustomerStatusBadge } from '@/components/crm/crm-badges';
 import { CustomerFormDialog } from '@/components/crm/customer-form-dialog';
@@ -39,6 +40,7 @@ import {
   refreshCrm,
   transferCustomer,
 } from '@/lib/crm';
+import { customFieldsQuery } from '@/lib/custom-fields';
 import { PAGE_SIZE } from '@/lib/system';
 
 const searchSchema = z.object({
@@ -96,7 +98,11 @@ function CustomersPage() {
   const canTransfer = useCan('crm:customer:transfer');
   const canDelete = useCan('crm:customer:delete');
   const hasActions = canUpdate || canTransfer || canDelete;
-  const columns = hasActions ? 7 : 6;
+  // The custom fields the tenant shows in the list, after the built-in columns.
+  const listed = (useQuery(customFieldsQuery('crm.customer')).data ?? []).filter(
+    (field) => field.showInList,
+  );
+  const columns = (hasActions ? 7 : 6) + listed.length;
 
   // A new filter starts again from the first page.
   const filter = (patch: Partial<z.infer<typeof searchSchema>>) =>
@@ -167,6 +173,9 @@ function CustomersPage() {
                 <TableHead>负责人</TableHead>
                 <TableHead>最近跟进</TableHead>
                 <TableHead>下次跟进</TableHead>
+                {listed.map((field) => (
+                  <TableHead key={field.key}>{field.label}</TableHead>
+                ))}
                 {hasActions && <TableHead className="w-0" />}
               </TableRow>
             </TableHeader>
@@ -208,6 +217,11 @@ function CustomersPage() {
                     <TableCell>
                       <NextFollowUp at={customer.nextFollowUpAt} />
                     </TableCell>
+                    {listed.map((field) => (
+                      <TableCell key={field.key}>
+                        {formatCustomValue(field, customer.custom[field.key])}
+                      </TableCell>
+                    ))}
                     {hasActions && (
                       <TableCell>
                         <div className="flex justify-end gap-1">

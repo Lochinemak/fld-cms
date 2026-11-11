@@ -15,6 +15,7 @@ import { requestContext } from './common/request-context.js';
 import { AppConfigModule } from './config/app-config.module.js';
 import type { Env } from './config/env.js';
 import { CrmModule } from './crm/crm.module.js';
+import { CustomFieldsModule } from './custom-fields/custom-fields.module.js';
 import { DepartmentsModule } from './departments/departments.module.js';
 import { FilesModule } from './files/files.module.js';
 import { HealthModule } from './health/health.module.js';
@@ -103,6 +104,7 @@ import { ThrottleModule } from './throttle/throttle.module.js';
     DepartmentsModule,
     RolesModule,
     MembersModule,
+    CustomFieldsModule,
     CrmModule,
     FilesModule,
   ],

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { optionalEmailSchema } from './account.js';
 import { idSchema } from './id.js';
+import { customValuesSchema } from './custom-fields.js';
 import { pageQuerySchema, pageSchema } from './pagination.js';
 
 /** Text a form may leave empty: blank reads as null, which also clears the field on update. */
@@ -37,7 +38,8 @@ export type CustomerStatus = z.infer<typeof customerStatusSchema>;
 export const customerLevelSchema = z.enum(['A', 'B', 'C']);
 export type CustomerLevel = z.infer<typeof customerLevelSchema>;
 
-export const customerSourceSchema = z.enum(['ONLINE', 'REFERRAL', 'EVENT', 'OUTBOUND', 'OTHER']);
+/** A value of the tenant's 客户来源 dictionary (crm.customer-source). */
+export const customerSourceSchema = z.string().trim().min(1).max(64);
 export type CustomerSource = z.infer<typeof customerSourceSchema>;
 
 export const customerSchema = z.object({
@@ -59,6 +61,8 @@ export const customerSchema = z.object({
   nextFollowUpAt: z.iso.datetime().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
+  /** Values of the tenant's custom fields for customers, by key. */
+  custom: customValuesSchema,
 });
 export type Customer = z.infer<typeof customerSchema>;
 
@@ -87,6 +91,8 @@ const customerFieldsSchema = z.object({
   phone: optionalPhone,
   address: optionalText(255, '地址'),
   remark: optionalText(1000, '备注'),
+  /** Only the fields given change; null clears one. */
+  custom: customValuesSchema,
 });
 
 /** The creator becomes the owner; hand the customer over afterwards with a transfer. */
@@ -134,6 +140,8 @@ export const contactSchema = z.object({
   remark: z.string().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
+  /** Values of the tenant's custom fields for contacts, by key. */
+  custom: customValuesSchema,
 });
 export type Contact = z.infer<typeof contactSchema>;
 
@@ -151,6 +159,8 @@ const contactFieldsSchema = z.object({
   email: optionalEmailSchema,
   primary: z.boolean(),
   remark: optionalText(500, '备注'),
+  /** Only the fields given change; null clears one. */
+  custom: customValuesSchema,
 });
 
 export const createContactSchema = contactFieldsSchema.partial().extend({
