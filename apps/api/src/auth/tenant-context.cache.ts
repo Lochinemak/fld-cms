@@ -55,7 +55,13 @@ export class TenantContextCache {
     return context;
   }
 
+  /**
+   * Runs after the change is committed, so a Redis failure must not turn it into an error: the
+   * stale entries then simply live out their TTL.
+   */
   async invalidate(tenantId: bigint): Promise<void> {
-    await this.redis.incr(versionKey(tenantId));
+    await this.redis.incr(versionKey(tenantId)).catch((error: unknown) => {
+      this.logger.warn(`Could not invalidate tenant ${tenantId} contexts: ${String(error)}`);
+    });
   }
 }
