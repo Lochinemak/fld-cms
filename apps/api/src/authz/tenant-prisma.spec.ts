@@ -1,4 +1,5 @@
-import { scopeToTenant } from './tenant-prisma.js';
+import { readFileSync } from 'node:fs';
+import { scopeToTenant, TENANT_MODELS } from './tenant-prisma.js';
 
 const tenantId = 2n;
 
@@ -61,5 +62,17 @@ describe('scopeToTenant', () => {
       create: { id: 1n, tenantId },
       update: { name: 'B' },
     });
+  });
+});
+
+describe('TENANT_MODELS', () => {
+  // A model left out is not limited to the tenant, and reads and writes the other tenants' rows.
+  it('lists every model that has a required tenant_id', () => {
+    const schema = readFileSync(new URL('../../prisma/schema.prisma', import.meta.url), 'utf8');
+    const owned = [...schema.matchAll(/^model (\w+) \{([^}]*)\}/gm)]
+      .filter(([, , body]) => /^\s*tenantId\s+BigInt\s/m.test(body!))
+      .map(([, name]) => name);
+    expect(owned.length).toBeGreaterThan(0);
+    expect(new Set(owned)).toEqual(TENANT_MODELS);
   });
 });
