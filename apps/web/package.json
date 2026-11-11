@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10",
-    "@playwright/test": "^1.65.0",
+    "@playwright/test": "1.65.0",
     "@tanstack/router-plugin": "^1.169.0",
     "@types/node": "^24",
     "@types/qrcode": "^1.5.6",

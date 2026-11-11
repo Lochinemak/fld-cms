@@ -68,7 +68,43 @@ jobs:
       - run: pnpm test
       - run: pnpm --filter @fld/api test:e2e
       - run: pnpm build
-      - run: pnpm --filter @fld/web exec playwright install --with-deps chromium
+
+  # The browser smoke tests, in Playwright's image: Chromium and the system packages it needs come
+  # with it, rather than from Ubuntu's mirrors on every run. Keep its tag at the version of
+  # @playwright/test in apps/web/package.json.
+  ui:
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.65.0-noble
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: fld
+          POSTGRES_DB: fld_asset
+          # A throwaway database that only this job can reach.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        options: >-
+          --health-cmd "pg_isready -U fld -d fld_asset"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:8-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      # From inside the job's container, the services go by their names.
+      DATABASE_URL: postgresql://fld@postgres:5432/fld_asset
+      REDIS_URL: redis://redis:6379/0
+      HOME: /root
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
       - run: pnpm --filter @fld/web test:ui
       - if: failure()
         uses: actions/upload-artifact@v5
@@ -78,7 +114,7 @@ jobs:
           retention-days: 7
 
   images:
-    needs: check
+    needs: [check, ui]
     runs-on: ubuntu-latest
     permissions:
       contents: read
