@@ -8,13 +8,9 @@ import { ConfigService } from '@nestjs/config';
 import type { Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { RedisService } from '../redis/redis.service.js';
+import { scheduleExclusive } from '../common/exclusive-schedule.js';
 
 const DAY = 24 * 60 * 60 * 1000;
-const FIRST_RUN_DELAY = 60 * 1000;
-const RUN_INTERVAL = DAY;
-const LOCK_KEY = 'audit-retention:lock';
-/** Long enough for any run; lapses by itself if the instance holding it dies. */
-const LOCK_SECONDS = 30 * 60;
 
 /**
  * Removes audit records once they are older than AUDIT_RETENTION_DAYS. One API instance runs it
@@ -23,7 +19,7 @@ const LOCK_SECONDS = 30 * 60;
 @Injectable()
 export class AuditRetentionService implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(AuditRetentionService.name);
-  private timer?: NodeJS.Timeout;
+  private stop?: () => void;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -36,14 +32,19 @@ export class AuditRetentionService implements OnApplicationBootstrap, OnApplicat
     if (this.config.get('NODE_ENV', { infer: true }) === 'test') {
       return;
     }
-    this.timer = setTimeout(() => {
-      void this.run();
-      this.timer = setInterval(() => void this.run(), RUN_INTERVAL).unref();
-    }, FIRST_RUN_DELAY).unref();
+    this.stop = scheduleExclusive(this.redis, this.logger, {
+      name: 'Removing expired audit records',
+      lockKey: 'fld:audit-retention:lock',
+      interval: DAY,
+      run: async () => {
+        const count = await this.removeExpired();
+        return count > 0 ? `Removed ${count} expired audit records` : undefined;
+      },
+    });
   }
 
   onApplicationShutdown() {
-    clearTimeout(this.timer);
+    this.stop?.();
   }
 
   /** Removes the records older than the retention period before `now`, and says how many. */
@@ -53,29 +54,5 @@ export class AuditRetentionService implements OnApplicationBootstrap, OnApplicat
       where: { createdAt: { lt: new Date(now.getTime() - days * DAY) } },
     });
     return count;
-  }
-
-  private async run(): Promise<void> {
-    try {
-      if ((await this.redis.set(LOCK_KEY, '1', 'EX', LOCK_SECONDS, 'NX')) !== 'OK') {
-        return;
-      }
-    } catch (error) {
-      this.logger.warn(`Skipped removing expired audit records: ${String(error)}`);
-      return;
-    }
-    try {
-      const count = await this.removeExpired();
-      if (count > 0) {
-        this.logger.log(`Removed ${count} expired audit records`);
-      }
-    } catch (error) {
-      this.logger.error(
-        'Removing expired audit records failed',
-        error instanceof Error ? error.stack : String(error),
-      );
-    } finally {
-      await this.redis.del(LOCK_KEY).catch(() => undefined);
-    }
   }
 }

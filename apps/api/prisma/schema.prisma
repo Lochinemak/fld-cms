@@ -528,6 +528,7 @@ model FileFolder {
 
   @@unique([tenantId, id])
   @@index([tenantId, parentId])
+  @@index([deletedAt])
   @@index([ownerId])
   @@index([deptId])
   @@index([creatorId])
@@ -564,6 +565,8 @@ model StoredFile {
 
   @@unique([tenantId, id])
   @@index([tenantId, folderId])
+  @@index([tenantId, updatedAt])
+  @@index([deletedAt])
   @@index([ownerId])
   @@index([deptId])
   @@index([creatorId])

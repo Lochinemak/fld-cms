@@ -21,6 +21,7 @@ import { FilePurgeService } from '../src/files/file-purge.service.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { RedisService } from '../src/redis/redis.service.js';
 import { SnowflakeService } from '../src/snowflake/snowflake.service.js';
+import { Storage } from '../src/storage/storage.js';
 import { seedTenant } from '../src/tenants/tenant-seed.js';
 import { createTestApp } from './app.js';
 
@@ -724,6 +725,14 @@ describe('Files (e2e)', () => {
     const purge = app.get(FilePurgeService);
     await purge.purge(new Date(Date.now() + 29 * DAY));
     expect(await prisma.storedFile.count({ where })).toBe(3);
+
+    // A file whose contents could not be removed keeps its row, to be tried again.
+    const remove = vi
+      .spyOn(app.get(Storage), 'remove')
+      .mockRejectedValueOnce(new Error('storage unavailable'));
+    await purge.purge(new Date(Date.now() + 31 * DAY));
+    expect(await prisma.storedFile.count({ where })).toBe(1);
+    remove.mockRestore();
 
     await purge.purge(new Date(Date.now() + 31 * DAY));
     expect(await prisma.storedFile.count({ where })).toBe(0);
