@@ -1,7 +1,10 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "rootDir": "./src"
+    "rootDir": "./src",
+    // Nest empties dist before building: an incremental build would then skip the files its cache
+    // calls up to date, and leave them missing or stale.
+    "incremental": false
   },
   "include": ["src"],
   "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
