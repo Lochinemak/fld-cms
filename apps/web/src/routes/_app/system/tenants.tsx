@@ -22,6 +22,8 @@ import {
   type AccountMode,
 } from '@/components/account-choice-fields';
 import { Can } from '@/components/can';
+import { ErrorAlert } from '@/components/error-alert';
+import { FormDialog } from '@/components/form-dialog';
 import { OneTimePasswordDialog, type OneTimePassword } from '@/components/one-time-password-dialog';
 import { PageHeader } from '@/components/page-header';
 import { PaginationBar } from '@/components/pagination-bar';
@@ -30,19 +32,9 @@ import { SearchBox } from '@/components/search-box';
 import { StatusBadge, StatusField } from '@/components/status-field';
 import { TableMessage } from '@/components/table-message';
 import { TextField } from '@/components/text-field';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import {
   Table,
@@ -108,11 +100,7 @@ function TenantsPage() {
         placeholder="搜索编码或名称"
         onSearch={(keyword) => void navigate({ search: { keyword } })}
       />
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error.message}</AlertDescription>
-        </Alert>
-      )}
+      <ErrorAlert error={error} />
       <div className="rounded-lg border">
         <Table>
           <TableHeader>
@@ -278,46 +266,33 @@ function CreateTenantDialog({ onCreated, onClosed }: CreateTenantDialogProps) {
   }
 
   return (
-    <Dialog {...dialog.rootProps(mutation.isPending)}>
-      <DialogContent className="sm:max-w-lg">
-        <form onSubmit={handleSubmit} noValidate className="grid gap-4">
-          <DialogHeader>
-            <DialogTitle>新建租户</DialogTitle>
-            <DialogDescription>
-              新租户自带一个根部门和内置的管理员角色，由下面的管理员继续添加部门和成员。
-            </DialogDescription>
-          </DialogHeader>
-          {mutation.error && (
-            <Alert variant="destructive">
-              <AlertDescription>{mutation.error.message}</AlertDescription>
-            </Alert>
-          )}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <TextField
-              name="code"
-              label="租户编码"
-              autoComplete="off"
-              error={errors['code']}
-              hint="创建后不能修改"
-            />
-            <TextField name="name" label="租户名称" autoComplete="off" error={errors['name']} />
-          </div>
-          <ModulesField value={disabledModules} onChange={setDisabledModules} />
-          <fieldset className="space-y-3 rounded-lg border p-4">
-            <legend className="px-1 text-sm font-medium">租户管理员</legend>
-            <AccountChoiceFields name="admin" mode={mode} onModeChange={setMode} errors={errors} />
-          </fieldset>
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />} disabled={mutation.isPending}>
-              取消
-            </DialogClose>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? '创建中…' : '创建'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FormDialog
+      {...dialog.rootProps(mutation.isPending)}
+      title="新建租户"
+      description="新租户自带一个根部门和内置的管理员角色，由下面的管理员继续添加部门和成员。"
+      error={mutation.error}
+      pending={mutation.isPending}
+      submitLabel="创建"
+      pendingLabel="创建中…"
+      onSubmit={handleSubmit}
+      className="sm:max-w-lg"
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <TextField
+          name="code"
+          label="租户编码"
+          autoComplete="off"
+          error={errors['code']}
+          hint="创建后不能修改"
+        />
+        <TextField name="name" label="租户名称" autoComplete="off" error={errors['name']} />
+      </div>
+      <ModulesField value={disabledModules} onChange={setDisabledModules} />
+      <fieldset className="space-y-3 rounded-lg border p-4">
+        <legend className="px-1 text-sm font-medium">租户管理员</legend>
+        <AccountChoiceFields name="admin" mode={mode} onModeChange={setMode} errors={errors} />
+      </fieldset>
+    </FormDialog>
   );
 }
 
@@ -352,49 +327,37 @@ function EditTenantDialog({ tenant, onClosed }: { tenant: Tenant; onClosed: () =
   }
 
   return (
-    <Dialog {...dialog.rootProps(mutation.isPending)}>
-      <DialogContent>
-        <form onSubmit={handleSubmit} noValidate className="grid gap-4">
-          <DialogHeader>
-            <DialogTitle>编辑租户</DialogTitle>
-            <DialogDescription>
-              租户编码 <span className="font-mono">{tenant.code}</span> 不能修改。
-            </DialogDescription>
-          </DialogHeader>
-          {mutation.error && (
-            <Alert variant="destructive">
-              <AlertDescription>{mutation.error.message}</AlertDescription>
-            </Alert>
-          )}
-          <TextField
-            name="name"
-            label="租户名称"
-            autoComplete="off"
-            defaultValue={tenant.name}
-            error={errors['name']}
-          />
-          <StatusField
-            value={status}
-            onChange={setStatus}
-            disabled={isSystem}
-            hint={
-              isSystem
-                ? '系统租户不能停用。'
-                : '停用后，成员不能再进入这个租户；重新启用即可恢复，数据都还在。'
-            }
-          />
-          {!isSystem && <ModulesField value={disabledModules} onChange={setDisabledModules} />}
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />} disabled={mutation.isPending}>
-              取消
-            </DialogClose>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? '保存中…' : '保存'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FormDialog
+      {...dialog.rootProps(mutation.isPending)}
+      title="编辑租户"
+      description={
+        <>
+          租户编码 <span className="font-mono">{tenant.code}</span> 不能修改。
+        </>
+      }
+      error={mutation.error}
+      pending={mutation.isPending}
+      onSubmit={handleSubmit}
+    >
+      <TextField
+        name="name"
+        label="租户名称"
+        autoComplete="off"
+        defaultValue={tenant.name}
+        error={errors['name']}
+      />
+      <StatusField
+        value={status}
+        onChange={setStatus}
+        disabled={isSystem}
+        hint={
+          isSystem
+            ? '系统租户不能停用。'
+            : '停用后，成员不能再进入这个租户；重新启用即可恢复，数据都还在。'
+        }
+      />
+      {!isSystem && <ModulesField value={disabledModules} onChange={setDisabledModules} />}
+    </FormDialog>
   );
 }
 
@@ -438,32 +401,18 @@ function ResetAdminDialog({ tenant, onReset, onClosed }: ResetAdminDialogProps) 
   }
 
   return (
-    <Dialog {...dialog.rootProps(mutation.isPending)}>
-      <DialogContent className="sm:max-w-lg">
-        <form onSubmit={handleSubmit} noValidate className="grid gap-4">
-          <DialogHeader>
-            <DialogTitle>重设管理员</DialogTitle>
-            <DialogDescription>
-              让下面的账号成为「{tenant.name}
-              」的管理员，比如原来的管理员离开了。原有的管理员不受影响；这个账号在租户里被停用过的，会重新启用。
-            </DialogDescription>
-          </DialogHeader>
-          {mutation.error && (
-            <Alert variant="destructive">
-              <AlertDescription>{mutation.error.message}</AlertDescription>
-            </Alert>
-          )}
-          <AccountChoiceFields name="admin" mode={mode} onModeChange={setMode} errors={errors} />
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />} disabled={mutation.isPending}>
-              取消
-            </DialogClose>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? '重设中…' : '重设'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FormDialog
+      {...dialog.rootProps(mutation.isPending)}
+      title="重设管理员"
+      description={`让下面的账号成为「${tenant.name}」的管理员，比如原来的管理员离开了。原有的管理员不受影响；这个账号在租户里被停用过的，会重新启用。`}
+      error={mutation.error}
+      pending={mutation.isPending}
+      submitLabel="重设"
+      pendingLabel="重设中…"
+      onSubmit={handleSubmit}
+      className="sm:max-w-lg"
+    >
+      <AccountChoiceFields name="admin" mode={mode} onModeChange={setMode} errors={errors} />
+    </FormDialog>
   );
 }

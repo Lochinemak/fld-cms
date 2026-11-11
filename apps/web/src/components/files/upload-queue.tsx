@@ -41,11 +41,14 @@ export function useUploads(refresh: () => Promise<unknown>) {
 
   async function run() {
     running.current = true;
+    let ran = false;
     for (let task = waiting.current.shift(); task; task = waiting.current.shift()) {
+      ran = true;
       const { id } = task;
       update(id, { status: 'uploading' });
+      let uploaded: StoredFile | undefined;
       try {
-        const uploaded = await upload(task.path, task.file, {
+        uploaded = await upload(task.path, task.file, {
           schema: storedFileSchema,
           onProgress: (sent) => update(id, { sent }),
         });
@@ -57,11 +60,23 @@ export function useUploads(refresh: () => Promise<unknown>) {
           savedAs: task.label === undefined && renamed ? uploaded.name : undefined,
         });
       } catch (error) {
-        update(id, { status: 'failed', error: (error as Error).message });
+        const message = (error as Error).message;
+        update(id, {
+          status: 'failed',
+          // The file is stored all the same; only the step after it failed.
+          error: uploaded ? `文件已上传，但后续操作失败：${message}` : message,
+        });
       }
+    }
+    // Once the queue drains, not after every file.
+    if (ran) {
       await refresh();
     }
     running.current = false;
+    // Files added while refreshing.
+    if (waiting.current.length > 0) {
+      void run();
+    }
   }
 
   function add(requests: UploadRequest[]) {

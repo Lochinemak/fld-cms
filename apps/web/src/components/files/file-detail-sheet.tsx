@@ -5,8 +5,8 @@ import { Download, Eye, Share2, Upload } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Can } from '@/components/can';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { ErrorAlert } from '@/components/error-alert';
 import { FileIcon } from '@/components/files/file-icon';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
@@ -50,9 +50,7 @@ export function FileDetailSheet({ fileId, onReplace, onShare, onClosed }: FileDe
             <SheetHeader>
               <SheetTitle>文件详情</SheetTitle>
             </SheetHeader>
-            <Alert variant="destructive" className="mx-4 w-auto">
-              <AlertDescription>{error.message}</AlertDescription>
-            </Alert>
+            <ErrorAlert error={error} className="mx-4 w-auto" />
           </>
         ) : !file ? (
           <SheetHeader>

@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ErrorAlert } from '@/components/error-alert';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,11 +43,7 @@ export function ConfirmDialog({
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
-        {mutation.error && (
-          <Alert variant="destructive">
-            <AlertDescription>{mutation.error.message}</AlertDescription>
-          </Alert>
-        )}
+        <ErrorAlert error={mutation.error} />
         <AlertDialogFooter>
           <AlertDialogCancel disabled={mutation.isPending}>取消</AlertDialogCancel>
           <AlertDialogAction

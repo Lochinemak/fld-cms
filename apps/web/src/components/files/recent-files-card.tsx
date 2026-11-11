@@ -1,8 +1,8 @@
 import { RECENT_FILES } from '@fld/shared';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import { ErrorAlert } from '@/components/error-alert';
 import { FileIcon } from '@/components/files/file-icon';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDateTime } from '@/lib/crm';
 import { recentFilesQuery } from '@/lib/files';
@@ -25,9 +25,7 @@ export function RecentFilesCard() {
       </CardHeader>
       <CardContent>
         {error ? (
-          <Alert variant="destructive">
-            <AlertDescription>{error.message}</AlertDescription>
-          </Alert>
+          <ErrorAlert error={error} />
         ) : !data ? (
           <p className="text-sm text-muted-foreground">加载中…</p>
         ) : data.length === 0 ? (

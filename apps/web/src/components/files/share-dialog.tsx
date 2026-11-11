@@ -2,8 +2,8 @@ import type { FileShare } from '@fld/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Copy } from 'lucide-react';
 import { useState } from 'react';
+import { ErrorAlert } from '@/components/error-alert';
 import { SelectField, type SelectOption } from '@/components/select-field';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -91,11 +91,7 @@ export function ShareDialog({ file, onClosed }: ShareDialogProps) {
             还能在线预览。文件被删除、链接到期或被撤销后就打不开了。
           </DialogDescription>
         </DialogHeader>
-        {failure && (
-          <Alert variant="destructive">
-            <AlertDescription>{failure.message}</AlertDescription>
-          </Alert>
-        )}
+        <ErrorAlert error={failure} />
         <div className="flex flex-wrap items-end gap-4 rounded-md border p-3">
           <div className="w-32">
             <SelectField

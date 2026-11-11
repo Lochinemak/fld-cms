@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { MailCheck } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
+import { ErrorAlert } from '@/components/error-alert';
 import { FieldError } from '@/components/field-error';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -60,11 +61,7 @@ function ForgotPasswordPage() {
         ) : (
           <form id="forgot-password" onSubmit={handleSubmit} noValidate>
             <CardContent className="space-y-4">
-              {mutation.error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{mutation.error.message}</AlertDescription>
-                </Alert>
-              )}
+              <ErrorAlert error={mutation.error} />
               <div className="space-y-2">
                 <Label htmlFor="account">用户名或邮箱</Label>
                 <Input

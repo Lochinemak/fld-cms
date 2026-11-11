@@ -1,18 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, type FocusEvent, type FormEvent } from 'react';
 import type { z } from 'zod';
+import { FormDialog } from '@/components/form-dialog';
 import { TextField } from '@/components/text-field';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { useMountedDialog } from '@/hooks/use-mounted-dialog';
 import { refreshFiles } from '@/lib/files';
 
@@ -73,38 +63,24 @@ export function NameDialog({
   }
 
   return (
-    <Dialog {...dialog.rootProps(mutation.isPending)}>
-      <DialogContent>
-        <form onSubmit={submit} noValidate className="grid gap-4">
-          <DialogHeader>
-            <DialogTitle>{title}</DialogTitle>
-            <DialogDescription>{description}</DialogDescription>
-          </DialogHeader>
-          {mutation.error && (
-            <Alert variant="destructive">
-              <AlertDescription>{mutation.error.message}</AlertDescription>
-            </Alert>
-          )}
-          <TextField
-            name="name"
-            label={label}
-            defaultValue={name}
-            error={error}
-            autoFocus
-            required
-            autoComplete="off"
-            onFocus={selectName}
-          />
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />} disabled={mutation.isPending}>
-              取消
-            </DialogClose>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? '保存中…' : '保存'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FormDialog
+      {...dialog.rootProps(mutation.isPending)}
+      title={title}
+      description={description}
+      error={mutation.error}
+      pending={mutation.isPending}
+      onSubmit={submit}
+    >
+      <TextField
+        name="name"
+        label={label}
+        defaultValue={name}
+        error={error}
+        autoFocus
+        required
+        autoComplete="off"
+        onFocus={selectName}
+      />
+    </FormDialog>
   );
 }

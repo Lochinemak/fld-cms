@@ -10,13 +10,13 @@ import { CustomerLevelBadge, CustomerStatusBadge } from '@/components/crm/crm-ba
 import { CustomerFormDialog } from '@/components/crm/customer-form-dialog';
 import { NextFollowUp } from '@/components/crm/next-follow-up';
 import { TransferDialog } from '@/components/crm/transfer-dialog';
+import { ErrorAlert } from '@/components/error-alert';
 import { FilterSelect } from '@/components/filter-select';
 import { PageHeader } from '@/components/page-header';
 import { PaginationBar } from '@/components/pagination-bar';
 import { RequirePermission } from '@/components/require-permission';
 import { SearchBox } from '@/components/search-box';
 import { TableMessage } from '@/components/table-message';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -156,11 +156,7 @@ function CustomersPage() {
             </Label>
           </div>
         </div>
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error.message}</AlertDescription>
-          </Alert>
-        )}
+        <ErrorAlert error={error} />
         <div className="rounded-lg border">
           <Table>
             <TableHeader>

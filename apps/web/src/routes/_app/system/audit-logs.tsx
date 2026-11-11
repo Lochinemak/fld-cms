@@ -12,12 +12,12 @@ import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { z } from 'zod';
+import { ErrorAlert } from '@/components/error-alert';
 import { PageHeader } from '@/components/page-header';
 import { PaginationBar } from '@/components/pagination-bar';
 import { RequirePermission } from '@/components/require-permission';
 import { SearchBox } from '@/components/search-box';
 import { TableMessage } from '@/components/table-message';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -142,11 +142,7 @@ function AuditLogsPage({ platform }: { platform: boolean }) {
           />
         </div>
       </div>
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error.message}</AlertDescription>
-        </Alert>
-      )}
+      <ErrorAlert error={error} />
       <div className="rounded-lg border">
         <Table>
           <TableHeader>

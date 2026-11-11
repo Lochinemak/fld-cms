@@ -3,10 +3,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, Library, Upload } from 'lucide-react';
 import { useRef, useState, type ChangeEvent } from 'react';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { ErrorAlert } from '@/components/error-alert';
 import { FileIcon } from '@/components/files/file-icon';
 import { FilePickerDialog } from '@/components/files/file-picker-dialog';
 import { UploadList, useUploads } from '@/components/files/upload-queue';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCan } from '@/lib/auth';
@@ -75,9 +75,7 @@ export function CustomerAttachments({ customerId }: { customerId: string }) {
       </CardHeader>
       <CardContent className="space-y-3">
         {error ? (
-          <Alert variant="destructive">
-            <AlertDescription>{error.message}</AlertDescription>
-          </Alert>
+          <ErrorAlert error={error} />
         ) : !data ? (
           <p className="text-sm text-muted-foreground">加载中…</p>
         ) : data.length === 0 ? (

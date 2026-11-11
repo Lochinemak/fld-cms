@@ -1,15 +1,6 @@
+import { ErrorAlert } from '@/components/error-alert';
 import { FieldError } from '@/components/field-error';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { FormDialog } from '@/components/form-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useChangePassword } from '@/hooks/use-change-password';
@@ -28,11 +19,7 @@ export function ChangePasswordFields({ errors, error }: ChangePasswordFieldsProp
   const me = useMe();
   return (
     <>
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error.message}</AlertDescription>
-        </Alert>
-      )}
+      <ErrorAlert error={error} />
       <input type="hidden" name="username" autoComplete="username" value={me.user.username} />
       <PasswordField
         name="currentPassword"
@@ -62,25 +49,17 @@ export function ChangePasswordDialog({ onClosed }: { onClosed: () => void }) {
   const { errors, mutation, submit } = useChangePassword(dialog.close);
 
   return (
-    <Dialog {...dialog.rootProps(mutation.isPending)}>
-      <DialogContent className="sm:max-w-sm">
-        <form onSubmit={submit} noValidate className="grid gap-4">
-          <DialogHeader>
-            <DialogTitle>修改密码</DialogTitle>
-            <DialogDescription>修改后，你在其他设备上的登录会全部失效。</DialogDescription>
-          </DialogHeader>
-          <ChangePasswordFields errors={errors} error={mutation.error} />
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />} disabled={mutation.isPending}>
-              取消
-            </DialogClose>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? '保存中…' : '保存新密码'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FormDialog
+      {...dialog.rootProps(mutation.isPending)}
+      title="修改密码"
+      description="修改后，你在其他设备上的登录会全部失效。"
+      pending={mutation.isPending}
+      submitLabel="保存新密码"
+      onSubmit={submit}
+      className="sm:max-w-sm"
+    >
+      <ChangePasswordFields errors={errors} error={mutation.error} />
+    </FormDialog>
   );
 }
 

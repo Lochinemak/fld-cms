@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { Can } from '@/components/can';
 import { OpportunityFormDialog } from '@/components/crm/opportunity-form-dialog';
 import { OpportunityTable } from '@/components/crm/opportunity-table';
+import { ErrorAlert } from '@/components/error-alert';
 import { PaginationBar } from '@/components/pagination-bar';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { opportunitiesQuery } from '@/lib/crm';
@@ -32,9 +32,7 @@ export function CustomerOpportunities({ customerId }: { customerId: string }) {
       </CardHeader>
       <CardContent className="space-y-4">
         {error ? (
-          <Alert variant="destructive">
-            <AlertDescription>{error.message}</AlertDescription>
-          </Alert>
+          <ErrorAlert error={error} />
         ) : (
           <OpportunityTable items={data?.items} emptyText="还没有商机" />
         )}

@@ -18,6 +18,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { Check, CircleAlert, CircleCheck, Copy } from 'lucide-react';
 import { useRef, useState, type FormEvent } from 'react';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { ErrorAlert } from '@/components/error-alert';
 import { PageHeader } from '@/components/page-header';
 import { RequirePermission } from '@/components/require-permission';
 import { SelectField, type SelectOption } from '@/components/select-field';
@@ -88,11 +89,7 @@ function SettingsPage() {
         title="平台设置"
         description="系统名称、邮件服务、站点地址和 Logto 登录。除系统名称外，这里填的值优先于环境变量，留空就用环境变量的值。"
       />
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error.message}</AlertDescription>
-        </Alert>
-      )}
+      <ErrorAlert error={error} />
       {settings.isPending && <p className="text-sm text-muted-foreground">加载中…</p>}
       {settings.data && (
         <>
@@ -205,11 +202,7 @@ function MailSettingsCard({ view }: { view: PlatformSettingsView }) {
       </CardHeader>
       <CardContent>
         <form id="mail-settings" onSubmit={onSubmit} noValidate className="space-y-4">
-          {mutation.error && (
-            <Alert variant="destructive">
-              <AlertDescription>{mutation.error.message}</AlertDescription>
-            </Alert>
-          )}
+          <ErrorAlert error={mutation.error} />
           <div className="grid gap-4 sm:grid-cols-2">
             <TextField
               name="smtpHost"
@@ -365,11 +358,7 @@ function TestMailCard() {
             defaultValue={me.user.email ?? ''}
             error={errors['to']}
           />
-          {mutation.error && (
-            <Alert variant="destructive">
-              <AlertDescription>{mutation.error.message}</AlertDescription>
-            </Alert>
-          )}
+          <ErrorAlert error={mutation.error} />
           {mutation.isSuccess && (
             <Alert>
               <CircleCheck />
@@ -456,11 +445,7 @@ function MailTemplateCard({ template }: { template: MailTemplate }) {
       </CardHeader>
       <CardContent>
         <form id={formId} onSubmit={onSubmit} noValidate className="space-y-4">
-          {mutation.error && (
-            <Alert variant="destructive">
-              <AlertDescription>{mutation.error.message}</AlertDescription>
-            </Alert>
-          )}
+          <ErrorAlert error={mutation.error} />
           <TextField
             name={`${formId}-subject`}
             label="主题"
@@ -665,11 +650,7 @@ function LogtoSettingsCard({ view }: { view: LogtoSettingsView }) {
       </CardHeader>
       <CardContent>
         <form id="logto-settings" onSubmit={onSubmit} noValidate className="space-y-4">
-          {mutation.error && (
-            <Alert variant="destructive">
-              <AlertDescription>{mutation.error.message}</AlertDescription>
-            </Alert>
-          )}
+          <ErrorAlert error={mutation.error} />
           <LogtoStatus view={view} />
           <Label className="font-normal">
             <Checkbox

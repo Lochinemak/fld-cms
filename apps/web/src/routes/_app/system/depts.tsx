@@ -6,23 +6,15 @@ import { useState, type FormEvent } from 'react';
 import { Can } from '@/components/can';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { DeptSelect } from '@/components/dept-select';
+import { ErrorAlert } from '@/components/error-alert';
 import { FieldError } from '@/components/field-error';
+import { FormDialog } from '@/components/form-dialog';
 import { PageHeader } from '@/components/page-header';
 import { RequirePermission } from '@/components/require-permission';
 import { TableMessage } from '@/components/table-message';
 import { TextField } from '@/components/text-field';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import {
   Table,
@@ -75,11 +67,7 @@ function DeptsPage() {
           )
         }
       />
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error.message}</AlertDescription>
-        </Alert>
-      )}
+      <ErrorAlert error={error} />
       <div className="rounded-lg border">
         <Table>
           <TableHeader>
@@ -215,62 +203,48 @@ function DeptDialog({ state, nodes, onClosed }: DeptDialogProps) {
   }
 
   return (
-    <Dialog {...dialog.rootProps(mutation.isPending)}>
-      <DialogContent>
-        <form onSubmit={handleSubmit} noValidate className="grid gap-4">
-          <DialogHeader>
-            <DialogTitle>{editing ? '编辑部门' : '新建部门'}</DialogTitle>
-            <DialogDescription>
-              {editing
-                ? '移到其他上级部门时，它的下级部门会一起移过去。'
-                : '同一上级下的部门按排序号从小到大排列。'}
-            </DialogDescription>
-          </DialogHeader>
-          {mutation.error && (
-            <Alert variant="destructive">
-              <AlertDescription>{mutation.error.message}</AlertDescription>
-            </Alert>
-          )}
-          <TextField
-            name="name"
-            label="部门名称"
-            autoComplete="off"
-            defaultValue={editing?.name}
-            error={errors['name']}
+    <FormDialog
+      {...dialog.rootProps(mutation.isPending)}
+      title={editing ? '编辑部门' : '新建部门'}
+      description={
+        editing
+          ? '移到其他上级部门时，它的下级部门会一起移过去。'
+          : '同一上级下的部门按排序号从小到大排列。'
+      }
+      error={mutation.error}
+      pending={mutation.isPending}
+      onSubmit={handleSubmit}
+    >
+      <TextField
+        name="name"
+        label="部门名称"
+        autoComplete="off"
+        defaultValue={editing?.name}
+        error={errors['name']}
+      />
+      {!isRoot && (
+        <div className="space-y-2">
+          <Label htmlFor="parentId">上级部门</Label>
+          <DeptSelect
+            id="parentId"
+            nodes={nodes}
+            value={parentId}
+            onValueChange={setParentId}
+            disabledIds={editing ? branchIds(editing) : undefined}
+            invalid={!!errors['parentId']}
           />
-          {!isRoot && (
-            <div className="space-y-2">
-              <Label htmlFor="parentId">上级部门</Label>
-              <DeptSelect
-                id="parentId"
-                nodes={nodes}
-                value={parentId}
-                onValueChange={setParentId}
-                disabledIds={editing ? branchIds(editing) : undefined}
-                invalid={!!errors['parentId']}
-              />
-              <FieldError message={errors['parentId'] && '请选择上级部门'} />
-            </div>
-          )}
-          <TextField
-            name="sort"
-            label="排序号"
-            type="number"
-            min={0}
-            max={9999}
-            defaultValue={editing?.sort ?? 0}
-            error={errors['sort']}
-          />
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />} disabled={mutation.isPending}>
-              取消
-            </DialogClose>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? '保存中…' : '保存'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          <FieldError message={errors['parentId'] && '请选择上级部门'} />
+        </div>
+      )}
+      <TextField
+        name="sort"
+        label="排序号"
+        type="number"
+        min={0}
+        max={9999}
+        defaultValue={editing?.sort ?? 0}
+        error={errors['sort']}
+      />
+    </FormDialog>
   );
 }

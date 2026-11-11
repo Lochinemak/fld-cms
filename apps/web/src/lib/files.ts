@@ -168,10 +168,13 @@ export const canPreview = (mimeType: string) => PREVIEW_MIME_TYPES.has(mimeType)
 
 /**
  * Refetches after a change. Changes ripple: moving a folder hands over all inside it, and deleting
- * a file takes its links with it.
+ * a file takes its links with it. Customers' attachments show the same files.
  */
-export function refreshFiles(queryClient: QueryClient): Promise<void> {
-  return queryClient.invalidateQueries({ queryKey: ['files'] });
+export function refreshFiles(queryClient: QueryClient): Promise<unknown> {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['files'] }),
+    queryClient.invalidateQueries({ queryKey: ['crm', 'attachments'] }),
+  ]);
 }
 
 const SIZE_UNITS = ['KB', 'MB', 'GB', 'TB'];

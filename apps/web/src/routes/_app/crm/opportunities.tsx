@@ -3,11 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { z } from 'zod';
 import { OpportunityTable } from '@/components/crm/opportunity-table';
+import { ErrorAlert } from '@/components/error-alert';
 import { PageHeader } from '@/components/page-header';
 import { PaginationBar } from '@/components/pagination-bar';
 import { RequirePermission } from '@/components/require-permission';
 import { SearchBox } from '@/components/search-box';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { OPPORTUNITY_STAGE_LABELS, formatAmount, opportunitiesQuery } from '@/lib/crm';
@@ -68,11 +68,7 @@ function OpportunitiesPage() {
             只看我负责的
           </Label>
         </div>
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error.message}</AlertDescription>
-          </Alert>
-        )}
+        <ErrorAlert error={error} />
         <div className="rounded-lg border">
           <OpportunityTable
             items={error ? [] : data?.items}

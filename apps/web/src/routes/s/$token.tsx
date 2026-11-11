@@ -3,9 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { Download, Eye } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
+import { ErrorAlert } from '@/components/error-alert';
 import { FileIcon } from '@/components/files/file-icon';
 import { FieldError } from '@/components/field-error';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -45,9 +45,7 @@ function SharePage() {
         </CardHeader>
         <CardContent>
           {error && !wrongCode ? (
-            <Alert variant="destructive">
-              <AlertDescription>{error.message}</AlertDescription>
-            </Alert>
+            <ErrorAlert error={error} />
           ) : file ? (
             <SharedFile token={token} code={code} file={file} />
           ) : link.data?.codeRequired ? (

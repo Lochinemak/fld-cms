@@ -2,11 +2,11 @@ import type { StoredFile } from '@fld/shared';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { ChevronRight, Folder } from 'lucide-react';
 import { useState } from 'react';
+import { ErrorAlert } from '@/components/error-alert';
 import { FileIcon } from '@/components/files/file-icon';
 import { FolderBreadcrumb } from '@/components/files/folder-breadcrumb';
 import { PaginationBar } from '@/components/pagination-bar';
 import { SearchBox } from '@/components/search-box';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -87,11 +87,7 @@ export function FilePickerDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error.message}</AlertDescription>
-          </Alert>
-        )}
+        <ErrorAlert error={error} />
         <div className="flex flex-wrap items-center justify-between gap-2">
           {browsing ? (
             <FolderBreadcrumb path={folderId ? folderPath(folder.data) : []} onOpen={open} />

@@ -13,9 +13,9 @@ import { CustomerFormDialog } from '@/components/crm/customer-form-dialog';
 import { CustomerOpportunities } from '@/components/crm/customer-opportunities';
 import { NextFollowUp } from '@/components/crm/next-follow-up';
 import { TransferDialog } from '@/components/crm/transfer-dialog';
+import { ErrorAlert } from '@/components/error-alert';
 import { PageHeader } from '@/components/page-header';
 import { RequirePermission } from '@/components/require-permission';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -50,9 +50,7 @@ function CustomerPage() {
         客户列表
       </Link>
       {error ? (
-        <Alert variant="destructive">
-          <AlertDescription>{error.message}</AlertDescription>
-        </Alert>
+        <ErrorAlert error={error} />
       ) : !customer ? (
         <p className="text-sm text-muted-foreground">加载中…</p>
       ) : (

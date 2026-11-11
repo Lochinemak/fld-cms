@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { z } from 'zod';
 import { Can } from '@/components/can';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { ErrorAlert } from '@/components/error-alert';
 import { OneTimePasswordDialog, type OneTimePassword } from '@/components/one-time-password-dialog';
 import { PageHeader } from '@/components/page-header';
 import { PaginationBar } from '@/components/pagination-bar';
@@ -12,7 +13,6 @@ import { RequirePermission } from '@/components/require-permission';
 import { SearchBox } from '@/components/search-box';
 import { StatusBadge } from '@/components/status-field';
 import { TableMessage } from '@/components/table-message';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -66,11 +66,7 @@ function AccountsPage() {
         placeholder="搜索用户名、邮箱或姓名"
         onSearch={(keyword) => void navigate({ search: { keyword } })}
       />
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error.message}</AlertDescription>
-        </Alert>
-      )}
+      <ErrorAlert error={error} />
       <div className="rounded-lg border">
         <Table>
           <TableHeader>

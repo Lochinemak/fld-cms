@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { MailCheck } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { PasswordField } from '@/components/change-password-form';
+import { ErrorAlert } from '@/components/error-alert';
 import { TextField } from '@/components/text-field';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -111,11 +112,7 @@ export function ProfileDialog({ onClosed }: { onClosed: () => void }) {
                 修改邮箱需要输入当前密码，并在新邮箱里确认后才生效。
               </DialogDescription>
             </DialogHeader>
-            {mutation.error && (
-              <Alert variant="destructive">
-                <AlertDescription>{mutation.error.message}</AlertDescription>
-              </Alert>
-            )}
+            <ErrorAlert error={mutation.error} />
             <TextField
               name="username"
               label="用户名"

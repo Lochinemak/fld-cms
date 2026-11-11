@@ -14,13 +14,13 @@ import { Plus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Can } from '@/components/can';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { ErrorAlert } from '@/components/error-alert';
 import { FieldError } from '@/components/field-error';
 import { PageHeader } from '@/components/page-header';
 import { PermissionTree } from '@/components/permission-tree';
 import { RequirePermission } from '@/components/require-permission';
 import { TableMessage } from '@/components/table-message';
 import { TextField } from '@/components/text-field';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -92,11 +92,7 @@ function RolesPage() {
           </Can>
         }
       />
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error.message}</AlertDescription>
-        </Alert>
-      )}
+      <ErrorAlert error={error} />
       <div className="rounded-lg border">
         <Table>
           <TableHeader>
@@ -248,11 +244,7 @@ function RoleDialog({ role, readOnly, onClosed }: RoleDialogProps) {
                 : '只能授予你自己拥有的权限，灰色的项不能勾选。'}
             </DialogDescription>
           </DialogHeader>
-          {mutation.error && (
-            <Alert variant="destructive">
-              <AlertDescription>{mutation.error.message}</AlertDescription>
-            </Alert>
-          )}
+          <ErrorAlert error={mutation.error} />
           <div className="-mx-4 grid min-h-0 flex-1 gap-6 overflow-y-auto px-4 md:grid-cols-[2fr_3fr]">
             <div className="space-y-4">
               {role ? (

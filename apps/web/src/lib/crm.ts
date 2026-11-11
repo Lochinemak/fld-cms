@@ -137,6 +137,7 @@ export const opportunitiesQuery = (params: OpportunityListParams) =>
 export const ownersQuery = queryOptions({
   queryKey: ['crm', 'owners'],
   queryFn: () => api('/crm/owners', { schema: z.array(ownerOptionSchema) }),
+  staleTime: 5 * 60_000,
 });
 
 export const createCustomer = (input: CreateCustomerInput) =>

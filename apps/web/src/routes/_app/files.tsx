@@ -18,6 +18,7 @@ import {
 } from 'react';
 import { z } from 'zod';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { ErrorAlert } from '@/components/error-alert';
 import { FileDetailSheet } from '@/components/files/file-detail-sheet';
 import { FileIcon } from '@/components/files/file-icon';
 import { FolderBreadcrumb } from '@/components/files/folder-breadcrumb';
@@ -274,11 +275,7 @@ function FilesPage() {
             }
           />
         </div>
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error.message}</AlertDescription>
-          </Alert>
-        )}
+        <ErrorAlert error={error} />
         {notice && (
           <Alert>
             <AlertDescription>{notice}</AlertDescription>

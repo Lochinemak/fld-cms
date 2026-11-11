@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Can } from '@/components/can';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ContactFormDialog } from '@/components/crm/contact-form-dialog';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ErrorAlert } from '@/components/error-alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,9 +39,7 @@ export function CustomerContacts({ customerId }: { customerId: string }) {
       </CardHeader>
       <CardContent>
         {error ? (
-          <Alert variant="destructive">
-            <AlertDescription>{error.message}</AlertDescription>
-          </Alert>
+          <ErrorAlert error={error} />
         ) : !data ? (
           <p className="text-sm text-muted-foreground">加载中…</p>
         ) : data.items.length === 0 ? (

@@ -7,20 +7,10 @@ import {
 } from '@fld/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
+import { FormDialog } from '@/components/form-dialog';
 import { SelectField } from '@/components/select-field';
 import { TextField } from '@/components/text-field';
 import { TextareaField } from '@/components/textarea-field';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { useMountedDialog } from '@/hooks/use-mounted-dialog';
 import {
   OPPORTUNITY_STAGE_LABELS,
@@ -84,75 +74,59 @@ export function OpportunityFormDialog({
   }
 
   return (
-    <Dialog {...dialog.rootProps(mutation.isPending)}>
-      <DialogContent>
-        <form onSubmit={submit} noValidate className="grid gap-4">
-          <DialogHeader>
-            <DialogTitle>{opportunity ? '编辑商机' : '新建商机'}</DialogTitle>
-            <DialogDescription>
-              {opportunity ? `修改「${opportunity.name}」。` : '新商机由你负责，归入你所在的部门。'}
-            </DialogDescription>
-          </DialogHeader>
-          {mutation.error && (
-            <Alert variant="destructive">
-              <AlertDescription>{mutation.error.message}</AlertDescription>
-            </Alert>
-          )}
-          <TextField
-            name="name"
-            label="商机名称"
-            defaultValue={opportunity?.name}
-            error={errors.name}
-            autoFocus
-            required
-          />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <TextField
-              name="amount"
-              label="金额（元）"
-              inputMode="decimal"
-              defaultValue={opportunity?.amount}
-              error={errors.amount}
-              required
-            />
-            <TextField
-              name="expectedCloseDate"
-              label="预计成交日期"
-              type="date"
-              defaultValue={opportunity?.expectedCloseDate ?? ''}
-              error={errors.expectedCloseDate}
-            />
-          </div>
-          <div className="space-y-1">
-            <SelectField
-              id="opportunity-stage"
-              label="阶段"
-              options={STAGES}
-              value={stage}
-              onValueChange={(next) => next && setStage(next)}
-              error={errors.stage}
-            />
-            <p className="text-xs text-muted-foreground">
-              改为「赢单」时，客户状态会一起改为已成交。
-            </p>
-          </div>
-          <TextareaField
-            name="remark"
-            label="备注"
-            rows={2}
-            defaultValue={opportunity?.remark ?? ''}
-            error={errors.remark}
-          />
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />} disabled={mutation.isPending}>
-              取消
-            </DialogClose>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? '保存中…' : '保存'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FormDialog
+      {...dialog.rootProps(mutation.isPending)}
+      title={opportunity ? '编辑商机' : '新建商机'}
+      description={
+        opportunity ? `修改「${opportunity.name}」。` : '新商机由你负责，归入你所在的部门。'
+      }
+      error={mutation.error}
+      pending={mutation.isPending}
+      onSubmit={submit}
+    >
+      <TextField
+        name="name"
+        label="商机名称"
+        defaultValue={opportunity?.name}
+        error={errors.name}
+        autoFocus
+        required
+      />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <TextField
+          name="amount"
+          label="金额（元）"
+          inputMode="decimal"
+          defaultValue={opportunity?.amount}
+          error={errors.amount}
+          required
+        />
+        <TextField
+          name="expectedCloseDate"
+          label="预计成交日期"
+          type="date"
+          defaultValue={opportunity?.expectedCloseDate ?? ''}
+          error={errors.expectedCloseDate}
+        />
+      </div>
+      <div className="space-y-1">
+        <SelectField
+          id="opportunity-stage"
+          label="阶段"
+          options={STAGES}
+          value={stage}
+          onValueChange={(next) => next && setStage(next)}
+          error={errors.stage}
+        />
+        <p className="text-xs text-muted-foreground">改为「赢单」时，客户状态会一起改为已成交。</p>
+      </div>
+      <TextareaField
+        name="remark"
+        label="备注"
+        rows={2}
+        defaultValue={opportunity?.remark ?? ''}
+        error={errors.remark}
+      />
+    </FormDialog>
   );
 }

@@ -80,11 +80,13 @@ export const membersQuery = (params: MemberListParams) =>
 export const deptsQuery = queryOptions({
   queryKey: ['system', 'depts'],
   queryFn: () => api('/system/depts', { schema: z.array(departmentSchema) }),
+  staleTime: 5 * 60_000,
 });
 
 export const rolesQuery = queryOptions({
   queryKey: ['system', 'roles'],
   queryFn: () => api('/system/roles', { schema: z.array(roleSchema) }),
+  staleTime: 5 * 60_000,
 });
 
 /** The departments as a tree, and flattened parents first for indented lists. */
@@ -141,12 +143,14 @@ export const unlockMember = (id: string) =>
 
 /**
  * Refetches after a change. The system pages show one another's data (members per department
- * and role), and a role change may change the user's own permissions.
+ * and role), a role change may change the user's own permissions, and a member change may change
+ * whom CRM records can be handed to.
  */
 export function refreshSystem(queryClient: QueryClient): Promise<unknown> {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ['system'] }),
     queryClient.invalidateQueries({ queryKey: meQuery.queryKey }),
+    queryClient.invalidateQueries({ queryKey: ['crm', 'owners'] }),
   ]);
 }
 

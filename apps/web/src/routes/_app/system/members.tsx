@@ -19,7 +19,9 @@ import {
 import { Can } from '@/components/can';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { DeptSelect } from '@/components/dept-select';
+import { ErrorAlert } from '@/components/error-alert';
 import { FieldError } from '@/components/field-error';
+import { FormDialog } from '@/components/form-dialog';
 import { OneTimePasswordDialog, type OneTimePassword } from '@/components/one-time-password-dialog';
 import { PageHeader } from '@/components/page-header';
 import { PaginationBar } from '@/components/pagination-bar';
@@ -27,19 +29,9 @@ import { RequirePermission } from '@/components/require-permission';
 import { SearchBox } from '@/components/search-box';
 import { StatusBadge, StatusField } from '@/components/status-field';
 import { TableMessage } from '@/components/table-message';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -172,11 +164,7 @@ function MembersPage() {
               </SelectContent>
             </Select>
           </div>
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error.message}</AlertDescription>
-            </Alert>
-          )}
+          <ErrorAlert error={error} />
           <div className="rounded-lg border">
             <Table>
               <TableHeader>
@@ -518,47 +506,33 @@ function CreateMemberDialog({
   }
 
   return (
-    <Dialog {...dialog.rootProps(mutation.isPending)}>
-      <DialogContent className="sm:max-w-lg">
-        <form
-          onSubmit={handleSubmit}
-          noValidate
-          className="flex max-h-[calc(100svh-4rem)] flex-col gap-4"
-        >
-          <DialogHeader>
-            <DialogTitle>添加成员</DialogTitle>
-            <DialogDescription>把已有账号加入本租户，或者为新同事创建账号。</DialogDescription>
-          </DialogHeader>
-          {mutation.error && (
-            <Alert variant="destructive">
-              <AlertDescription>{mutation.error.message}</AlertDescription>
-            </Alert>
-          )}
-          <div className="-mx-4 min-h-0 flex-1 space-y-4 overflow-y-auto px-4">
-            <AccountChoiceFields
-              name="account"
-              mode={mode}
-              onModeChange={(next) => {
-                setMode(next);
-                setErrors({});
-                mutation.reset();
-              }}
-              errors={errors}
-            />
-            <DeptField nodes={nodes} value={deptId} onChange={setDeptId} error={errors['deptId']} />
-            <RoleChecklist value={roleIds} onChange={setRoleIds} error={errors['roleIds']} />
-          </div>
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />} disabled={mutation.isPending}>
-              取消
-            </DialogClose>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? '添加中…' : '添加'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FormDialog
+      {...dialog.rootProps(mutation.isPending)}
+      title="添加成员"
+      description="把已有账号加入本租户，或者为新同事创建账号。"
+      error={mutation.error}
+      pending={mutation.isPending}
+      submitLabel="添加"
+      pendingLabel="添加中…"
+      onSubmit={handleSubmit}
+      className="sm:max-w-lg"
+      formClassName="flex max-h-[calc(100svh-4rem)] flex-col gap-4"
+    >
+      <div className="-mx-4 min-h-0 flex-1 space-y-4 overflow-y-auto px-4">
+        <AccountChoiceFields
+          name="account"
+          mode={mode}
+          onModeChange={(next) => {
+            setMode(next);
+            setErrors({});
+            mutation.reset();
+          }}
+          errors={errors}
+        />
+        <DeptField nodes={nodes} value={deptId} onChange={setDeptId} error={errors['deptId']} />
+        <RoleChecklist value={roleIds} onChange={setRoleIds} error={errors['roleIds']} />
+      </div>
+    </FormDialog>
   );
 }
 
@@ -605,43 +579,25 @@ function EditMemberDialog({ member, nodes, onClosed }: EditMemberDialogProps) {
   }
 
   return (
-    <Dialog {...dialog.rootProps(mutation.isPending)}>
-      <DialogContent className="sm:max-w-lg">
-        <form
-          onSubmit={handleSubmit}
-          noValidate
-          className="flex max-h-[calc(100svh-4rem)] flex-col gap-4"
-        >
-          <DialogHeader>
-            <DialogTitle>编辑成员「{member.displayName}」</DialogTitle>
-            <DialogDescription>
-              用户名、姓名和邮箱由账号本人维护；这里只调整它在本租户的部门、角色和状态。
-            </DialogDescription>
-          </DialogHeader>
-          {mutation.error && (
-            <Alert variant="destructive">
-              <AlertDescription>{mutation.error.message}</AlertDescription>
-            </Alert>
-          )}
-          <div className="-mx-4 min-h-0 flex-1 space-y-4 overflow-y-auto px-4">
-            <DeptField nodes={nodes} value={deptId} onChange={setDeptId} error={errors['deptId']} />
-            <RoleChecklist value={roleIds} onChange={setRoleIds} error={errors['roleIds']} />
-            <StatusField
-              value={status}
-              onChange={setStatus}
-              hint="停用后，对方不能再进入这个租户；它在其他租户的使用不受影响。"
-            />
-          </div>
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />} disabled={mutation.isPending}>
-              取消
-            </DialogClose>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? '保存中…' : '保存'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FormDialog
+      {...dialog.rootProps(mutation.isPending)}
+      title={<>编辑成员「{member.displayName}」</>}
+      description="用户名、姓名和邮箱由账号本人维护；这里只调整它在本租户的部门、角色和状态。"
+      error={mutation.error}
+      pending={mutation.isPending}
+      onSubmit={handleSubmit}
+      className="sm:max-w-lg"
+      formClassName="flex max-h-[calc(100svh-4rem)] flex-col gap-4"
+    >
+      <div className="-mx-4 min-h-0 flex-1 space-y-4 overflow-y-auto px-4">
+        <DeptField nodes={nodes} value={deptId} onChange={setDeptId} error={errors['deptId']} />
+        <RoleChecklist value={roleIds} onChange={setRoleIds} error={errors['roleIds']} />
+        <StatusField
+          value={status}
+          onChange={setStatus}
+          hint="停用后，对方不能再进入这个租户；它在其他租户的使用不受影响。"
+        />
+      </div>
+    </FormDialog>
   );
 }

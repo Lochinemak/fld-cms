@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, Folder } from 'lucide-react';
 import { useState } from 'react';
+import { ErrorAlert } from '@/components/error-alert';
 import { FolderBreadcrumb } from '@/components/files/folder-breadcrumb';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -54,11 +54,7 @@ export function MoveDialog({ subject, parentId, movingFolderId, move, onClosed }
             移进文件夹后，负责人和所属部门跟着文件夹走；移到「全部文件」最外层的，归创建人自己。
           </DialogDescription>
         </DialogHeader>
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error.message}</AlertDescription>
-          </Alert>
-        )}
+        <ErrorAlert error={error} />
         <FolderBreadcrumb path={target ? folderPath(folder.data) : []} onOpen={setTarget} />
         <div className="h-64 overflow-y-auto rounded-md border">
           {!subfolders ? (
