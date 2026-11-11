@@ -1,5 +1,6 @@
 import { isEmptyCustomValue, type CustomField } from '@fld/shared';
 import type { CellValue as ExcelCellValue } from 'exceljs';
+import type { SheetColumn } from './spreadsheet-registry.js';
 
 /** What an exported cell holds. Dates are written as dates, the rest as is. */
 export type CellValue = string | number | boolean | Date | null;
@@ -138,5 +139,31 @@ export function customNote(field: CustomField): string {
       return `可选多个，用顿号隔开：${enabled.join('、')}`;
     default:
       return '文字';
+  }
+}
+
+/**
+ * A custom field's column in an import template: what to type in it and, when it takes one of a
+ * list, a dropdown of the list. Every importer's custom fields go through here.
+ */
+export function customColumn(field: CustomField): SheetColumn {
+  return {
+    header: field.label,
+    required: field.required,
+    note: `${field.required ? '必填，' : ''}${customNote(field)}`,
+    options: customOptions(field),
+  };
+}
+
+/** The values a template's dropdown offers for a custom field, if it takes only one of a list. */
+function customOptions(field: CustomField): string[] | undefined {
+  switch (field.type) {
+    case 'SELECT':
+      return field.options.filter((option) => option.enabled).map((option) => option.label);
+    case 'BOOLEAN':
+      return ['是', '否'];
+    default:
+      // A multi-select takes several in one cell, which a dropdown can't.
+      return undefined;
   }
 }

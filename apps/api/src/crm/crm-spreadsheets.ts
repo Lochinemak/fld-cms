@@ -13,7 +13,12 @@ import { AuthenticationContext } from '@nestjs/authentication';
 import type { Principal } from '../auth/principal.js';
 import { CustomFieldsService } from '../custom-fields/custom-fields.service.js';
 import { DictionariesService } from '../custom-fields/dictionaries.service.js';
-import { customCell, customFromCell, customNote, type CellValue } from '../spreadsheets/cells.js';
+import {
+  customCell,
+  customFromCell,
+  customColumn,
+  type CellValue,
+} from '../spreadsheets/cells.js';
 import {
   SpreadsheetRegistry,
   type ImportRow,
@@ -36,9 +41,14 @@ const CUSTOMER_COLUMNS: SheetColumn[] = [
   { header: '客户名称', required: true, width: 24, note: '必填，最多 128 字' },
   {
     header: '级别',
-    note: `填 ${Object.values(CUSTOMER_LEVEL_LABELS).join('、')} 或只写字母；不填为 B`,
+    note: `从下拉里选 ${Object.values(CUSTOMER_LEVEL_LABELS).join('、')}；不填为 B`,
+    options: Object.values(CUSTOMER_LEVEL_LABELS),
   },
-  { header: '状态', note: `填 ${Object.values(CUSTOMER_STATUS_LABELS).join('、')}；不填为潜在` },
+  {
+    header: '状态',
+    note: `从下拉里选 ${Object.values(CUSTOMER_STATUS_LABELS).join('、')}；不填为潜在`,
+    options: Object.values(CUSTOMER_STATUS_LABELS),
+  },
   { header: '来源' },
   { header: '行业' },
   { header: '电话', width: 16 },
@@ -157,13 +167,11 @@ export class CrmSpreadsheets implements OnModuleInit {
     const enabled = sources.filter((item) => item.enabled).map((item) => item.label);
     return [
       ...CUSTOMER_COLUMNS.map((column) =>
-        column.header === '来源' ? { ...column, note: `选一个：${enabled.join('、')}` } : column,
+        column.header === '来源'
+          ? { ...column, note: `选一个：${enabled.join('、')}`, options: enabled }
+          : column,
       ),
-      ...fields.map((field) => ({
-        header: field.label,
-        required: field.required,
-        note: `${field.required ? '必填，' : ''}${customNote(field)}`,
-      })),
+      ...fields.map(customColumn),
     ];
   }
 

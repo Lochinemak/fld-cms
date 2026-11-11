@@ -204,6 +204,26 @@ describe('Spreadsheets and notifications (e2e)', () => {
       '区域',
       'VIP',
     ]);
+
+    // The columns that take one of a list get a dropdown of it, from a hidden sheet.
+    const book = new ExcelJS.Workbook();
+    await book.xlsx.load(res.body as unknown as ArrayBuffer);
+    const options = book.getWorksheet('下拉选项')!;
+    expect(options.state).toBe('hidden');
+    const listOf = (address: string) => {
+      const rule = book.worksheets[0]!.getCell(address).dataValidation;
+      expect(rule).toMatchObject({ type: 'list', errorStyle: 'stop' });
+      const [, column, last] = /\$([A-Z]+)\$1:\$[A-Z]+\$(\d+)$/.exec(rule.formulae[0] as string)!;
+      return Array.from({ length: Number(last) }, (_, row) =>
+        String(options.getCell(`${column}${row + 1}`).value),
+      );
+    };
+    expect(listOf('B2')).toEqual(['A 重点', 'B 普通', 'C 一般']);
+    expect(listOf('C5001')).toEqual(['潜在', '已成交', '已流失']);
+    expect(listOf('D2')).toContain('线上');
+    expect(listOf('I2')).toEqual(['华东']);
+    expect(listOf('J2')).toEqual(['是', '否']);
+    expect(book.worksheets[0]!.getCell('A2').dataValidation).toBeUndefined();
   });
 
   it('imports nothing when a row is wrong, and says which', async () => {

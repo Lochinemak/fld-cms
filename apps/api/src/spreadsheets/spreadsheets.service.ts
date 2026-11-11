@@ -219,6 +219,7 @@ export class SpreadsheetsService {
     help.addRow([]);
     help.addRow([`第一行是列名，不要改；从第二行起每行一条，最多 ${IMPORT_MAX_ROWS} 行。`]);
     help.addRow(['只要有一行不对，整个文件都不导入，并列出有问题的行，改好后重新上传。']);
+    addDropdowns(workbook, sheet, columns);
     response.setHeader('Content-Type', XLSX);
     response.setHeader(
       'Content-Disposition',
@@ -500,6 +501,50 @@ function setColumns(sheet: ExcelJS.Worksheet, columns: SheetColumn[]): void {
     width: column.width ?? Math.max(10, column.header.length * 2 + 4),
   }));
   sheet.getRow(1).font = { bold: true };
+}
+
+/** The sheet a template's dropdowns take their values from, hidden. */
+const OPTIONS_SHEET = '下拉选项';
+
+/**
+ * Each column with options gets a dropdown of them, down the rows an import takes. The values sit
+ * in a hidden sheet, not in the rule itself: a rule's own list stops at 255 characters and can't
+ * hold a comma.
+ */
+function addDropdowns(
+  workbook: ExcelJS.Workbook,
+  sheet: ExcelJS.Worksheet,
+  columns: SheetColumn[],
+): void {
+  const listed = columns
+    .map((column, index) => ({ options: column.options ?? [], header: column.header, index }))
+    .filter(({ options }) => options.length > 0);
+  if (listed.length === 0) {
+    return;
+  }
+  const values = workbook.addWorksheet(OPTIONS_SHEET, { state: 'hidden' });
+  // exceljs's types leave out the sheet's rules by range, though 4.x has them.
+  const rules = (
+    sheet as unknown as {
+      dataValidations: { add(range: string, rule: ExcelJS.DataValidation): void };
+    }
+  ).dataValidations;
+  listed.forEach(({ options, header, index }, at) => {
+    const target = sheet.getColumn(index + 1).letter;
+    const source = values.getColumn(at + 1).letter;
+    options.forEach((option, row) => {
+      values.getCell(row + 1, at + 1).value = option;
+    });
+    rules.add(`${target}2:${target}${IMPORT_MAX_ROWS + 1}`, {
+      type: 'list',
+      allowBlank: true,
+      formulae: [`'${OPTIONS_SHEET}'!$${source}$1:$${source}$${options.length}`],
+      showErrorMessage: true,
+      errorStyle: 'stop',
+      errorTitle: header.slice(0, 32),
+      error: `请从下拉列表里选：${options.join('、')}`.slice(0, 255),
+    });
+  });
 }
 
 /** The header row stays in view while scrolling. */

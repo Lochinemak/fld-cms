@@ -9,6 +9,8 @@ export interface SheetColumn {
   /** For an import template: what to type in it. */
   note?: string;
   required?: boolean;
+  /** For an import template: the only values the column takes, offered as a dropdown. */
+  options?: string[];
 }
 
 /** A row of an uploaded sheet: its number in the sheet, and its cells by column header. */
