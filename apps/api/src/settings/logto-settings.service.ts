@@ -4,15 +4,19 @@ import type {
   LogtoSettingsView,
   UpdateLogtoSettingsInput,
 } from '@fld/shared';
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { changesOf } from '../audit/audit.service.js';
 import type { Env } from '../config/env.js';
 import { SITE_URL_KEY } from './platform-settings.service.js';
-import { SettingsStore } from './settings.store.js';
+import { secretChange, SettingsStore, type SecretSetting } from './settings.store.js';
 
 const KEYS = { enabled: 'logto.enabled', url: 'logto.url', appId: 'logto.app-id' } as const;
-const SECRET_KEY = 'logto.app-secret';
+const SECRET: SecretSetting = {
+  key: 'logto.app-secret',
+  label: '应用密钥',
+  envVar: 'LOGTO_APP_SECRET',
+};
 
 /** The route Logto sends the browser back to, under the site address. */
 export const LOGTO_CALLBACK_PATH = '/api/auth/oidc/logto/callback';
@@ -42,7 +46,6 @@ interface PageSettings {
  */
 @Injectable()
 export class LogtoSettingsService {
-  private readonly logger = new Logger(LogtoSettingsService.name);
   private readonly env: LogtoSettings;
   private readonly envSecret: string | null;
   private readonly envSiteUrl: string | null;
@@ -89,58 +92,34 @@ export class LogtoSettingsService {
       [KEYS.enabled, input.enabled ? null : 'false'],
       [KEYS.url, input.url],
       [KEYS.appId, input.appId],
+      ...this.store.sealSecret(SECRET, input.appSecret),
     ];
-    if (input.appSecret) {
-      if (!this.store.box) {
-        throw new BadRequestException(
-          '没有配置 SETTINGS_ENCRYPTION_KEY，不能在页面上保存应用密钥；可以改用环境变量 LOGTO_APP_SECRET',
-        );
-      }
-      values.push([SECRET_KEY, this.store.box.seal(SECRET_KEY, input.appSecret)]);
-    } else if (input.appSecret !== undefined) {
-      values.push([SECRET_KEY, null]);
-    }
     const before = await this.view();
     await this.store.write(values);
     const view = await this.view();
     const state = (enabled: boolean) => (enabled ? '已启用' : '已停用');
-    // Never the secret itself.
-    const cleared = before.page.appSecret && !view.page.appSecret;
-    const secret = input.appSecret ? '已更换' : cleared ? '已清除' : null;
     const changes = changesOf([
       ['Logto 登录', state(before.enabled), state(view.enabled)],
       ['Logto 地址', before.page.url, view.page.url],
       ['应用 ID', before.page.appId, view.page.appId],
-      ['应用密钥', null, secret],
+      ['应用密钥', null, secretChange(input.appSecret, before.page.appSecret, view.page.appSecret)],
     ]);
     return { view, changes };
   }
 
   private async page(): Promise<PageSettings> {
-    const rows = await this.store.read([...Object.values(KEYS), SECRET_KEY, SITE_URL_KEY]);
-    const sealed = rows.get(SECRET_KEY);
-    const secret = sealed === undefined ? null : this.open(sealed);
+    const rows = await this.store.read([...Object.values(KEYS), SECRET.key, SITE_URL_KEY]);
+    const secret = this.store.openSecret(SECRET, rows);
     return {
       enabled: rows.get(KEYS.enabled) !== 'false',
       settings: {
         url: rows.get(KEYS.url) ?? null,
         appId: rows.get(KEYS.appId) ?? null,
-        // A secret that no longer opens (the key changed) shows as unset, to be entered again.
         appSecret: secret !== null,
       },
       secret,
       siteUrl: rows.get(SITE_URL_KEY) ?? this.envSiteUrl,
     };
-  }
-
-  private open(sealed: string): string | null {
-    const secret = this.store.box?.open(SECRET_KEY, sealed) ?? null;
-    if (secret === null) {
-      this.logger.warn(
-        'The Logto app secret saved on the settings page does not decrypt with SETTINGS_ENCRYPTION_KEY: save it again',
-      );
-    }
-    return secret;
   }
 
   private appOf({ enabled, settings, secret, siteUrl }: PageSettings): LogtoApp | null {

@@ -10,13 +10,13 @@ import {
   type UpdateMailTemplateInput,
   type UpdatePlatformSettingsInput,
 } from '@fld/shared';
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuditService, changesOf } from '../audit/audit.service.js';
 import type { Env } from '../config/env.js';
 import { APP_NAME_PLACEHOLDER, MAIL_TEMPLATES } from './mail-templates.js';
 import type { SmtpServer } from './mail.transport.js';
-import { SettingsStore } from './settings.store.js';
+import { secretChange, SettingsStore, type SecretSetting } from './settings.store.js';
 
 type Field = Exclude<keyof PlatformSettings, 'smtpPassword'>;
 
@@ -33,7 +33,11 @@ const KEYS: Record<Field, string> = {
   mailFromName: 'mail.from.name',
   siteUrl: SITE_URL_KEY,
 };
-const PASSWORD_KEY = 'mail.smtp.password';
+const PASSWORD: SecretSetting = {
+  key: 'mail.smtp.password',
+  label: '密码',
+  envVar: 'SMTP_PASSWORD',
+};
 const DEFAULT_PORTS: Record<SmtpSecurity, number> = { ssl: 465, starttls: 587, none: 25 };
 
 const SECURITY_WORDS: Record<SmtpSecurity, string> = {
@@ -59,7 +63,6 @@ interface PageSettings {
  */
 @Injectable()
 export class PlatformSettingsService {
-  private readonly logger = new Logger(PlatformSettingsService.name);
   private readonly env: PlatformSettings;
   private readonly envPassword: string | null;
 
@@ -107,32 +110,24 @@ export class PlatformSettingsService {
       [KEYS.mailFromAddress, input.mailFromAddress],
       [KEYS.mailFromName, input.mailFromName],
       [KEYS.siteUrl, input.siteUrl],
+      ...this.store.sealSecret(PASSWORD, input.smtpPassword),
     ];
-    if (input.smtpPassword) {
-      if (!this.store.box) {
-        throw new BadRequestException(
-          '没有配置 SETTINGS_ENCRYPTION_KEY，不能在页面上保存密码；可以改用环境变量 SMTP_PASSWORD',
-        );
-      }
-      values.push([PASSWORD_KEY, this.store.box.seal(PASSWORD_KEY, input.smtpPassword)]);
-    } else if (input.smtpPassword !== undefined) {
-      values.push([PASSWORD_KEY, null]);
-    }
     const before = (await this.page()).settings;
     await this.store.write(values);
     const view = await this.view();
     const after = view.page;
     const security = (value: SmtpSecurity | null) => value && SECURITY_WORDS[value];
-    // Never the password itself.
-    const cleared = before.smtpPassword && !after.smtpPassword;
-    const password = input.smtpPassword ? '已更换' : cleared ? '已清除' : null;
     const changes = changesOf([
       ['系统名称', before.appName, after.appName],
       ['SMTP 服务器', before.smtpHost, after.smtpHost],
       ['端口', before.smtpPort, after.smtpPort],
       ['加密方式', security(before.smtpSecurity), security(after.smtpSecurity)],
       ['SMTP 用户名', before.smtpUsername, after.smtpUsername],
-      ['SMTP 密码', null, password],
+      [
+        'SMTP 密码',
+        null,
+        secretChange(input.smtpPassword, before.smtpPassword, after.smtpPassword),
+      ],
       ['发件人地址', before.mailFromAddress, after.mailFromAddress],
       ['发件人名称', before.mailFromName, after.mailFromName],
       ['网站地址', before.siteUrl, after.siteUrl],
@@ -230,9 +225,8 @@ export class PlatformSettingsService {
   }
 
   private async page(): Promise<PageSettings> {
-    const rows = await this.store.read([...Object.values(KEYS), PASSWORD_KEY]);
-    const sealed = rows.get(PASSWORD_KEY);
-    const password = sealed === undefined ? null : this.open(sealed);
+    const rows = await this.store.read([...Object.values(KEYS), PASSWORD.key]);
+    const password = this.store.openSecret(PASSWORD, rows);
     const port = rows.get(KEYS.smtpPort);
     const security = smtpSecuritySchema.safeParse(rows.get(KEYS.smtpSecurity));
     return {
@@ -242,7 +236,6 @@ export class PlatformSettingsService {
         smtpPort: port === undefined ? null : Number(port),
         smtpSecurity: security.success ? security.data : null,
         smtpUsername: rows.get(KEYS.smtpUsername) ?? null,
-        // A password that no longer opens (the key changed) shows as unset, to be entered again.
         smtpPassword: password !== null,
         mailFromAddress: rows.get(KEYS.mailFromAddress) ?? null,
         mailFromName: rows.get(KEYS.mailFromName) ?? null,
@@ -250,16 +243,6 @@ export class PlatformSettingsService {
       },
       password,
     };
-  }
-
-  private open(sealed: string): string | null {
-    const password = this.store.box?.open(PASSWORD_KEY, sealed) ?? null;
-    if (password === null) {
-      this.logger.warn(
-        'The SMTP password saved on the settings page does not decrypt with SETTINGS_ENCRYPTION_KEY: save it again',
-      );
-    }
-    return password;
   }
 
   private ready(page: PageSettings): boolean {
