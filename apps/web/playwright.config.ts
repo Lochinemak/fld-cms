@@ -13,7 +13,8 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env['CI'],
-  retries: process.env['CI'] ? 1 : 0,
+  // Never: a retry replays the story from its first step, on a database it already changed.
+  retries: 0,
   reporter: process.env['CI'] ? [['github'], ['list']] : 'list',
   use: {
     baseURL: `http://localhost:${WEB_PORT}`,

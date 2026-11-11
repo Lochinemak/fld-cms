@@ -33,6 +33,12 @@ const env = {
   SUPER_ADMIN_USERNAME: 'superadmin',
   STORAGE_DRIVER: 'local',
   STORAGE_LOCAL_DIR: join(tmpdir(), 'fld-asset-ui-storage'),
+  // Set here rather than taken from a developer's .env, which the API reads too: the tests rely on
+  // two-step sign-in being available, and on Logto being off.
+  SETTINGS_ENCRYPTION_KEY: Buffer.alloc(32, 9).toString('base64'),
+  LOGTO_AUTH_URL: '',
+  LOGTO_APP_ID: '',
+  LOGTO_APP_SECRET: '',
 };
 
 const server = new URL(database);
