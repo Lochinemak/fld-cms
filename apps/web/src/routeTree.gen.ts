@@ -18,6 +18,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as VerifyMfaRouteImport } from './routes/verify-mfa'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppFilesRouteImport } from './routes/_app/files'
+import { Route as AppSpreadsheetsRouteImport } from './routes/_app/spreadsheets'
 import { Route as STokenRouteImport } from './routes/s/$token'
 import { Route as AppCrmContactsRouteImport } from './routes/_app/crm/contacts'
 import { Route as AppCrmFollowUpsRouteImport } from './routes/_app/crm/follow-ups'
@@ -76,6 +77,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppFilesRoute = AppFilesRouteImport.update({
   id: '/files',
   path: '/files',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSpreadsheetsRoute = AppSpreadsheetsRouteImport.update({
+  id: '/spreadsheets',
+  path: '/spreadsheets',
   getParentRoute: () => AppRoute,
 } as any)
 const STokenRoute = STokenRouteImport.update({
@@ -164,6 +170,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/verify-mfa': typeof VerifyMfaRoute
   '/files': typeof AppFilesRoute
+  '/spreadsheets': typeof AppSpreadsheetsRoute
   '/s/$token': typeof STokenRoute
   '/crm/contacts': typeof AppCrmContactsRoute
   '/crm/follow-ups': typeof AppCrmFollowUpsRoute
@@ -188,6 +195,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/verify-mfa': typeof VerifyMfaRoute
   '/files': typeof AppFilesRoute
+  '/spreadsheets': typeof AppSpreadsheetsRoute
   '/s/$token': typeof STokenRoute
   '/': typeof AppIndexRoute
   '/crm/contacts': typeof AppCrmContactsRoute
@@ -215,6 +223,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/verify-mfa': typeof VerifyMfaRoute
   '/_app/files': typeof AppFilesRoute
+  '/_app/spreadsheets': typeof AppSpreadsheetsRoute
   '/s/$token': typeof STokenRoute
   '/_app/': typeof AppIndexRoute
   '/_app/crm/contacts': typeof AppCrmContactsRoute
@@ -243,6 +252,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify-mfa'
     | '/files'
+    | '/spreadsheets'
     | '/s/$token'
     | '/crm/contacts'
     | '/crm/follow-ups'
@@ -267,6 +277,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify-mfa'
     | '/files'
+    | '/spreadsheets'
     | '/s/$token'
     | '/'
     | '/crm/contacts'
@@ -293,6 +304,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify-mfa'
     | '/_app/files'
+    | '/_app/spreadsheets'
     | '/s/$token'
     | '/_app/'
     | '/_app/crm/contacts'
@@ -385,6 +397,13 @@ declare module '@tanstack/react-router' {
       path: '/files'
       fullPath: '/files'
       preLoaderRoute: typeof AppFilesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/spreadsheets': {
+      id: '/_app/spreadsheets'
+      path: '/spreadsheets'
+      fullPath: '/spreadsheets'
+      preLoaderRoute: typeof AppSpreadsheetsRouteImport
       parentRoute: typeof AppRoute
     }
     '/s/$token': {
@@ -497,6 +516,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppFilesRoute: typeof AppFilesRoute
+  AppSpreadsheetsRoute: typeof AppSpreadsheetsRoute
   AppIndexRoute: typeof AppIndexRoute
   AppCrmContactsRoute: typeof AppCrmContactsRoute
   AppCrmFollowUpsRoute: typeof AppCrmFollowUpsRoute
@@ -516,6 +536,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppFilesRoute: AppFilesRoute,
+  AppSpreadsheetsRoute: AppSpreadsheetsRoute,
   AppIndexRoute: AppIndexRoute,
   AppCrmContactsRoute: AppCrmContactsRoute,
   AppCrmFollowUpsRoute: AppCrmFollowUpsRoute,

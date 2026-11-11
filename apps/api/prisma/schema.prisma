@@ -25,23 +25,25 @@ model Tenant {
   createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  members         TenantMember[]
-  departments     Department[]
-  roles           Role[]
-  sessions        Session[]
-  lastUsedByUsers User[]
-  customers       Customer[]
-  contacts        Contact[]
-  followUps       FollowUp[]
-  opportunities   Opportunity[]
-  fileFolders     FileFolder[]
-  files           StoredFile[]
-  fileVersions    FileVersion[]
-  fileShares      FileShare[]
-  fileRefs        FileRef[]
-  dictionaries    Dictionary[]
-  dictionaryItems DictionaryItem[]
-  customFields    CustomField[]
+  members          TenantMember[]
+  departments      Department[]
+  roles            Role[]
+  sessions         Session[]
+  lastUsedByUsers  User[]
+  customers        Customer[]
+  contacts         Contact[]
+  followUps        FollowUp[]
+  opportunities    Opportunity[]
+  fileFolders      FileFolder[]
+  files            StoredFile[]
+  fileVersions     FileVersion[]
+  fileShares       FileShare[]
+  fileRefs         FileRef[]
+  dictionaries     Dictionary[]
+  dictionaryItems  DictionaryItem[]
+  customFields     CustomField[]
+  notifications    Notification[]
+  spreadsheetTasks SpreadsheetTask[]
 
   @@map("tenants")
 }
@@ -75,17 +77,19 @@ model User {
   createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  lastTenant         Tenant?        @relation(fields: [lastTenantId], references: [id], onDelete: SetNull)
+  lastTenant         Tenant?           @relation(fields: [lastTenantId], references: [id], onDelete: SetNull)
   memberships        TenantMember[]
   identities         UserIdentity[]
-  ownedCustomers     Customer[]     @relation("CustomerOwner")
-  createdCustomers   Customer[]     @relation("CustomerCreator")
+  notifications      Notification[]
+  spreadsheetTasks   SpreadsheetTask[]
+  ownedCustomers     Customer[]        @relation("CustomerOwner")
+  createdCustomers   Customer[]        @relation("CustomerCreator")
   ownedOpportunities Opportunity[]
   followUps          FollowUp[]
-  ownedFileFolders   FileFolder[]   @relation("FileFolderOwner")
-  createdFileFolders FileFolder[]   @relation("FileFolderCreator")
-  ownedFiles         StoredFile[]   @relation("StoredFileOwner")
-  createdFiles       StoredFile[]   @relation("StoredFileCreator")
+  ownedFileFolders   FileFolder[]      @relation("FileFolderOwner")
+  createdFileFolders FileFolder[]      @relation("FileFolderCreator")
+  ownedFiles         StoredFile[]      @relation("StoredFileOwner")
+  createdFiles       StoredFile[]      @relation("StoredFileCreator")
   fileVersions       FileVersion[]
   fileShares         FileShare[]
   fileRefs           FileRef[]
@@ -753,4 +757,76 @@ enum CustomFieldType {
   BOOLEAN
 
   @@map("custom_field_type")
+}
+
+/// A message to one member of a tenant, shown under the bell until read. Kept 90 days.
+model Notification {
+  id        BigInt    @id
+  tenantId  BigInt    @map("tenant_id")
+  userId    BigInt    @map("user_id")
+  /// What it is about, for the page to pick an icon: export, import, transfer.
+  kind      String    @db.VarChar(32)
+  title     String    @db.VarChar(200)
+  body      String?   @db.VarChar(1000)
+  /// A page of the web app to open, e.g. /crm/customers/123.
+  link      String?   @db.VarChar(500)
+  readAt    DateTime? @map("read_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, userId, createdAt])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+/// An export to, or an import from, a spreadsheet, which a background job runs. Kept 7 days.
+model SpreadsheetTask {
+  id         BigInt                @id
+  tenantId   BigInt                @map("tenant_id")
+  userId     BigInt                @map("user_id")
+  kind       SpreadsheetTaskKind
+  /// One of the models in packages/shared/src/spreadsheet.ts, e.g. crm.customer.
+  entity     String                @db.VarChar(64)
+  status     SpreadsheetTaskStatus @default(PENDING)
+  /// The file's name as users see it.
+  fileName   String                @map("file_name") @db.VarChar(255)
+  /// The export made, or the file uploaded to import.
+  storageKey String?               @map("storage_key") @db.VarChar(255)
+  fileSize   BigInt?               @map("file_size")
+  /// What an export filters by, as its list page did.
+  query      Json?
+  /// Rows exported, or imported.
+  rowCount   Int?                  @map("row_count")
+  /// Why it failed: a message, and for an import the rows at fault.
+  error      String?               @db.VarChar(1000)
+  rowErrors  Json?                 @map("row_errors")
+  createdAt  DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  finishedAt DateTime?             @map("finished_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, userId, createdAt])
+  @@index([createdAt])
+  @@map("spreadsheet_tasks")
+}
+
+enum SpreadsheetTaskKind {
+  EXPORT
+  IMPORT
+
+  @@map("spreadsheet_task_kind")
+}
+
+enum SpreadsheetTaskStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+
+  @@map("spreadsheet_task_status")
 }

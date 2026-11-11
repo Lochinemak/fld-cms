@@ -17,6 +17,7 @@ import { PageHeader } from '@/components/page-header';
 import { PaginationBar } from '@/components/pagination-bar';
 import { RequirePermission } from '@/components/require-permission';
 import { SearchBox } from '@/components/search-box';
+import { ExportButton, ImportButton } from '@/components/spreadsheets/spreadsheet-actions';
 import { TableMessage } from '@/components/table-message';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -82,16 +83,14 @@ function CustomersPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const page = search.page ?? 1;
-  const { data, error, isPending } = useQuery(
-    customersQuery({
-      page,
-      keyword: search.keyword,
-      status: search.status,
-      level: search.level,
-      mine: search.mine,
-      dueBy: search.due ? endOfToday() : undefined,
-    }),
-  );
+  const filters = {
+    keyword: search.keyword,
+    status: search.status,
+    level: search.level,
+    mine: search.mine,
+    dueBy: search.due ? endOfToday() : undefined,
+  };
+  const { data, error, isPending } = useQuery(customersQuery({ page, ...filters }));
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const closeDialog = () => setDialog(null);
   const canUpdate = useCan('crm:customer:update');
@@ -114,12 +113,20 @@ function CustomersPage() {
         title="客户"
         description="只列出你的数据范围内的客户。"
         actions={
-          <Can code="crm:customer:create">
-            <Button onClick={() => setDialog({ kind: 'create' })}>
-              <Plus />
-              新建客户
-            </Button>
-          </Can>
+          <>
+            <Can code="crm:customer:export">
+              <ExportButton entity="crm.customer" query={filters} />
+            </Can>
+            <Can code="crm:customer:import">
+              <ImportButton entity="crm.customer" />
+            </Can>
+            <Can code="crm:customer:create">
+              <Button onClick={() => setDialog({ kind: 'create' })}>
+                <Plus />
+                新建客户
+              </Button>
+            </Can>
+          </>
         }
       />
       <div className="space-y-4">

@@ -22,17 +22,8 @@ import { z } from 'zod';
 import { api } from './api';
 import { listPath } from './system';
 
-export const CUSTOMER_STATUS_LABELS: Record<CustomerStatus, string> = {
-  POTENTIAL: '潜在',
-  WON: '已成交',
-  LOST: '已流失',
-};
-
-export const CUSTOMER_LEVEL_LABELS: Record<CustomerLevel, string> = {
-  A: 'A 重点',
-  B: 'B 普通',
-  C: 'C 一般',
-};
+// The labels live in @fld/shared: spreadsheets the API writes use them too.
+export { CUSTOMER_LEVEL_LABELS, CUSTOMER_STATUS_LABELS } from '@fld/shared';
 
 export const FOLLOW_UP_METHOD_LABELS: Record<FollowUpMethod, string> = {
   CALL: '电话',

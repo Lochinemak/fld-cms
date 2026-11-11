@@ -1,6 +1,7 @@
 import { Outlet, createFileRoute, redirect } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { AppSidebar } from '@/components/app-sidebar';
+import { NotificationBell } from '@/components/notification-bell';
 import { RequireSignIn } from '@/components/require-sign-in';
 import { TenantSwitcher } from '@/components/tenant-switcher';
 import { ThemeMenu } from '@/components/theme-menu';
@@ -57,6 +58,7 @@ function AppShell() {
           <TenantSwitcher />
           <div className="ml-auto flex items-center gap-1">
             <ThemeMenu />
+            <NotificationBell />
             <UserMenu />
           </div>
         </header>

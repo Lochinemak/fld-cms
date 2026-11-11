@@ -113,6 +113,17 @@ export class DictionariesService {
     return rows.map(toItem);
   }
 
+  /** A built-in dictionary's items, for code that already checked who may read them. */
+  async items(user: Principal, code: BuiltinDictionaryCode): Promise<DictionaryItem[]> {
+    await this.ensureBuiltins(tenantIdOf(user));
+    const rows = await this.db.dictionaryItem.findMany({
+      where: { dictionary: { code } },
+      select: itemSelect,
+      orderBy: itemOrder,
+    });
+    return rows.map(toItem);
+  }
+
   /**
    * Refuses a value that isn't an enabled item of the built-in dictionary, unless the record has
    * it already (`stored`): an item disabled since stays on the records that have it.

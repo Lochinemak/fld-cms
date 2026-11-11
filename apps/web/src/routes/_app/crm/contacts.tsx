@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { z } from 'zod';
+import { Can } from '@/components/can';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ContactFormDialog } from '@/components/crm/contact-form-dialog';
 import { formatCustomValue } from '@/components/custom-fields';
@@ -12,6 +13,7 @@ import { PaginationBar } from '@/components/pagination-bar';
 import { RequirePermission } from '@/components/require-permission';
 import { SearchBox } from '@/components/search-box';
 import { customFieldsQuery } from '@/lib/custom-fields';
+import { ExportButton } from '@/components/spreadsheets/spreadsheet-actions';
 import { TableMessage } from '@/components/table-message';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -66,6 +68,11 @@ function ContactsPage() {
       <PageHeader
         title="联系人"
         description="列出你能看到的客户的联系人；添加联系人请到客户详情页。"
+        actions={
+          <Can code="crm:contact:export">
+            <ExportButton entity="crm.contact" query={{ keyword: search.keyword }} />
+          </Can>
+        }
       />
       <div className="space-y-4">
         <SearchBox

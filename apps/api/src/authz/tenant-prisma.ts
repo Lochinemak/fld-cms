@@ -23,6 +23,8 @@ export const TENANT_MODELS: ReadonlySet<string> = new Set([
   'Dictionary',
   'DictionaryItem',
   'CustomField',
+  'Notification',
+  'SpreadsheetTask',
 ]);
 
 const FILTERED = new Set([

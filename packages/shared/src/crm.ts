@@ -38,6 +38,18 @@ export type CustomerStatus = z.infer<typeof customerStatusSchema>;
 export const customerLevelSchema = z.enum(['A', 'B', 'C']);
 export type CustomerLevel = z.infer<typeof customerLevelSchema>;
 
+export const CUSTOMER_STATUS_LABELS: Record<CustomerStatus, string> = {
+  POTENTIAL: '潜在',
+  WON: '已成交',
+  LOST: '已流失',
+};
+
+export const CUSTOMER_LEVEL_LABELS: Record<CustomerLevel, string> = {
+  A: 'A 重点',
+  B: 'B 普通',
+  C: 'C 一般',
+};
+
 /** A value of the tenant's 客户来源 dictionary (crm.customer-source). */
 export const customerSourceSchema = z.string().trim().min(1).max(64);
 export type CustomerSource = z.infer<typeof customerSourceSchema>;

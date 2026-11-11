@@ -1,5 +1,14 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { CircleUser, KeyRound, Laptop, LogOut, ShieldCheck, UserRoundPen } from 'lucide-react';
+import { useNavigate } from '@tanstack/react-router';
+import {
+  CircleUser,
+  FileSpreadsheet,
+  KeyRound,
+  Laptop,
+  LogOut,
+  ShieldCheck,
+  UserRoundPen,
+} from 'lucide-react';
 import { useState } from 'react';
 import { ChangePasswordDialog } from '@/components/change-password-form';
 import { MfaDialog } from '@/components/mfa-dialog';
@@ -20,6 +29,7 @@ import { meQuery, signOutAndReload, useMe } from '@/lib/auth';
 export function UserMenu() {
   const { user } = useMe();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [editingProfile, setEditingProfile] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [viewingSessions, setViewingSessions] = useState(false);
@@ -61,6 +71,10 @@ export function UserMenu() {
           <DropdownMenuItem onClick={() => setViewingSessions(true)}>
             <Laptop />
             登录设备
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => void navigate({ to: '/spreadsheets' })}>
+            <FileSpreadsheet />
+            导入导出
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => void signOutAndReload()}>
             <LogOut />

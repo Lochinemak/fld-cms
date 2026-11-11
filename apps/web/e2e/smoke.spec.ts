@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
 import { totp } from './totp.js';
 
@@ -170,6 +171,44 @@ test('the administrator adds a field to customers, and fills it in', async () =>
   await expect(page.getByRole('cell', { name: '华东' })).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'VIP' })).toBeVisible();
   await expect(page.getByRole('cell', { name: '是', exact: true })).toBeVisible();
+});
+
+test('the administrator exports customers, and is told when it is ready', async () => {
+  await page.goto('/crm/customers');
+  await page.getByRole('button', { name: '导出', exact: true }).click();
+  const started = page.getByRole('dialog', { name: '已开始导出' });
+  await started.getByRole('link', { name: '去看看' }).click();
+  await expect(page.getByRole('heading', { name: '导入导出' })).toBeVisible();
+  // The page polls while the job runs.
+  await expect(page.getByRole('link', { name: '下载' })).toBeVisible({ timeout: 15_000 });
+  const download = page.waitForEvent('download');
+  await page.getByRole('link', { name: '下载' }).click();
+  expect((await download).suggestedFilename()).toMatch(/^客户-.*\.xlsx$/);
+
+  await page.reload();
+  await page.getByRole('button', { name: /^通知，1 条未读/ }).click();
+  await page.getByRole('menuitem', { name: /导出客户完成：共 2 行/ }).click();
+  await expect(page.getByRole('button', { name: '通知', exact: true })).toBeVisible();
+});
+
+test('the administrator imports the template back, and sees why nothing came in', async () => {
+  await page.goto('/crm/customers');
+  await page.getByRole('button', { name: '导入', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: '导入客户' });
+  const template = page.waitForEvent('download');
+  await dialog.getByRole('link', { name: '下载模板' }).click();
+  const path = await (await template).path();
+  await dialog.getByLabel('文件').setInputFiles({
+    name: '客户导入模板.xlsx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    buffer: await readFile(path),
+  });
+  await dialog.getByRole('button', { name: '开始导入' }).click();
+  await page
+    .getByRole('dialog', { name: '已开始导入' })
+    .getByRole('link', { name: '去看看' })
+    .click();
+  await expect(page.getByText('文件里没有要导入的行')).toBeVisible({ timeout: 15_000 });
 });
 
 test('the administrator sees where they are signed in', async () => {

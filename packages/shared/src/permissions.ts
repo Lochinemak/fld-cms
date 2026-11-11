@@ -110,11 +110,14 @@ export const PERMISSIONS = {
   'crm:customer:update': { name: '编辑客户', kind: 'element', parent: 'crm:customer' },
   'crm:customer:transfer': { name: '转移客户', kind: 'element', parent: 'crm:customer' },
   'crm:customer:delete': { name: '删除客户', kind: 'element', parent: 'crm:customer' },
+  'crm:customer:export': { name: '导出客户', kind: 'element', parent: 'crm:customer' },
+  'crm:customer:import': { name: '导入客户', kind: 'element', parent: 'crm:customer' },
 
   'crm:contact': { name: '联系人', kind: 'page', parent: 'crm' },
   'crm:contact:create': { name: '新建联系人', kind: 'element', parent: 'crm:contact' },
   'crm:contact:update': { name: '编辑联系人', kind: 'element', parent: 'crm:contact' },
   'crm:contact:delete': { name: '删除联系人', kind: 'element', parent: 'crm:contact' },
+  'crm:contact:export': { name: '导出联系人', kind: 'element', parent: 'crm:contact' },
 
   'crm:follow-up': { name: '跟进记录', kind: 'page', parent: 'crm' },
   'crm:follow-up:create': { name: '写跟进', kind: 'element', parent: 'crm:follow-up' },

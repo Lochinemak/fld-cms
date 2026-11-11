@@ -63,6 +63,8 @@ export const AUDIT_ACTIONS = {
 
   'customer.transfer': { label: '转移客户', group: 'data' },
   'customer.delete': { label: '删除客户', group: 'data' },
+  'data.export': { label: '导出数据', group: 'data' },
+  'data.import': { label: '导入数据', group: 'data' },
   'contact.delete': { label: '删除联系人', group: 'data' },
   'opportunity.transfer': { label: '转移商机', group: 'data' },
   'opportunity.delete': { label: '删除商机', group: 'data' },
@@ -94,6 +96,7 @@ export const AUDIT_TARGETS = {
   'follow-up': '跟进记录',
   folder: '文件夹',
   file: '文件',
+  spreadsheet: '导入导出',
 } as const;
 export type AuditTargetType = keyof typeof AUDIT_TARGETS;
 export const auditTargetTypeSchema = z.enum(Object.keys(AUDIT_TARGETS) as AuditTargetType[]);

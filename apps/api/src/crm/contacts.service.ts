@@ -56,7 +56,44 @@ export class ContactsService {
   ) {}
 
   async list(user: Principal, query: ContactQuery): Promise<Page<Contact>> {
-    const { page, pageSize, keyword, customerId } = query;
+    const { page, pageSize, customerId } = query;
+    const where = this.where(user, query);
+    const [rows, total] = await Promise.all([
+      this.db.contact.findMany({
+        where,
+        select: contactSelect,
+        // One customer's contacts start with the primary one.
+        orderBy: customerId ? [{ primary: 'desc' }, { id: 'asc' }] : { id: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.db.contact.count({ where }),
+    ]);
+    return { items: rows.map(toContact), total };
+  }
+
+  /** Every contact the list shows for the query, newest first, a batch at a time. */
+  async *each(user: Principal, query: ContactQuery, batch = 500): AsyncGenerator<Contact[]> {
+    const where = this.where(user, query);
+    let before: bigint | undefined;
+    for (;;) {
+      const rows = await this.db.contact.findMany({
+        where: before === undefined ? where : { AND: [where, { id: { lt: before } }] },
+        select: contactSelect,
+        orderBy: { id: 'desc' },
+        take: batch,
+      });
+      if (rows.length === 0) {
+        return;
+      }
+      yield rows.map(toContact);
+      before = rows[rows.length - 1]!.id;
+    }
+  }
+
+  /** What the list filters by: contacts of the customers the user sees. */
+  private where(user: Principal, query: ContactQuery): Prisma.ContactWhereInput {
+    const { keyword, customerId } = query;
     const filters: Prisma.ContactWhereInput[] = [{ customer: visibleCustomers(user) }];
     if (customerId) {
       filters.push({ customerId: BigInt(customerId) });
@@ -72,19 +109,7 @@ export class ContactsService {
         ],
       });
     }
-    const where = { AND: filters };
-    const [rows, total] = await Promise.all([
-      this.db.contact.findMany({
-        where,
-        select: contactSelect,
-        // One customer's contacts start with the primary one.
-        orderBy: customerId ? [{ primary: 'desc' }, { id: 'asc' }] : { id: 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-      this.db.contact.count({ where }),
-    ]);
-    return { items: rows.map(toContact), total };
+    return { AND: filters };
   }
 
   /** A new primary contact takes over from the customer's previous one. */

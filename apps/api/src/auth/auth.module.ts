@@ -16,6 +16,7 @@ import { PrismaEmailTokenStore } from './prisma-email-token.store.js';
 import { PrismaSessionStore } from './prisma-session.store.js';
 import { ProfileService } from './profile.service.js';
 import { RedisOidcStateStore } from './redis-oidc-state.store.js';
+import { RunAsService } from './run-as.service.js';
 import { SessionAuth } from './session-auth.provider.js';
 import { SignInSessionsService } from './sign-in-sessions.service.js';
 import { TenantContextCache } from './tenant-context.cache.js';
@@ -41,8 +42,15 @@ import { TenantContextService } from './tenant-context.service.js';
     PasswordResetMailer,
     PasswordRecoveryService,
     SignInSessionsService,
+    RunAsService,
   ],
-  exports: [TenantContextCache, CredentialsService, AccountProvisioning, MfaSetupService],
+  exports: [
+    TenantContextCache,
+    CredentialsService,
+    AccountProvisioning,
+    MfaSetupService,
+    RunAsService,
+  ],
 })
 export class AuthModule {
   constructor(

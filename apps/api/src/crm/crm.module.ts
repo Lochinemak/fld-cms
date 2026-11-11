@@ -3,6 +3,7 @@ import { CustomFieldsModule } from '../custom-fields/custom-fields.module.js';
 import { FilesModule } from '../files/files.module.js';
 import { ContactsController } from './contacts.controller.js';
 import { ContactsService } from './contacts.service.js';
+import { CrmSpreadsheets } from './crm-spreadsheets.js';
 import { CustomerAttachmentsController } from './customer-attachments.controller.js';
 import { CustomerAttachmentsService } from './customer-attachments.service.js';
 import { CustomersController } from './customers.controller.js';
@@ -31,6 +32,7 @@ import { OwnersService } from './owners.service.js';
     FollowUpsService,
     OpportunitiesService,
     OwnersService,
+    CrmSpreadsheets,
   ],
 })
 export class CrmModule {}

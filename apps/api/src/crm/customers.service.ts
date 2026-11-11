@@ -2,11 +2,13 @@ import type {
   CreateCustomerInput,
   Customer,
   CustomerQuery,
+  CustomValues,
   Page,
   TransferInput,
   UpdateCustomerInput,
 } from '@fld/shared';
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { AuditService, changesOf } from '../audit/audit.service.js';
 import type { Principal } from '../auth/principal.js';
 import { TENANT_PRISMA, tenantIdOf, type TenantPrisma } from '../authz/tenant-prisma.js';
@@ -75,12 +77,90 @@ export class CustomersService {
     private readonly owners: OwnersService,
     private readonly refs: FileRefsService,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
     private readonly customFields: CustomFieldsService,
     private readonly dictionaries: DictionariesService,
   ) {}
 
   async list(user: Principal, query: CustomerQuery): Promise<Page<Customer>> {
-    const { page, pageSize, keyword, status, level, mine, dueBy } = query;
+    const { page, pageSize, dueBy } = query;
+    const where = this.where(user, query);
+    const [rows, total] = await Promise.all([
+      this.db.customer.findMany({
+        where,
+        select: customerSelect,
+        // Customers due for a follow-up come most overdue first; otherwise the newest first.
+        orderBy: dueBy ? [{ nextFollowUpAt: 'asc' }, { id: 'asc' }] : { id: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.db.customer.count({ where }),
+    ]);
+    return { items: rows.map(toCustomer), total };
+  }
+
+  /**
+   * Every customer the list shows for the query, newest first, a batch at a time: what an export
+   * writes.
+   */
+  async *each(user: Principal, query: CustomerQuery, batch = 500): AsyncGenerator<Customer[]> {
+    const where = this.where(user, query);
+    let before: bigint | undefined;
+    for (;;) {
+      const rows = await this.db.customer.findMany({
+        where: before === undefined ? where : { AND: [where, { id: { lt: before } }] },
+        select: customerSelect,
+        orderBy: { id: 'desc' },
+        take: batch,
+      });
+      if (rows.length === 0) {
+        return;
+      }
+      yield rows.map(toCustomer);
+      before = rows[rows.length - 1]!.id;
+    }
+  }
+
+  /**
+   * Creates customers that were checked already, as an import does: all of them or, on any
+   * failure, none. The user owns them, in their department.
+   */
+  async createChecked(
+    user: Principal,
+    inputs: (CreateCustomerInput & { custom: CustomValues })[],
+  ): Promise<number> {
+    const me = BigInt(user.id);
+    const tenantId = tenantIdOf(user);
+    const deptId = ownDept(user);
+    const { count } = await this.db.customer.createMany({
+      data: inputs.map((input) => ({
+        ...input,
+        custom: input.custom as Prisma.InputJsonObject,
+        id: this.snowflake.next(),
+        tenantId,
+        ownerId: me,
+        creatorId: me,
+        deptId,
+      })),
+    });
+    return count;
+  }
+
+  async get(user: Principal, id: string): Promise<Customer> {
+    const row = await this.db.customer.findFirst({
+      where: { AND: [{ id: BigInt(id) }, visibleCustomers(user)] },
+      select: customerSelect,
+    });
+    if (!row) {
+      throw new NotFoundException('客户不存在');
+    }
+    return toCustomer(row);
+  }
+
+  /** The user creating a customer owns it, in the department the user is in. */
+  /** What the list filters by, within the user's data scope. */
+  private where(user: Principal, query: CustomerQuery): Prisma.CustomerWhereInput {
+    const { keyword, status, level, mine, dueBy } = query;
     const filters: Prisma.CustomerWhereInput[] = [visibleCustomers(user)];
     if (keyword) {
       const contains = { contains: keyword, mode: 'insensitive' } as const;
@@ -98,33 +178,9 @@ export class CustomersService {
     if (dueBy) {
       filters.push({ nextFollowUpAt: { lte: new Date(dueBy) } });
     }
-    const where = { AND: filters };
-    const [rows, total] = await Promise.all([
-      this.db.customer.findMany({
-        where,
-        select: customerSelect,
-        // Customers due for a follow-up come most overdue first; otherwise the newest first.
-        orderBy: dueBy ? [{ nextFollowUpAt: 'asc' }, { id: 'asc' }] : { id: 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-      this.db.customer.count({ where }),
-    ]);
-    return { items: rows.map(toCustomer), total };
+    return { AND: filters };
   }
 
-  async get(user: Principal, id: string): Promise<Customer> {
-    const row = await this.db.customer.findFirst({
-      where: { AND: [{ id: BigInt(id) }, visibleCustomers(user)] },
-      select: customerSelect,
-    });
-    if (!row) {
-      throw new NotFoundException('客户不存在');
-    }
-    return toCustomer(row);
-  }
-
-  /** The user creating a customer owns it, in the department the user is in. */
   async create(user: Principal, input: CreateCustomerInput): Promise<Customer> {
     const me = BigInt(user.id);
     const { custom: given, ...fields } = input;
@@ -181,6 +237,16 @@ export class CustomersService {
         ['所属部门', before.dept?.name, after.dept?.name],
       ]),
     });
+    // Told unless they handed it to themselves.
+    if (owner.userId.toString() !== user.id) {
+      await this.notifications.notify({
+        tenantId: tenantIdOf(user),
+        userId: owner.userId,
+        kind: 'transfer',
+        title: `${user.displayName} 把客户「${after.name}」转给了你`,
+        link: `/crm/customers/${after.id}`,
+      });
+    }
     return after;
   }
 

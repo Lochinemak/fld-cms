@@ -9,6 +9,7 @@ import {
   type UpdateOpportunityInput,
 } from '@fld/shared';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { AuditService, changesOf } from '../audit/audit.service.js';
 import type { Principal } from '../auth/principal.js';
 import { TENANT_PRISMA, tenantIdOf, type TenantPrisma } from '../authz/tenant-prisma.js';
@@ -77,6 +78,7 @@ export class OpportunitiesService {
     private readonly snowflake: SnowflakeService,
     private readonly owners: OwnersService,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /** The page asked for, and every stage's count and total over all its filters but the stage. */
@@ -194,6 +196,16 @@ export class OpportunitiesService {
         ['所属部门', before.dept?.name, after.dept?.name],
       ]),
     });
+    // Told unless they handed it to themselves.
+    if (owner.userId.toString() !== user.id) {
+      await this.notifications.notify({
+        tenantId: tenantIdOf(user),
+        userId: owner.userId,
+        kind: 'transfer',
+        title: `${user.displayName} 把商机「${after.name}」转给了你`,
+        link: `/crm/customers/${after.customer.id}`,
+      });
+    }
     return after;
   }
 

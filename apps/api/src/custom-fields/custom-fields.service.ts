@@ -207,7 +207,8 @@ export class CustomFieldsService {
     return result;
   }
 
-  private async fieldsOf(entity: CustomFieldEntity): Promise<CustomField[]> {
+  /** The model's fields, for code that already checked who may read them. */
+  async fieldsOf(entity: CustomFieldEntity): Promise<CustomField[]> {
     const rows = await this.db.customField.findMany({
       where: { entity },
       select: fieldSelect,

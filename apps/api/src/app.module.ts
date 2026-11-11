@@ -21,11 +21,13 @@ import { FilesModule } from './files/files.module.js';
 import { HealthModule } from './health/health.module.js';
 import { JobsModule } from './jobs/jobs.module.js';
 import { MembersModule } from './members/members.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { RedisModule } from './redis/redis.module.js';
 import { RolesModule } from './roles/roles.module.js';
 import { LogtoSettingsService } from './settings/logto-settings.service.js';
 import { SettingsModule } from './settings/settings.module.js';
+import { SpreadsheetsModule } from './spreadsheets/spreadsheets.module.js';
 import { SnowflakeModule } from './snowflake/snowflake.module.js';
 import { StorageModule } from './storage/storage.module.js';
 import { TenantsModule } from './tenants/tenants.module.js';
@@ -97,6 +99,8 @@ import { ThrottleModule } from './throttle/throttle.module.js';
     AuthzModule,
     AuthorizationModule.forRoot(),
     AuditModule,
+    NotificationsModule,
+    SpreadsheetsModule,
     HealthModule,
     SettingsModule,
     AccountsModule,
