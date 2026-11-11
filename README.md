@@ -43,6 +43,8 @@ API 第一次连上空数据库时，会创建系统租户（ID 1，编码 `syst
 
 超级管理员只管平台，不进各租户的业务：在「租户管理」里新建、编辑和停用租户。新建时给租户指定管理员（选已有账号，或者新建账号），之后的部门、角色和成员由租户管理员自己管；管理员离开了，用「重设管理员」换一个。
 
+租户用不到的功能模块（侧边栏的一个菜单组，比如「客户关系」「文件管理」）可以按租户关闭：在「租户管理」的新建和编辑对话框里取消勾选「功能模块」。关闭后，这个租户里的所有人（包括租户管理员）都看不到菜单、打不开页面、调不了接口，「角色管理」里也不再列出该模块的权限；数据和角色里已勾选的权限都保留，重新勾选就恢复。「系统管理」不能关闭。「文件管理」关闭期间，该租户的分享链接打不开，客户上已有的附件仍可查看和下载、但不能再添加。
+
 ## 常用命令
 
 - `pnpm build` / `pnpm lint` / `pnpm typecheck` / `pnpm test`：通过 Turborepo 在所有包上执行
@@ -163,7 +165,8 @@ docker compose logs api | grep 'Initial password'   # 首次启动时超级管�
 - 接口默认要求登录并拒绝访问：新接口要用 `@RequirePermission('权限码')` 声明所需权限（或 `@Public()` / `@Can.Anyone()`）。权限码统一在 `packages/shared/src/permissions.ts` 里按「目录 → 页面 → 元素」登记，前端用同一份码控制显示。
 - 前端：登录后的页面放在 `apps/web/src/routes/_app/` 下，自动要求登录；按钮、列等页面元素用 `<Can code="权限码">` 或 `useCan('权限码')` 控制显示。请求统一走 `src/lib/api.ts` 的 `api()`：它带上当前租户，其他标签页切换了租户时会刷新页面。
 - 租户内的数据用注入的 `TENANT_PRISMA` 客户端读写，它自动限定在当前租户；行级数据权限用 `dataScopeWhere(当前用户, { dept, owner })` 生成查询条件。
-- 改了角色、成员、部门或租户状态后调用 `TenantContextCache.invalidate(租户 ID)`，让该租户所有人的权限缓存失效。
+- 改了角色、成员、部门、租户状态或租户的功能模块后调用 `TenantContextCache.invalidate(租户 ID)`，让该租户所有人的权限缓存失效。
+- 功能模块按租户开关：`permissions.ts` 里每个顶层目录就是一个模块，没标 `core: true` 的都能在「租户管理」里按租户关闭。已关闭的模块码存在 `tenants.disabled_modules`（默认空，所以新加的模块对所有租户默认开启）。`grantablePermissions(租户)` 会去掉已关闭模块下的权限码，菜单、页面、按钮、角色编辑和接口都跟着权限走，不用逐处判断；不按权限判断的地方（公开接口、跨模块的读写，比如分享链接、给客户添加附件、文件的「使用位置」）要自己看当前租户的 `disabledModules`。角色里属于已关闭模块的权限不删除：编辑角色时原样保留，分配角色时用 `assertWithinDormantGrant()` 检查，免得模块重新打开后有人拿到分配人自己没有的权限。
 - 删除、转交和管理类的操作完成后用 `AuditService.record()` 写审计日志，操作先在 `packages/shared/src/audit.ts` 里登记。改动用 `changesOf()` 写成文字，不要放密码、密钥和链接。
 - 表名、字段名用 snake_case，在 Prisma 模型里用 `@map` / `@@map` 映射。
 - 本地开发只用根目录一份 `.env`；部署时由容器环境变量提供同名配置。
@@ -175,7 +178,7 @@ docker compose logs api | grep 'Initial password'   # 首次启动时超级管�
 可以照着客户模块（`crm`）写，按这个顺序改：
 
 1. 数据格式：在 `packages/shared/src/` 里写接口输入输出的 zod schema，从 `index.ts` 导出。
-2. 权限：在 `packages/shared/src/permissions.ts` 登记页面和按钮的权限码。内置的管理员角色自动拥有全部权限，其他角色在「角色管理」里勾选。
+2. 权限：在 `packages/shared/src/permissions.ts` 登记页面和按钮的权限码。内置的管理员角色自动拥有全部权限，其他角色在「角色管理」里勾选。新登记的顶层目录会自动出现在「租户管理」的「功能模块」里，对所有租户默认开启；任何租户都不能缺的目录标上 `core: true`。
 3. 数据库：在 `apps/api/prisma/schema.prisma` 里加模型，然后 `pnpm db:migrate`。属于租户的表带 `tenant_id`，并把模型名加进 `apps/api/src/authz/tenant-prisma.ts` 的 `TENANT_MODELS`。不加的话 `TENANT_PRISMA` 不会限定租户，会读写到别的租户的数据。
 4. 后端：在 `apps/api/src/<模块>/` 里写 controller、service 和 module，再在 `app.module.ts` 里引入。每个接口用 `@RequirePermission()` 声明权限，删除、转交这类操作写审计日志。
 5. 前端：请求函数放在 `apps/web/src/lib/<模块>.ts`；页面放在 `apps/web/src/routes/_app/` 下，内容用 `<RequirePermission code="页面权限码">` 包住；菜单加在 `apps/web/src/components/app-sidebar.tsx`，带上同一个权限码。
