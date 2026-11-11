@@ -1,4 +1,5 @@
 import {
+  logtoSettingsViewSchema,
   mailTemplateSchema,
   platformAccountPageSchema,
   platformAccountSchema,
@@ -6,6 +7,7 @@ import {
   resetAccountPasswordResultSchema,
   type MailTemplateKey,
   type TestMailInput,
+  type UpdateLogtoSettingsInput,
   type UpdateMailTemplateInput,
   type UpdatePlatformSettingsInput,
 } from '@fld/shared';
@@ -37,6 +39,14 @@ export const platformSettingsQuery = queryOptions({
 
 export const updatePlatformSettings = (input: UpdatePlatformSettingsInput) =>
   api('/system/settings', { method: 'PUT', json: input, schema: platformSettingsViewSchema });
+
+export const logtoSettingsQuery = queryOptions({
+  queryKey: ['system', 'settings', 'logto'],
+  queryFn: () => api('/system/settings/logto', { schema: logtoSettingsViewSchema }),
+});
+
+export const updateLogtoSettings = (input: UpdateLogtoSettingsInput) =>
+  api('/system/settings/logto', { method: 'PUT', json: input, schema: logtoSettingsViewSchema });
 
 export const sendTestMail = (input: TestMailInput) =>
   api('/system/settings/test-mail', { method: 'POST', json: input });

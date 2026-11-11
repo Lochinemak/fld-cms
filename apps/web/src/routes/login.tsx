@@ -1,11 +1,11 @@
-import { signInSchema } from '@fld/shared';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { LOGTO_SIGN_IN_ERRORS, signInSchema, type LogtoSignInError } from '@fld/shared';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { z } from 'zod';
 import { FieldError } from '@/components/field-error';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -16,11 +16,15 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { applyMe, meQuery, signIn } from '@/lib/auth';
+import { applyMe, logtoSignInHref, meQuery, signIn, signInOptionsQuery } from '@/lib/auth';
 import { fieldErrors, safeRedirect, type FieldErrors } from '@/lib/form';
 
 export const Route = createFileRoute('/login')({
-  validateSearch: z.object({ redirect: z.string().optional() }),
+  validateSearch: z.object({
+    redirect: z.string().optional(),
+    // Why signing in with Logto ended back here.
+    error: z.string().optional().catch(undefined),
+  }),
   beforeLoad: async ({ context, search }) => {
     const me = await context.queryClient.ensureQueryData(meQuery);
     if (me) {
@@ -30,11 +34,18 @@ export const Route = createFileRoute('/login')({
   component: LoginPage,
 });
 
+function logtoErrorMessage(code: string | undefined): string | undefined {
+  return code !== undefined && Object.hasOwn(LOGTO_SIGN_IN_ERRORS, code)
+    ? LOGTO_SIGN_IN_ERRORS[code as LogtoSignInError]
+    : undefined;
+}
+
 function LoginPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [errors, setErrors] = useState<FieldErrors>({});
+  const options = useQuery(signInOptionsQuery);
   const mutation = useMutation({
     mutationFn: signIn,
     onSuccess: async (me) => {
@@ -45,6 +56,10 @@ function LoginPage() {
       });
     },
   });
+
+  // What Logto's sign-in came back with stays until the form is used.
+  const failure =
+    mutation.error?.message ?? (mutation.isIdle ? logtoErrorMessage(search.error) : undefined);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -68,9 +83,9 @@ function LoginPage() {
         </CardHeader>
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
           <CardContent className="space-y-4">
-            {mutation.error && (
+            {failure && (
               <Alert variant="destructive">
-                <AlertDescription>{mutation.error.message}</AlertDescription>
+                <AlertDescription>{failure}</AlertDescription>
               </Alert>
             )}
             <div className="space-y-2">
@@ -104,10 +119,25 @@ function LoginPage() {
               <FieldError message={errors['password']} />
             </div>
           </CardContent>
-          <CardFooter>
+          <CardFooter className="flex-col gap-3">
             <Button type="submit" className="w-full" disabled={mutation.isPending}>
               {mutation.isPending ? '登录中…' : '登录'}
             </Button>
+            {options.data?.logto && (
+              <>
+                <div className="flex w-full items-center gap-3 text-xs text-muted-foreground">
+                  <div className="h-px flex-1 bg-border" />
+                  或
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+                <a
+                  href={logtoSignInHref(safeRedirect(search.redirect))}
+                  className={buttonVariants({ variant: 'outline', className: 'w-full' })}
+                >
+                  使用 Logto 登录
+                </a>
+              </>
+            )}
           </CardFooter>
         </form>
       </Card>

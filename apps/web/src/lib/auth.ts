@@ -1,5 +1,6 @@
 import {
   meSchema,
+  signInOptionsSchema,
   type ChangePasswordInput,
   type ForgotPasswordInput,
   type Me,
@@ -28,6 +29,17 @@ export const meQuery = queryOptions({
 
 export const signIn = (input: SignInInput) =>
   api('/auth/sign-in', { method: 'POST', json: input, schema: meSchema });
+
+/** What the sign-in page offers besides a password. */
+export const signInOptionsQuery = queryOptions({
+  queryKey: ['sign-in-options'],
+  queryFn: () => api('/auth/sign-in-options', { schema: signInOptionsSchema }),
+  staleTime: 60_000,
+});
+
+/** Where the browser goes to sign in with Logto, to land on `redirect` afterwards. */
+export const logtoSignInHref = (redirect: string) =>
+  `/api/auth/oidc/logto/login?redirect=${encodeURIComponent(redirect)}`;
 
 export const signOut = () => api('/auth/sign-out', { method: 'POST' });
 
