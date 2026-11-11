@@ -8,7 +8,12 @@ import { PrismaClient } from '../generated/prisma/client.js';
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor(config: ConfigService<Env, true>) {
     super({
-      adapter: new PrismaPg({ connectionString: config.get('DATABASE_URL', { infer: true }) }),
+      adapter: new PrismaPg({
+        connectionString: config.get('DATABASE_URL', { infer: true }),
+        // The adapter writes and reads times as UTC text with no zone, which the database takes to
+        // be in the session's time zone. So sessions are in UTC, whatever the server is set to.
+        options: '-c TimeZone=UTC',
+      }),
     });
   }
 
