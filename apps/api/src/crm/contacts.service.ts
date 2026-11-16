@@ -45,6 +45,31 @@ function toContact(row: Prisma.ContactGetPayload<{ select: typeof contactSelect 
   };
 }
 
+/**
+ * The order of the list: by the column asked for, contacts without a value last; otherwise one
+ * customer's contacts start with the primary one, and any other list is the newest first.
+ */
+export function contactOrder({
+  sort,
+  order = 'asc',
+  customerId,
+}: Pick<ContactQuery, 'sort' | 'order' | 'customerId'>): Prisma.ContactOrderByWithRelationInput[] {
+  const newestFirst = { id: 'desc' } as const;
+  switch (sort) {
+    case undefined:
+      return customerId ? [{ primary: 'desc' }, { id: 'asc' }] : [newestFirst];
+    case 'customer':
+      return [{ customer: { name: order } }, newestFirst];
+    case 'title':
+      return [{ title: { sort: order, nulls: 'last' } }, newestFirst];
+    case 'createdAt':
+      // Ids are handed out in the order of creation.
+      return [{ id: order }];
+    default:
+      return [{ [sort]: order }, newestFirst];
+  }
+}
+
 /** People at customers. Whoever can see a customer can see its contacts. */
 @Injectable()
 export class ContactsService {
@@ -56,14 +81,13 @@ export class ContactsService {
   ) {}
 
   async list(user: Principal, query: ContactQuery): Promise<Page<Contact>> {
-    const { page, pageSize, customerId } = query;
+    const { page, pageSize } = query;
     const where = this.where(user, query);
     const [rows, total] = await Promise.all([
       this.db.contact.findMany({
         where,
         select: contactSelect,
-        // One customer's contacts start with the primary one.
-        orderBy: customerId ? [{ primary: 'desc' }, { id: 'asc' }] : { id: 'desc' },
+        orderBy: contactOrder(query),
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

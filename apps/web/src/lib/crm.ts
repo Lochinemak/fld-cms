@@ -5,14 +5,17 @@ import {
   opportunityPageSchema,
   ownerOptionSchema,
   pageSchema,
+  type ContactSort,
   type CreateContactInput,
   type CreateCustomerInput,
   type CreateFollowUpInput,
   type CreateOpportunityInput,
   type CustomerLevel,
+  type CustomerSort,
   type CustomerStatus,
   type FollowUpMethod,
   type OpportunityStage,
+  type SortOrder,
   type UpdateContactInput,
   type UpdateCustomerInput,
   type UpdateOpportunityInput,
@@ -53,12 +56,16 @@ export interface CustomerListParams {
   mine?: boolean;
   /** Only the customers whose next follow-up is due by then. */
   dueBy?: string;
+  sort?: CustomerSort;
+  order?: SortOrder;
 }
 
 export interface ContactListParams {
   page: number;
   keyword?: string;
   customerId?: string;
+  sort?: ContactSort;
+  order?: SortOrder;
 }
 
 export interface FollowUpListParams {

@@ -25,6 +25,7 @@ export const TENANT_MODELS: ReadonlySet<string> = new Set([
   'CustomField',
   'Notification',
   'SpreadsheetTask',
+  'UserPreference',
 ]);
 
 const FILTERED = new Set([

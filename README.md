@@ -51,8 +51,9 @@ API 第一次连上空数据库时，会创建系统租户（ID 1，编码 `syst
 - `pnpm db:migrate`：修改 `apps/api/prisma/schema.prisma` 后生成并应用新迁移（开发环境）
 - `pnpm db:deploy`：只应用已有迁移（部署环境）
 - `pnpm db:studio`：打开 Prisma Studio
+- `pnpm --filter @fld/web test`：前端的单元测试和组件测试（Vitest + Testing Library，在 jsdom 里跑，不用起服务）。测试和代码放在一起（`*.spec.ts` / `*.spec.tsx`），`pnpm test` 会连它一起跑。`src/test/render.tsx` 里有两个帮手：`renderWithQuery()` 带上请求缓存来渲染，`stubApi()` 按「方法 + 路径」假装接口并记下发出的请求，可以照着 `src/components/data-table.spec.tsx` 写
 - `pnpm --filter @fld/api test:e2e`：后端端到端测试（需要先 `pnpm infra:up`）。用单独的 `fld_asset_test` 库和 Redis 1 号库，每次运行重建，不影响开发数据
-- `pnpm test:ui`：在真实浏览器里跑一遍冒烟流程（超级管理员首次登录、建租户、租户管理员登录、建客户、上传文件、查看登录设备），会先构建全部代码。需要先 `pnpm infra:up`，第一次还要 `pnpm --filter @fld/web exec playwright install chromium`。用单独的 `fld_asset_ui` 库和 Redis 2 号库，每次运行清空；后端和页面分别跑在 3021 和 4183 端口，不影响正在开发的服务。失败时的录屏和页面快照在 `apps/web/test-results/`，用 `pnpm --filter @fld/web exec playwright show-trace <trace.zip>` 查看
+- `pnpm test:ui`：在真实浏览器里跑一遍冒烟流程（超级管理员首次登录、建租户、租户管理员登录、建客户、调整客户列表的列和排序、上传文件、查看登录设备），会先构建全部代码。需要先 `pnpm infra:up`，第一次还要 `pnpm --filter @fld/web exec playwright install chromium`。用单独的 `fld_asset_ui` 库和 Redis 2 号库，每次运行清空；后端和页面分别跑在 3021 和 4183 端口，不影响正在开发的服务。失败时的录屏和页面快照在 `apps/web/test-results/`，用 `pnpm --filter @fld/web exec playwright show-trace <trace.zip>` 查看
 - `pnpm --filter @fld/api reset-mfa <用户名或邮箱>`：关闭账号的两步验证（先 `pnpm build`），之后只用密码就能登录。给手机和恢复码都丢了、又没有别的管理员能重置的人用，比如唯一的超级管理员。镜像里用 `node dist/cli.js reset-mfa <用户名或邮箱>`
 - `pnpm --filter @fld/api reset-password <用户名或邮箱>`：重置密码（先 `pnpm build`），新密码打印在终端，下次登录必须修改，该账号所有登录立即失效。镜像里用 `node dist/cli.js reset-password <用户名或邮箱>`
 - `pnpm format`：用根目录的 Prettier 配置格式化全部代码
@@ -177,7 +178,25 @@ docker compose logs api | grep 'Initial password'   # 首次启动时超级管�
 - 字段的值存在业务表的 `custom` 列（JSONB）里，按字段标识存：`{"region": "east", "budget": 5000}`。
 - 让一个模型支持自定义字段：在 Prisma 模型上加 `custom Json @default("{}")` 并迁移；在 `CUSTOM_FIELD_ENTITIES` 登记，写上看这个模型的页面权限；service 新建和修改时用 `CustomFieldsService.values()` 检查并合并值，读出时用 `customOf()`；前端表单用 `<CustomFieldInputs>`，详情用 `<CustomFieldList>`，列表用 `formatCustomValue()`。可以照着联系人（`contacts.service.ts`、`contact-form-dialog.tsx`）写。
 - 内置字典的选项用 `DictionariesService.assertValue()` 检查（见 `customers.service.ts` 的来源），前端用 `builtinItemsQuery(编码)` 取。
-- 现在还不能按自定义字段筛选和排序列表。
+- 现在还不能按自定义字段筛选和排序列表；每个人可以自己决定列表里显示哪些自定义字段（见下面的「列表的列和排序」）。
+
+### 列表的列和排序
+
+客户和联系人列表右上角的「列」按钮里，每个人可以勾选自己要看的列，点「恢复默认」回到初始的样子；点表头可以按这一列排序，再点一次倒过来，第三次取消（一次只能按一列排）。这些选择按「账号 + 租户」存在服务器上，换浏览器、换设备都一样。
+
+- 第一列（客户名称、联系人姓名）总是显示。有些列默认不显示，要自己勾上，比如客户的「电话」「创建时间」。
+- 自定义字段都在「列」菜单里。「自定义字段」页面的「在列表中显示」决定的是默认值：没有自己勾选过这一列的人跟着它走，勾选过的人以自己的为准。
+- 隐藏了正在排序的那一列，排序也随之取消。导出的内容和顺序不受这些选择影响。
+- 文字按数据库的排序规则排，中文不一定是拼音顺序。自定义字段的列现在还不能排序。
+
+在代码里，给另一张表格加上同样的功能：
+
+1. 在 `packages/shared/src/preferences.ts` 的 `TABLE_IDS` 里登记表格的标识（比如 `crm.opportunity`）。
+2. 页面里把每一列写成 `DataColumn`（`apps/web/src/lib/table-view.ts`）：`id` 是存进个人设置的名字，用了之后不要改；`hideable: false` 总是显示；`defaultHidden: true` 默认不显示；`sortBy` 是列表接口认的排序字段，不写就不能点表头排序。
+3. `const view = useTableView('表格标识', columns)`，然后用 `<ColumnsMenu view={view} />` 和 `<DataTable view={view} … />`（`apps/web/src/components/data-table.tsx`）代替手写的表格；列表请求带上 `...view.sort`，并等 `view.ready` 再发。
+4. 要能排序，接口的查询 schema 加上 `sort`、`order`，service 里把它换成 `orderBy`。
+
+可以照着客户列表（`apps/web/src/routes/_app/crm/customers/index.tsx`、`customers.service.ts` 的 `customerOrder()`）写。个人设置存在 `user_preferences` 表里，一人一个键一行，以后别的个人设置也可以放进来（`PreferencesService`）。
 
 ### 通知
 

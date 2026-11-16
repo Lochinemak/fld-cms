@@ -1,8 +1,14 @@
-import { customerLevelSchema, customerStatusSchema, type Customer } from '@fld/shared';
+import {
+  customerLevelSchema,
+  customerStatusSchema,
+  type CustomField,
+  type Customer,
+  type CustomerSort,
+} from '@fld/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { z } from 'zod';
 import { Can } from '@/components/can';
 import { formatCustomValue } from '@/components/custom-fields';
@@ -11,6 +17,7 @@ import { CustomerLevelBadge, CustomerStatusBadge } from '@/components/crm/crm-ba
 import { CustomerFormDialog } from '@/components/crm/customer-form-dialog';
 import { NextFollowUp } from '@/components/crm/next-follow-up';
 import { TransferDialog } from '@/components/crm/transfer-dialog';
+import { ColumnsMenu, DataTable } from '@/components/data-table';
 import { ErrorAlert } from '@/components/error-alert';
 import { FilterSelect } from '@/components/filter-select';
 import { PageHeader } from '@/components/page-header';
@@ -18,18 +25,9 @@ import { PaginationBar } from '@/components/pagination-bar';
 import { RequirePermission } from '@/components/require-permission';
 import { SearchBox } from '@/components/search-box';
 import { ExportButton, ImportButton } from '@/components/spreadsheets/spreadsheet-actions';
-import { TableMessage } from '@/components/table-message';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { useCan } from '@/lib/auth';
 import {
   CUSTOMER_LEVEL_LABELS,
@@ -43,6 +41,7 @@ import {
 } from '@/lib/crm';
 import { customFieldsQuery } from '@/lib/custom-fields';
 import { PAGE_SIZE } from '@/lib/system';
+import { useTableView, type DataColumn } from '@/lib/table-view';
 
 const searchSchema = z.object({
   page: z.number().int().min(1).optional().catch(undefined),
@@ -78,6 +77,95 @@ const LEVEL_OPTIONS = customerLevelSchema.options.map((value) => ({
   label: CUSTOMER_LEVEL_LABELS[value],
 }));
 
+/**
+ * The list's columns: the built-in ones, then the tenant's custom fields. Each member picks
+ * which to see; a custom field starts shown if the tenant ticked 在列表中显示.
+ */
+function customerColumns(
+  customFields: readonly CustomField[],
+): DataColumn<Customer, CustomerSort>[] {
+  return [
+    {
+      id: 'name',
+      header: '客户',
+      hideable: false,
+      sortBy: 'name',
+      cell: (customer) => (
+        <>
+          <Link
+            to="/crm/customers/$customerId"
+            params={{ customerId: customer.id }}
+            className="font-medium hover:underline"
+          >
+            {customer.name}
+          </Link>
+          {customer.industry && (
+            <div className="text-xs text-muted-foreground">{customer.industry}</div>
+          )}
+        </>
+      ),
+    },
+    {
+      id: 'level',
+      header: '级别',
+      sortBy: 'level',
+      cell: (customer) => <CustomerLevelBadge level={customer.level} />,
+    },
+    {
+      id: 'status',
+      header: '状态',
+      sortBy: 'status',
+      cell: (customer) => <CustomerStatusBadge status={customer.status} />,
+    },
+    {
+      id: 'owner',
+      header: '负责人',
+      sortBy: 'owner',
+      cell: (customer) => (
+        <>
+          <div>{customer.owner.displayName}</div>
+          {customer.dept && (
+            <div className="text-xs text-muted-foreground">{customer.dept.name}</div>
+          )}
+        </>
+      ),
+    },
+    {
+      id: 'lastFollowUpAt',
+      header: '最近跟进',
+      sortBy: 'lastFollowUpAt',
+      className: 'text-muted-foreground',
+      cell: (customer) => (customer.lastFollowUpAt ? formatDateTime(customer.lastFollowUpAt) : '—'),
+    },
+    {
+      id: 'nextFollowUpAt',
+      header: '下次跟进',
+      sortBy: 'nextFollowUpAt',
+      cell: (customer) => <NextFollowUp at={customer.nextFollowUpAt} />,
+    },
+    {
+      id: 'phone',
+      header: '电话',
+      defaultHidden: true,
+      cell: (customer) => customer.phone ?? '—',
+    },
+    {
+      id: 'createdAt',
+      header: '创建时间',
+      defaultHidden: true,
+      sortBy: 'createdAt',
+      className: 'text-muted-foreground',
+      cell: (customer) => formatDateTime(customer.createdAt),
+    },
+    ...customFields.map((field): DataColumn<Customer, CustomerSort> => ({
+      id: `custom:${field.key}`,
+      header: field.label,
+      defaultHidden: !field.showInList,
+      cell: (customer) => formatCustomValue(field, customer.custom[field.key]),
+    })),
+  ];
+}
+
 function CustomersPage() {
   const queryClient = useQueryClient();
   const search = Route.useSearch();
@@ -90,18 +178,23 @@ function CustomersPage() {
     mine: search.mine,
     dueBy: search.due ? endOfToday() : undefined,
   };
-  const { data, error, isPending } = useQuery(customersQuery({ page, ...filters }));
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const closeDialog = () => setDialog(null);
   const canUpdate = useCan('crm:customer:update');
   const canTransfer = useCan('crm:customer:transfer');
   const canDelete = useCan('crm:customer:delete');
   const hasActions = canUpdate || canTransfer || canDelete;
-  // The custom fields the tenant shows in the list, after the built-in columns.
-  const listed = (useQuery(customFieldsQuery('crm.customer')).data ?? []).filter(
-    (field) => field.showInList,
+  const customFields = useQuery(customFieldsQuery('crm.customer')).data;
+  const columns = useMemo(() => customerColumns(customFields ?? []), [customFields]);
+  const view = useTableView(
+    'crm.customer',
+    columns,
+    () => void navigate({ search: (prev) => ({ ...prev, page: undefined }) }),
   );
-  const columns = (hasActions ? 7 : 6) + listed.length;
+  const { data, error, isPending } = useQuery({
+    ...customersQuery({ page, ...filters, ...view.sort }),
+    enabled: view.ready,
+  });
 
   // A new filter starts again from the first page.
   const filter = (patch: Partial<z.infer<typeof searchSchema>>) =>
@@ -168,107 +261,54 @@ function CustomersPage() {
               今天要跟进
             </Label>
           </div>
+          <div className="ml-auto">
+            <ColumnsMenu view={view} />
+          </div>
         </div>
         <ErrorAlert error={error} />
-        <div className="rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>客户</TableHead>
-                <TableHead>级别</TableHead>
-                <TableHead>状态</TableHead>
-                <TableHead>负责人</TableHead>
-                <TableHead>最近跟进</TableHead>
-                <TableHead>下次跟进</TableHead>
-                {listed.map((field) => (
-                  <TableHead key={field.key}>{field.label}</TableHead>
-                ))}
-                {hasActions && <TableHead className="w-0" />}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isPending ? (
-                <TableMessage colSpan={columns}>加载中…</TableMessage>
-              ) : !data?.items.length ? (
-                <TableMessage colSpan={columns}>没有找到客户</TableMessage>
-              ) : (
-                data.items.map((customer) => (
-                  <TableRow key={customer.id}>
-                    <TableCell>
-                      <Link
-                        to="/crm/customers/$customerId"
-                        params={{ customerId: customer.id }}
-                        className="font-medium hover:underline"
+        <DataTable
+          view={view}
+          rows={data?.items}
+          rowKey={(customer) => customer.id}
+          isPending={isPending}
+          empty="没有找到客户"
+          actions={
+            hasActions
+              ? (customer) => (
+                  <>
+                    {canUpdate && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDialog({ kind: 'edit', customer })}
                       >
-                        {customer.name}
-                      </Link>
-                      {customer.industry && (
-                        <div className="text-xs text-muted-foreground">{customer.industry}</div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <CustomerLevelBadge level={customer.level} />
-                    </TableCell>
-                    <TableCell>
-                      <CustomerStatusBadge status={customer.status} />
-                    </TableCell>
-                    <TableCell>
-                      <div>{customer.owner.displayName}</div>
-                      {customer.dept && (
-                        <div className="text-xs text-muted-foreground">{customer.dept.name}</div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {customer.lastFollowUpAt ? formatDateTime(customer.lastFollowUpAt) : '—'}
-                    </TableCell>
-                    <TableCell>
-                      <NextFollowUp at={customer.nextFollowUpAt} />
-                    </TableCell>
-                    {listed.map((field) => (
-                      <TableCell key={field.key}>
-                        {formatCustomValue(field, customer.custom[field.key])}
-                      </TableCell>
-                    ))}
-                    {hasActions && (
-                      <TableCell>
-                        <div className="flex justify-end gap-1">
-                          {canUpdate && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setDialog({ kind: 'edit', customer })}
-                            >
-                              编辑
-                            </Button>
-                          )}
-                          {canTransfer && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setDialog({ kind: 'transfer', customer })}
-                            >
-                              转移
-                            </Button>
-                          )}
-                          {canDelete && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive"
-                              onClick={() => setDialog({ kind: 'delete', customer })}
-                            >
-                              删除
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
+                        编辑
+                      </Button>
                     )}
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                    {canTransfer && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDialog({ kind: 'transfer', customer })}
+                      >
+                        转移
+                      </Button>
+                    )}
+                    {canDelete && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() => setDialog({ kind: 'delete', customer })}
+                      >
+                        删除
+                      </Button>
+                    )}
+                  </>
+                )
+              : undefined
+          }
+        />
         <PaginationBar
           page={page}
           pageSize={PAGE_SIZE}

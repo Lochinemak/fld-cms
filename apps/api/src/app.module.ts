@@ -22,6 +22,7 @@ import { HealthModule } from './health/health.module.js';
 import { JobsModule } from './jobs/jobs.module.js';
 import { MembersModule } from './members/members.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
+import { PreferencesModule } from './preferences/preferences.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { RedisModule } from './redis/redis.module.js';
 import { RolesModule } from './roles/roles.module.js';
@@ -100,6 +101,7 @@ import { ThrottleModule } from './throttle/throttle.module.js';
     AuthorizationModule.forRoot(),
     AuditModule,
     NotificationsModule,
+    PreferencesModule,
     SpreadsheetsModule,
     HealthModule,
     SettingsModule,

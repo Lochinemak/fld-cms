@@ -12,6 +12,7 @@ export * from './notification.js';
 export * from './pagination.js';
 export * from './permissions.js';
 export * from './platform.js';
+export * from './preferences.js';
 export * from './role.js';
 export * from './spreadsheet.js';
 export * from './tenant.js';

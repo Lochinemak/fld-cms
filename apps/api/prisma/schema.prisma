@@ -44,6 +44,7 @@ model Tenant {
   customFields     CustomField[]
   notifications    Notification[]
   spreadsheetTasks SpreadsheetTask[]
+  userPreferences  UserPreference[]
 
   @@map("tenants")
 }
@@ -82,6 +83,7 @@ model User {
   identities         UserIdentity[]
   notifications      Notification[]
   spreadsheetTasks   SpreadsheetTask[]
+  preferences        UserPreference[]
   ownedCustomers     Customer[]        @relation("CustomerOwner")
   createdCustomers   Customer[]        @relation("CustomerCreator")
   ownedOpportunities Opportunity[]
@@ -829,4 +831,22 @@ enum SpreadsheetTaskStatus {
   FAILED
 
   @@map("spreadsheet_task_status")
+}
+
+/// What one member set up for themselves in a tenant, by key: the columns of a table, say.
+model UserPreference {
+  id        BigInt   @id
+  tenantId  BigInt   @map("tenant_id")
+  userId    BigInt   @map("user_id")
+  /// What the preference is about, e.g. table:crm.customer.
+  key       String   @db.VarChar(64)
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, key])
+  @@index([userId])
+  @@map("user_preferences")
 }

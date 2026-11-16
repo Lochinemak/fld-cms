@@ -173,6 +173,38 @@ test('the administrator adds a field to customers, and fills it in', async () =>
   await expect(page.getByRole('cell', { name: '是', exact: true })).toBeVisible();
 });
 
+test('the administrator arranges the customer list, and finds it so after a reload', async () => {
+  await page.goto('/crm/customers');
+  const header = (name: string) => page.getByRole('columnheader', { name });
+  const firstRow = page.getByRole('row').nth(1);
+  // Newest first until sorted.
+  await expect(firstRow).toContainText('带字段的客户');
+
+  await page.getByRole('button', { name: '列', exact: true }).click();
+  await page.getByRole('menuitemcheckbox', { name: '级别' }).click();
+  await expect(header('级别')).toHaveCount(0);
+  await page.getByRole('menuitemcheckbox', { name: '创建时间' }).click();
+  await expect(header('创建时间')).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await header('创建时间').getByRole('button').click();
+  await expect(header('创建时间')).toHaveAttribute('aria-sort', 'ascending');
+  await expect(firstRow).toContainText('冒烟客户');
+
+  // Kept on the server, not in the page.
+  await page.reload();
+  await expect(header('创建时间')).toHaveAttribute('aria-sort', 'ascending');
+  await expect(header('级别')).toHaveCount(0);
+  await expect(firstRow).toContainText('冒烟客户');
+
+  await page.getByRole('button', { name: '列', exact: true }).click();
+  await page.getByRole('menuitem', { name: '恢复默认' }).click();
+  await expect(header('级别')).toBeVisible();
+  await expect(header('创建时间')).toHaveCount(0);
+  await expect(firstRow).toContainText('带字段的客户');
+  await page.keyboard.press('Escape');
+});
+
 test('the administrator exports customers, and is told when it is ready', async () => {
   await page.goto('/crm/customers');
   await page.getByRole('button', { name: '导出', exact: true }).click();

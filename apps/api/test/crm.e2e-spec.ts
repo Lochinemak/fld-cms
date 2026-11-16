@@ -223,6 +223,38 @@ describe('CRM (e2e)', () => {
     expect(updated).toMatchObject({ level: 'A', industry: '制造' });
   });
 
+  it('sorts the customer list by one column', async () => {
+    const names = async (query: string) =>
+      customerPageSchema
+        .parse((await agent('crm-admin').get(`/api/crm/customers${query}`).expect(200)).body)
+        .items.map(({ name }) => name);
+    expect(await names('?sort=name')).toEqual(['East Co', 'HQ Co', 'Sales Co', 'West Co']);
+    expect(await names('?sort=name&order=desc')).toEqual([
+      'West Co',
+      'Sales Co',
+      'HQ Co',
+      'East Co',
+    ]);
+    // In the order they were created, and back.
+    expect(await names('?sort=createdAt')).toEqual(['East Co', 'West Co', 'Sales Co', 'HQ Co']);
+    expect(await names('')).toEqual(['HQ Co', 'Sales Co', 'West Co', 'East Co']);
+    expect(await names('?sort=owner&order=desc')).toEqual([
+      'West Co',
+      'Sales Co',
+      'East Co',
+      'HQ Co',
+    ]);
+    // Nobody was followed up yet: the list stays whole, newest first.
+    expect(await names('?sort=nextFollowUpAt')).toEqual([
+      'HQ Co',
+      'Sales Co',
+      'West Co',
+      'East Co',
+    ]);
+    await agent('crm-admin').get('/api/crm/customers?sort=remark').expect(400);
+    await agent('crm-admin').get('/api/crm/customers?sort=name&order=up').expect(400);
+  });
+
   it('keeps contacts and follow-ups with their customer', async () => {
     const east = agent('crm-east');
     const contactNames = async () =>
@@ -267,6 +299,18 @@ describe('CRM (e2e)', () => {
       contactPageSchema.parse((await as.get('/api/crm/contacts').expect(200)).body).total;
     expect(await contactTotal(agent('crm-west'))).toBe(0);
     expect(await contactTotal(agent('crm-manager'))).toBe(2);
+    // Sorting by a column takes over from "the primary contact first".
+    const sortedNames = async (query: string) =>
+      contactPageSchema
+        .parse(
+          (await east.get(`/api/crm/contacts?customerId=${ids['East Co']}&${query}`).expect(200))
+            .body,
+        )
+        .items.map(({ name }) => name);
+    expect(await sortedNames('sort=name&order=desc')).toEqual(['Bob', 'Alice']);
+    expect(await sortedNames('sort=createdAt')).toEqual(['Alice', 'Bob']);
+    expect(await sortedNames('sort=customer')).toEqual(['Bob', 'Alice']);
+    await east.get('/api/crm/contacts?sort=email').expect(400);
 
     // The latest follow-up sets the customer's last and next follow-up times.
     const nextAt = new Date(Date.now() + 3 * DAY).toISOString();

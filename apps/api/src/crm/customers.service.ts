@@ -66,6 +66,32 @@ function toCustomer(row: Prisma.CustomerGetPayload<{ select: typeof customerSele
 }
 
 /**
+ * The order of the list: by the column asked for, customers without a value last; otherwise
+ * customers due for a follow-up come most overdue first, and any other list the newest first.
+ */
+export function customerOrder({
+  sort,
+  order = 'asc',
+  dueBy,
+}: Pick<CustomerQuery, 'sort' | 'order' | 'dueBy'>): Prisma.CustomerOrderByWithRelationInput[] {
+  const newestFirst = { id: 'desc' } as const;
+  switch (sort) {
+    case undefined:
+      return dueBy ? [{ nextFollowUpAt: 'asc' }, { id: 'asc' }] : [newestFirst];
+    case 'owner':
+      return [{ owner: { displayName: order } }, newestFirst];
+    case 'lastFollowUpAt':
+    case 'nextFollowUpAt':
+      return [{ [sort]: { sort: order, nulls: 'last' } }, newestFirst];
+    case 'createdAt':
+      // Ids are handed out in the order of creation.
+      return [{ id: order }];
+    default:
+      return [{ [sort]: order }, newestFirst];
+  }
+}
+
+/**
  * Customers of the current tenant. Each has an owner and records the owner's department, and the
  * user's data scope decides which of them it sees and changes.
  */
@@ -83,14 +109,13 @@ export class CustomersService {
   ) {}
 
   async list(user: Principal, query: CustomerQuery): Promise<Page<Customer>> {
-    const { page, pageSize, dueBy } = query;
+    const { page, pageSize } = query;
     const where = this.where(user, query);
     const [rows, total] = await Promise.all([
       this.db.customer.findMany({
         where,
         select: customerSelect,
-        // Customers due for a follow-up come most overdue first; otherwise the newest first.
-        orderBy: dueBy ? [{ nextFollowUpAt: 'asc' }, { id: 'asc' }] : { id: 'desc' },
+        orderBy: customerOrder(query),
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

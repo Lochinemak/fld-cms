@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { optionalEmailSchema } from './account.js';
 import { idSchema } from './id.js';
 import { customValuesSchema } from './custom-fields.js';
-import { pageQuerySchema, pageSchema } from './pagination.js';
+import { pageQuerySchema, pageSchema, sortOrderSchema } from './pagination.js';
 
 /** Text a form may leave empty: blank reads as null, which also clears the field on update. */
 function optionalText(max: number, label: string) {
@@ -78,6 +78,18 @@ export const customerSchema = z.object({
 });
 export type Customer = z.infer<typeof customerSchema>;
 
+/** What the customer list can be sorted by. */
+export const customerSortSchema = z.enum([
+  'name',
+  'level',
+  'status',
+  'owner',
+  'lastFollowUpAt',
+  'nextFollowUpAt',
+  'createdAt',
+]);
+export type CustomerSort = z.infer<typeof customerSortSchema>;
+
 export const customerQuerySchema = pageQuerySchema.extend({
   status: customerStatusSchema.optional(),
   level: customerLevelSchema.optional(),
@@ -85,6 +97,10 @@ export const customerQuerySchema = pageQuerySchema.extend({
   mine: z.stringbool().optional(),
   /** Only the customers whose next follow-up is due by then. */
   dueBy: z.iso.datetime({ offset: true }).optional(),
+  /** Sorts the list by one column; without it the list keeps its own order. */
+  sort: customerSortSchema.optional(),
+  /** Ascending unless said otherwise. */
+  order: sortOrderSchema.optional(),
 });
 export type CustomerQuery = z.infer<typeof customerQuerySchema>;
 
@@ -157,8 +173,16 @@ export const contactSchema = z.object({
 });
 export type Contact = z.infer<typeof contactSchema>;
 
+/** What the contact list can be sorted by. */
+export const contactSortSchema = z.enum(['name', 'customer', 'title', 'createdAt']);
+export type ContactSort = z.infer<typeof contactSortSchema>;
+
 export const contactQuerySchema = pageQuerySchema.extend({
   customerId: idSchema.optional(),
+  /** Sorts the list by one column; without it the list keeps its own order. */
+  sort: contactSortSchema.optional(),
+  /** Ascending unless said otherwise. */
+  order: sortOrderSchema.optional(),
 });
 export type ContactQuery = z.infer<typeof contactQuerySchema>;
 
