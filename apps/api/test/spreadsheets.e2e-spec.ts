@@ -286,6 +286,7 @@ describe('Spreadsheets and notifications (e2e)', () => {
     const res = await admin
       .post('/api/spreadsheets/exports')
       .set('User-Agent', 'xl-export-browser')
+      .set('Sec-CH-UA', '"Brave";v="157"')
       .send({ entity: 'crm.customer', query: { level: 'A' } })
       .expect(201);
     const task = await finished(admin, spreadsheetTaskSchema.parse(res.body).id);
@@ -295,6 +296,7 @@ describe('Spreadsheets and notifications (e2e)', () => {
     });
     expect(record).toMatchObject({
       userAgent: 'xl-export-browser',
+      userAgentBrands: '"Brave";v="157"',
       requestId: res.get('X-Request-Id'),
     });
     expect(record.ip).toMatch(/^(127\.0\.0\.1|::1)$/);

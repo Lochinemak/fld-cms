@@ -136,30 +136,6 @@ export const revokeSignInSession = (id: string) =>
 /** Signs out every device but this one. */
 export const revokeOtherSignInSessions = () => api('/me/sessions', { method: 'DELETE' });
 
-/** A browser and system as people name them, from the user agent: 「Chrome · macOS」. */
-export function describeUserAgent(userAgent: string | null): string {
-  if (!userAgent) {
-    return '未知设备';
-  }
-  const browser =
-    [
-      ['Edg/', 'Edge'],
-      ['OPR/', 'Opera'],
-      ['Firefox/', 'Firefox'],
-      ['Chrome/', 'Chrome'],
-      ['Safari/', 'Safari'],
-    ].find(([token]) => userAgent.includes(token!))?.[1] ?? null;
-  const system =
-    [
-      [/iPhone|iPad/, 'iOS'],
-      [/Android/, 'Android'],
-      [/Windows/, 'Windows'],
-      [/Mac OS X|Macintosh/, 'macOS'],
-      [/Linux/, 'Linux'],
-    ].find(([pattern]) => (pattern as RegExp).test(userAgent))?.[1] ?? null;
-  return [browser, system].filter(Boolean).join(' · ') || userAgent.slice(0, 40);
-}
-
 export const mfaStatusQuery = queryOptions({
   queryKey: ['mfa-status'],
   queryFn: () => api('/me/mfa', { schema: mfaStatusSchema }),

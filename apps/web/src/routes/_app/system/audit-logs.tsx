@@ -49,6 +49,7 @@ import { useMountedDialog } from '@/hooks/use-mounted-dialog';
 import { auditLogsQuery, formatAuditTime } from '@/lib/audit';
 import { useCan } from '@/lib/auth';
 import { PAGE_SIZE } from '@/lib/system';
+import { describeUserAgent } from '@/lib/user-agent';
 
 const searchSchema = z.object({
   page: z.number().int().min(1).optional().catch(undefined),
@@ -301,7 +302,16 @@ function AuditLogDialog({ log, onClosed }: { log: AuditLog; onClosed: () => void
           <dt className="text-muted-foreground">IP</dt>
           <dd>{log.ip ?? '—'}</dd>
           <dt className="text-muted-foreground">浏览器</dt>
-          <dd className="break-words">{log.userAgent ?? '—'}</dd>
+          <dd className="break-words">
+            {log.userAgent ? (
+              <>
+                {describeUserAgent(log.userAgent, log.userAgentBrands)}
+                <div className="text-muted-foreground">{log.userAgent}</div>
+              </>
+            ) : (
+              '—'
+            )}
+          </dd>
           <dt className="text-muted-foreground">请求 ID</dt>
           <dd className="font-mono break-all">{log.requestId ?? '—'}</dd>
         </dl>

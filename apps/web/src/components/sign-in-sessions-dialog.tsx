@@ -13,13 +13,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useMountedDialog } from '@/hooks/use-mounted-dialog';
-import {
-  describeUserAgent,
-  revokeOtherSignInSessions,
-  revokeSignInSession,
-  signInSessionsQuery,
-} from '@/lib/auth';
+import { revokeOtherSignInSessions, revokeSignInSession, signInSessionsQuery } from '@/lib/auth';
 import { formatDateTime } from '@/lib/crm';
+import { describeUserAgent } from '@/lib/user-agent';
 
 /** Where the signed-in user is signed in, to sign other devices out. */
 export function SignInSessionsDialog({ onClosed }: { onClosed: () => void }) {
@@ -49,7 +45,7 @@ export function SignInSessionsDialog({ onClosed }: { onClosed: () => void }) {
               <Laptop className="size-5 shrink-0 text-muted-foreground" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
-                  {describeUserAgent(session.userAgent)}
+                  {describeUserAgent(session.userAgent, session.userAgentBrands)}
                   {session.current && <Badge variant="secondary">{t('currentDevice')}</Badge>}
                   {session.method === 'logto' && <Badge variant="outline">Logto</Badge>}
                 </div>

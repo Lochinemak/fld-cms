@@ -18,6 +18,8 @@ const WRONG_PASSWORD = 'audit-wrong-password';
 const NEW_PASSWORD = 'audit-new-password';
 const SYSTEM_TENANT = 1n;
 const BROWSER = 'audit-test-browser/1.0';
+/** What Brave sends as Sec-CH-UA, its user agent being Chrome's. */
+const BRANDS = '"Brave";v="157", "Chromium";v="157", "Not-A Brand";v="99"';
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 
@@ -41,6 +43,7 @@ describe('Audit log (e2e)', () => {
     await agent
       .post('/api/auth/sign-in')
       .set('User-Agent', BROWSER)
+      .set('Sec-CH-UA', BRANDS)
       .send({ account, password })
       .expect(200);
     return agent;
@@ -144,8 +147,10 @@ describe('Audit log (e2e)', () => {
           success: true,
           reason: null,
           userAgent: BROWSER,
+          userAgentBrands: BRANDS,
         },
-        { success: false, reason: '密码错误' },
+        // A browser that sent no Sec-CH-UA: any but Chromium's, or over plain HTTP.
+        { success: false, reason: '密码错误', userAgent: BROWSER, userAgentBrands: null },
       ]);
       expect(logs[0]!.ip).toMatch(/^(127\.0\.0\.1|::1)$/);
     }

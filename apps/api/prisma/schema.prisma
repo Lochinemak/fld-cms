@@ -329,29 +329,31 @@ model PlatformSetting {
 /// over. Never changed, and removed after the retention period. Without foreign keys, so the
 /// record outlives what it names; names are copied as they were at the time.
 model AuditLog {
-  id            BigInt   @id
+  id              BigInt   @id
   /// The tenant it happened in. Null for events of an account itself.
-  tenantId      BigInt?  @map("tenant_id")
+  tenantId        BigInt?  @map("tenant_id")
   /// For events of an account itself (its sign-ins and password), the account: every tenant it
   /// belongs to sees them. With both null, an attempt that named no account, which the platform sees.
-  accountId     BigInt?  @map("account_id")
-  actorId       BigInt?  @map("actor_id")
+  accountId       BigInt?  @map("account_id")
+  actorId         BigInt?  @map("actor_id")
   /// What a failed sign-in typed when it matched no account.
-  actorUsername String?  @map("actor_username") @db.VarChar(254)
-  actorName     String?  @map("actor_name") @db.VarChar(64)
-  action        String   @db.VarChar(64)
-  targetType    String?  @map("target_type") @db.VarChar(32)
-  targetId      BigInt?  @map("target_id")
-  targetName    String?  @map("target_name") @db.VarChar(255)
-  success       Boolean
-  reason        String?  @db.VarChar(255)
+  actorUsername   String?  @map("actor_username") @db.VarChar(254)
+  actorName       String?  @map("actor_name") @db.VarChar(64)
+  action          String   @db.VarChar(64)
+  targetType      String?  @map("target_type") @db.VarChar(32)
+  targetId        BigInt?  @map("target_id")
+  targetName      String?  @map("target_name") @db.VarChar(255)
+  success         Boolean
+  reason          String?  @db.VarChar(255)
   /// The changed fields in words: [{ field, from, to }].
-  changes       Json?
-  ip            String?  @db.VarChar(64)
-  userAgent     String?  @map("user_agent") @db.VarChar(500)
+  changes         Json?
+  ip              String?  @db.VarChar(64)
+  userAgent       String?  @map("user_agent") @db.VarChar(500)
+  /// The Sec-CH-UA header: tells apart browsers whose user agent says Chrome, such as Brave.
+  userAgentBrands String?  @map("user_agent_brands") @db.VarChar(255)
   /// The X-Request-Id of the request, to find its lines in the API's log.
-  requestId     String?  @map("request_id") @db.VarChar(64)
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  requestId       String?  @map("request_id") @db.VarChar(64)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   @@index([tenantId, createdAt])
   @@index([accountId, createdAt])

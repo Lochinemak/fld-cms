@@ -248,6 +248,8 @@ test('the administrator sees where they are signed in', async () => {
   await page.getByRole('menuitem', { name: '登录设备' }).click();
   const dialog = page.getByRole('dialog', { name: '登录设备' });
   await expect(dialog.getByText('当前设备')).toBeVisible();
+  // Named from the user agent and the Sec-CH-UA header this browser sent when signing in.
+  await expect(dialog.getByText(/^Chrome · (Windows|macOS|Linux)/)).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
 });

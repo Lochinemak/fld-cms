@@ -61,6 +61,7 @@ import { ThrottleModule } from './throttle/throttle.module.js';
             trustedOrigins: config.get('TRUSTED_ORIGINS', { infer: true }),
             metadata: (request) => ({
               userAgent: request.headers['user-agent'],
+              userAgentBrands: request.headers['sec-ch-ua'],
               ip: request.ip,
               // For SessionAuth, of a session that LogtoController's callback signs in.
               ...(logtoAttempts.getStore() && { method: LOGTO }),

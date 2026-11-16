@@ -105,6 +105,7 @@ export class AuditService {
           changes: event.changes?.length ? event.changes : undefined,
           ip: request?.ip ?? null,
           userAgent: request?.userAgent ?? null,
+          userAgentBrands: request?.userAgentBrands ?? null,
           requestId: request?.requestId ?? null,
         },
       });

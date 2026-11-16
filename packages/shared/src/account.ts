@@ -179,6 +179,8 @@ export const signInSessionSchema = z.object({
   method: signInMethodSchema,
   ip: z.string().nullable(),
   userAgent: z.string().nullable(),
+  /** The Sec-CH-UA header: the browser's own names for itself, which tell Brave from Chrome. */
+  userAgentBrands: z.string().nullable(),
   createdAt: z.iso.datetime(),
   lastActiveAt: z.iso.datetime(),
 });

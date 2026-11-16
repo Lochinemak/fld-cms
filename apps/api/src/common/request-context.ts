@@ -9,6 +9,11 @@ export interface RequestContext {
   requestId: string;
   ip: string | null;
   userAgent: string | null;
+  /**
+   * The Sec-CH-UA header as sent: the browser's own names for itself. Tells apart browsers whose
+   * user agent says Chrome, such as Brave. Sent over HTTPS, and by Chromium browsers only.
+   */
+  userAgentBrands: string | null;
   /** Filled in once the request is authenticated. */
   userId?: string;
   tenantId?: string;
@@ -20,6 +25,7 @@ const storage = new AsyncLocalStorage<RequestContext>();
 const accessLog = new Logger('HTTP');
 
 const USER_AGENT_LENGTH = 500;
+const USER_AGENT_BRANDS_LENGTH = 255;
 const USABLE_REQUEST_ID = /^[\w.-]{8,64}$/;
 /** Polled by the container's health check: logging each would drown the rest. */
 const QUIET_PATHS = /^\/api\/health(\/|$)/;
@@ -41,6 +47,7 @@ export function requestContext(req: Request, res: Response, next: NextFunction):
     requestId: incoming && USABLE_REQUEST_ID.test(incoming) ? incoming : randomUUID(),
     ip: readableIp(req.ip),
     userAgent: req.get('user-agent')?.slice(0, USER_AGENT_LENGTH) ?? null,
+    userAgentBrands: req.get('sec-ch-ua')?.slice(0, USER_AGENT_BRANDS_LENGTH) ?? null,
   };
   res.setHeader(REQUEST_ID_HEADER, context.requestId);
   const path = req.originalUrl.split('?', 1)[0]!;
@@ -68,12 +75,22 @@ export function currentRequest(): RequestContext | undefined {
 }
 
 /** What a queued job keeps of the request that queued it: its id, address and browser. */
-export type RequestOrigin = Pick<RequestContext, 'requestId' | 'ip' | 'userAgent'>;
+export type RequestOrigin = Pick<
+  RequestContext,
+  'requestId' | 'ip' | 'userAgent' | 'userAgentBrands'
+>;
 
 /** The current request's origin, to queue with a job; undefined outside a request. */
 export function requestOrigin(): RequestOrigin | undefined {
   const request = storage.getStore();
-  return request && { requestId: request.requestId, ip: request.ip, userAgent: request.userAgent };
+  return (
+    request && {
+      requestId: request.requestId,
+      ip: request.ip,
+      userAgent: request.userAgent,
+      userAgentBrands: request.userAgentBrands,
+    }
+  );
 }
 
 /**

@@ -22,8 +22,11 @@ describe('Sign-in sessions (e2e)', () => {
   let prisma: PrismaService;
   const ids: Record<string, string> = {};
 
-  const signIn = async (account: string, userAgent: string) => {
+  const signIn = async (account: string, userAgent: string, brands?: string) => {
     const agent = request.agent(app.getHttpServer()).set('User-Agent', userAgent);
+    if (brands) {
+      agent.set('Sec-CH-UA', brands);
+    }
     await agent.post('/api/auth/sign-in').send({ account, password: PASSWORD }).expect(200);
     return agent;
   };
@@ -72,12 +75,18 @@ describe('Sign-in sessions (e2e)', () => {
   });
 
   it('lists where the account is signed in, the current device first', async () => {
-    const laptop = await signIn('sess-ann', 'Laptop');
+    // The brands are what tells a browser such as Brave from Chrome.
+    const laptop = await signIn('sess-ann', 'Laptop', '"Brave";v="157", "Chromium";v="157"');
     await signIn('sess-ann', 'Phone');
     const listed = await sessions(laptop);
     expect(listed).toHaveLength(2);
-    expect(listed[0]).toMatchObject({ current: true, method: 'password', userAgent: 'Laptop' });
-    expect(listed[1]).toMatchObject({ current: false, userAgent: 'Phone' });
+    expect(listed[0]).toMatchObject({
+      current: true,
+      method: 'password',
+      userAgent: 'Laptop',
+      userAgentBrands: '"Brave";v="157", "Chromium";v="157"',
+    });
+    expect(listed[1]).toMatchObject({ current: false, userAgent: 'Phone', userAgentBrands: null });
   });
 
   it('signs out one other device, never the current one through this', async () => {

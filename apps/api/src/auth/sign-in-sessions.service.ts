@@ -26,6 +26,7 @@ export class SignInSessionsService {
         method: signedInWithLogto(session) ? ('logto' as const) : ('password' as const),
         ip: readableIp(text(session.metadata?.['ip']) ?? undefined),
         userAgent: text(session.metadata?.['userAgent']),
+        userAgentBrands: text(session.metadata?.['userAgentBrands']),
         createdAt: session.createdAt.toISOString(),
         lastActiveAt: session.lastActiveAt.toISOString(),
       }))

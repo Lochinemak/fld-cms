@@ -128,6 +128,8 @@ export const auditLogSchema = z.object({
   changes: z.array(auditChangeSchema),
   ip: z.string().nullable(),
   userAgent: z.string().nullable(),
+  /** The Sec-CH-UA header: the browser's own names for itself, which tell Brave from Chrome. */
+  userAgentBrands: z.string().nullable(),
   /** Finds the request's lines in the API's log. */
   requestId: z.string().nullable(),
 });
