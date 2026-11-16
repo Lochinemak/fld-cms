@@ -301,11 +301,9 @@ function AuditLogDialog({ log, onClosed }: { log: AuditLog; onClosed: () => void
           <dt className="text-muted-foreground">IP</dt>
           <dd>{log.ip ?? '—'}</dd>
           <dt className="text-muted-foreground">浏览器</dt>
-          <dd className="text-xs break-all text-muted-foreground">{log.userAgent ?? '—'}</dd>
+          <dd className="break-words">{log.userAgent ?? '—'}</dd>
           <dt className="text-muted-foreground">请求 ID</dt>
-          <dd className="font-mono text-xs break-all text-muted-foreground">
-            {log.requestId ?? '—'}
-          </dd>
+          <dd className="font-mono break-all">{log.requestId ?? '—'}</dd>
         </dl>
         {log.changes.length > 0 && (
           <div className="rounded-lg border">
