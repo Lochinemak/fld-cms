@@ -5,6 +5,7 @@ import {
   platformAccountSchema,
   platformSettingsViewSchema,
   resetAccountPasswordResultSchema,
+  type LogtoSettingsView,
   type MailTemplateKey,
   type TestMailInput,
   type UpdateLogtoSettingsInput,
@@ -68,3 +69,29 @@ export const updateMailTemplate = (key: MailTemplateKey, input: UpdateMailTempla
 /** Back to the built-in template. */
 export const resetMailTemplate = (key: MailTemplateKey) =>
   api(`/system/mail-templates/${key}`, { method: 'DELETE', schema: mailTemplateSchema });
+
+/** Under a field: what applies while it is left blank. */
+export function blankHint(
+  envValue: string | number | null,
+  otherwise?: string,
+): string | undefined {
+  return envValue === null ? otherwise : `留空则用环境变量的值：${envValue}`;
+}
+
+/** What is still to fill in before the sign-in page offers Logto. */
+export function logtoMissing({ page, env, callbackUrl }: LogtoSettingsView): string[] {
+  const missing: string[] = [];
+  if (!(page.url ?? env.url)) {
+    missing.push('Logto 地址');
+  }
+  if (!(page.appId ?? env.appId)) {
+    missing.push('应用 ID');
+  }
+  if (!page.appSecret && !env.appSecret) {
+    missing.push('应用密钥');
+  }
+  if (callbackUrl === null) {
+    missing.push('站点地址（在上面的「邮件服务」里）');
+  }
+  return missing;
+}

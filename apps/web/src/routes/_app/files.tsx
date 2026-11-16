@@ -1,30 +1,15 @@
-import {
-  extensionOf,
-  fileNameSchema,
-  folderNameSchema,
-  type FileFolder,
-  type StoredFile,
-} from '@fld/shared';
+import { extensionOf } from '@fld/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { Ellipsis, Folder, FolderPlus, Upload } from 'lucide-react';
-import {
-  useEffect,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type DragEvent,
-  type ReactNode,
-} from 'react';
+import { FolderPlus, Upload } from 'lucide-react';
+import { useRef, useState, type ChangeEvent } from 'react';
 import { z } from 'zod';
-import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ErrorAlert } from '@/components/error-alert';
 import { FileDetailSheet } from '@/components/files/file-detail-sheet';
-import { FileIcon } from '@/components/files/file-icon';
+import { FileDialogs, type DialogState, type FileRef } from '@/components/files/file-dialogs';
+import { FileDropZone } from '@/components/files/file-drop-zone';
+import { FileRow, FolderRow } from '@/components/files/file-rows';
 import { FolderBreadcrumb } from '@/components/files/folder-breadcrumb';
-import { MoveDialog } from '@/components/files/move-dialog';
-import { NameDialog } from '@/components/files/name-dialog';
-import { ShareDialog } from '@/components/files/share-dialog';
 import { UploadList, useUploads } from '@/components/files/upload-queue';
 import { PageHeader } from '@/components/page-header';
 import { PaginationBar } from '@/components/pagination-bar';
@@ -32,38 +17,15 @@ import { RequirePermission } from '@/components/require-permission';
 import { SearchBox } from '@/components/search-box';
 import { TableMessage } from '@/components/table-message';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button, buttonVariants } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useCan } from '@/lib/auth';
-import { formatDateTime } from '@/lib/crm';
 import {
-  canPreview,
-  createFolder,
-  deleteFile,
-  deleteFolder,
-  fileContentUrl,
   filesQuery,
   folderPath,
   folderQuery,
   foldersQuery,
-  formatSize,
   refreshFiles,
-  updateFile,
-  updateFolder,
   uploadPath,
   versionUploadPath,
 } from '@/lib/files';
@@ -86,21 +48,6 @@ export const Route = createFileRoute('/_app/files')({
   ),
 });
 
-interface FileRef {
-  id: string;
-  name: string;
-}
-
-type DialogState =
-  | { kind: 'create-folder' }
-  | { kind: 'rename-folder'; folder: FileFolder }
-  | { kind: 'move-folder'; folder: FileFolder }
-  | { kind: 'delete-folder'; folder: FileFolder }
-  | { kind: 'rename-file'; file: StoredFile }
-  | { kind: 'move-file'; file: StoredFile }
-  | { kind: 'delete-file'; file: StoredFile }
-  | { kind: 'share'; file: FileRef };
-
 function FilesPage() {
   const queryClient = useQueryClient();
   const search = Route.useSearch();
@@ -118,17 +65,12 @@ function FilesPage() {
   const closeDialog = () => setDialog(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [replacing, setReplacing] = useState<FileRef | null>(null);
-  const [dragging, setDragging] = useState(false);
   const [notice, setNotice] = useState<string>();
   const uploads = useUploads(() => refreshFiles(queryClient));
   const picker = useRef<HTMLInputElement>(null);
   const replacer = useRef<HTMLInputElement>(null);
   const canUpload = useCan('file:library:upload');
   const canCreateFolder = useCan('file:library:folder');
-  const canEdit = useCan('file:library:edit');
-  const canReplace = useCan('file:library:replace');
-  const canDelete = useCan('file:library:delete');
-  const canShare = useCan('file:library:share');
 
   // New files and folders go where the user is browsing, once it is known to exist.
   const canAddHere = browsing && (folderId === null || !!folder.data);
@@ -138,21 +80,6 @@ function FilesPage() {
   const folderCount = browsing ? (folders.data?.length ?? 0) : 0;
   const columns = browsing ? 5 : 6;
   const error = folder.error ?? folders.error ?? files.error;
-
-  // A file dropped beside the drop zone would otherwise open in place of the page.
-  useEffect(() => {
-    const ignore = (event: globalThis.DragEvent) => {
-      if (event.dataTransfer?.types.includes('Files')) {
-        event.preventDefault();
-      }
-    };
-    window.addEventListener('dragover', ignore);
-    window.addEventListener('drop', ignore);
-    return () => {
-      window.removeEventListener('dragover', ignore);
-      window.removeEventListener('drop', ignore);
-    };
-  }, []);
 
   const open = (id: string | null) => void navigate({ search: { folder: id ?? undefined } });
 
@@ -187,34 +114,7 @@ function FilesPage() {
     }
   }
 
-  function dragOver(event: DragEvent<HTMLDivElement>) {
-    if (canUpload && canAddHere && event.dataTransfer.types.includes('Files')) {
-      event.preventDefault();
-      setDragging(true);
-    }
-  }
-
-  function dragLeave(event: DragEvent<HTMLDivElement>) {
-    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-      setDragging(false);
-    }
-  }
-
-  function drop(event: DragEvent<HTMLDivElement>) {
-    setDragging(false);
-    if (!canUpload || !canAddHere) {
-      return;
-    }
-    const dropped: File[] = [];
-    let skipped = 0;
-    for (const item of Array.from(event.dataTransfer.items)) {
-      const file = item.kind === 'file' ? item.getAsFile() : null;
-      if (item.webkitGetAsEntry()?.isDirectory) {
-        skipped++;
-      } else if (file) {
-        dropped.push(file);
-      }
-    }
+  function uploadDropped(dropped: File[], skipped: number) {
     setNotice(skipped > 0 ? `不能直接上传文件夹，已跳过 ${skipped} 个文件夹。` : undefined);
     uploadHere(dropped);
   }
@@ -282,12 +182,7 @@ function FilesPage() {
           </Alert>
         )}
         <UploadList tasks={uploads.tasks} onClear={uploads.clearFinished} />
-        <div
-          className="relative rounded-lg border"
-          onDragOver={dragOver}
-          onDragLeave={dragLeave}
-          onDrop={drop}
-        >
+        <FileDropZone enabled={canUpload && canAddHere} here={here} onDrop={uploadDropped}>
           <Table>
             <TableHeader>
               <TableRow>
@@ -313,157 +208,29 @@ function FilesPage() {
               ) : (
                 <>
                   {subfolders.map((subfolder) => (
-                    <TableRow key={`folder:${subfolder.id}`}>
-                      <TableCell>
-                        <button
-                          type="button"
-                          onClick={() => open(subfolder.id)}
-                          className="flex max-w-md items-center gap-2 text-left font-medium hover:underline"
-                        >
-                          <Folder className="size-4 shrink-0 text-amber-500" />
-                          <span className="truncate">{subfolder.name}</span>
-                        </button>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">—</TableCell>
-                      <OwnerCell item={subfolder} />
-                      <TableCell className="text-muted-foreground">
-                        {formatDateTime(subfolder.updatedAt)}
-                      </TableCell>
-                      <TableCell>
-                        {(canEdit || canDelete) && (
-                          <RowMenu label={`「${subfolder.name}」的操作`}>
-                            {canEdit && (
-                              <>
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    setDialog({ kind: 'rename-folder', folder: subfolder })
-                                  }
-                                >
-                                  重命名
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    setDialog({ kind: 'move-folder', folder: subfolder })
-                                  }
-                                >
-                                  移动
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                            {canDelete && (
-                              <DropdownMenuItem
-                                variant="destructive"
-                                onClick={() =>
-                                  setDialog({ kind: 'delete-folder', folder: subfolder })
-                                }
-                              >
-                                删除
-                              </DropdownMenuItem>
-                            )}
-                          </RowMenu>
-                        )}
-                      </TableCell>
-                    </TableRow>
+                    <FolderRow
+                      key={`folder:${subfolder.id}`}
+                      folder={subfolder}
+                      onOpen={open}
+                      onAction={setDialog}
+                    />
                   ))}
                   {files.data?.items.map((file) => (
-                    <TableRow key={file.id}>
-                      <TableCell>
-                        <button
-                          type="button"
-                          onClick={() => setDetailId(file.id)}
-                          className="flex max-w-md items-center gap-2 text-left font-medium hover:underline"
-                        >
-                          <FileIcon
-                            mimeType={file.mimeType}
-                            className="size-4 shrink-0 text-muted-foreground"
-                          />
-                          <span className="truncate">{file.name}</span>
-                        </button>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {formatSize(file.size)}
-                      </TableCell>
-                      {!browsing && (
-                        <TableCell>
-                          <button
-                            type="button"
-                            onClick={() => open(file.folder?.id ?? null)}
-                            className="max-w-48 truncate text-muted-foreground hover:text-foreground hover:underline"
-                          >
-                            {file.folder?.name ?? '全部文件'}
-                          </button>
-                        </TableCell>
-                      )}
-                      <OwnerCell item={file} />
-                      <TableCell className="text-muted-foreground">
-                        {formatDateTime(file.updatedAt)}
-                      </TableCell>
-                      <TableCell>
-                        <RowMenu label={`「${file.name}」的操作`}>
-                          {canPreview(file.mimeType) && (
-                            <DropdownMenuItem
-                              onClick={() =>
-                                window.open(fileContentUrl(file.id), '_blank', 'noopener')
-                              }
-                            >
-                              预览
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem
-                            onClick={() => window.location.assign(fileContentUrl(file.id, true))}
-                          >
-                            下载
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setDetailId(file.id)}>
-                            详情和版本
-                          </DropdownMenuItem>
-                          {canShare && (
-                            <DropdownMenuItem onClick={() => setDialog({ kind: 'share', file })}>
-                              分享
-                            </DropdownMenuItem>
-                          )}
-                          {(canEdit || canReplace || canDelete) && <DropdownMenuSeparator />}
-                          {canEdit && (
-                            <>
-                              <DropdownMenuItem
-                                onClick={() => setDialog({ kind: 'rename-file', file })}
-                              >
-                                重命名
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => setDialog({ kind: 'move-file', file })}
-                              >
-                                移动
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                          {canReplace && (
-                            <DropdownMenuItem onClick={() => pickReplacement(file)}>
-                              上传新版本
-                            </DropdownMenuItem>
-                          )}
-                          {canDelete && (
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() => setDialog({ kind: 'delete-file', file })}
-                            >
-                              删除
-                            </DropdownMenuItem>
-                          )}
-                        </RowMenu>
-                      </TableCell>
-                    </TableRow>
+                    <FileRow
+                      key={file.id}
+                      file={file}
+                      showFolder={!browsing}
+                      onOpen={open}
+                      onDetail={setDetailId}
+                      onReplace={pickReplacement}
+                      onAction={setDialog}
+                    />
                   ))}
                 </>
               )}
             </TableBody>
           </Table>
-          {dragging && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-background/85 text-sm font-medium">
-              松开就能上传到「{here}」
-            </div>
-          )}
-        </div>
+        </FileDropZone>
         <PaginationBar
           page={page}
           pageSize={PAGE_SIZE}
@@ -476,83 +243,7 @@ function FilesPage() {
           onPageChange={(next) => void navigate({ search: (prev) => ({ ...prev, page: next }) })}
         />
       </div>
-      {dialog?.kind === 'create-folder' && (
-        <NameDialog
-          title="新建文件夹"
-          description={`建在「${here}」里。`}
-          label="文件夹名称"
-          schema={folderNameSchema}
-          save={(name) => createFolder({ name, parentId: folderId })}
-          onClosed={closeDialog}
-        />
-      )}
-      {dialog?.kind === 'rename-folder' && (
-        <NameDialog
-          title="重命名文件夹"
-          description={`给文件夹「${dialog.folder.name}」改个名字。`}
-          label="文件夹名称"
-          name={dialog.folder.name}
-          schema={folderNameSchema}
-          save={(name) => updateFolder(dialog.folder.id, { name })}
-          onClosed={closeDialog}
-        />
-      )}
-      {dialog?.kind === 'rename-file' && (
-        <NameDialog
-          title="重命名文件"
-          description="改名不影响客户里的附件和已发出的外链。"
-          label="文件名"
-          name={dialog.file.name}
-          keepExtension
-          schema={fileNameSchema}
-          save={(name) => updateFile(dialog.file.id, { name })}
-          onClosed={closeDialog}
-        />
-      )}
-      {dialog?.kind === 'move-folder' && (
-        <MoveDialog
-          subject={`文件夹「${dialog.folder.name}」`}
-          parentId={dialog.folder.parentId}
-          movingFolderId={dialog.folder.id}
-          move={(parentId) => updateFolder(dialog.folder.id, { parentId })}
-          onClosed={closeDialog}
-        />
-      )}
-      {dialog?.kind === 'move-file' && (
-        <MoveDialog
-          subject={`文件「${dialog.file.name}」`}
-          parentId={dialog.file.folder?.id ?? null}
-          move={(parentId) => updateFile(dialog.file.id, { folderId: parentId })}
-          onClosed={closeDialog}
-        />
-      )}
-      {dialog?.kind === 'delete-folder' && (
-        <ConfirmDialog
-          title={`删除文件夹「${dialog.folder.name}」？`}
-          description="里面的文件和子文件夹会一起删除，删除后无法在页面上找回，它们的外链也会立即失效。里面有文件正被客户引用时不能删除。"
-          confirmLabel="删除"
-          destructive
-          action={async () => {
-            await deleteFolder(dialog.folder.id);
-            await refreshFiles(queryClient);
-          }}
-          onClosed={closeDialog}
-        />
-      )}
-      {dialog?.kind === 'delete-file' && (
-        <ConfirmDialog
-          title={`删除文件「${dialog.file.name}」？`}
-          description="删除后无法在页面上找回，它的外链也会立即失效。正被客户引用的文件不能删除。"
-          confirmLabel="删除"
-          destructive
-          action={async () => {
-            await deleteFile(dialog.file.id);
-            await refreshFiles(queryClient);
-          }}
-          onClosed={closeDialog}
-        />
-      )}
-      {dialog?.kind === 'share' && <ShareDialog file={dialog.file} onClosed={closeDialog} />}
+      <FileDialogs dialog={dialog} folderId={folderId} here={here} onClosed={closeDialog} />
       {detailId && (
         <FileDetailSheet
           fileId={detailId}
@@ -561,33 +252,6 @@ function FilesPage() {
           onClosed={() => setDetailId(null)}
         />
       )}
-    </div>
-  );
-}
-
-function OwnerCell({ item }: { item: Pick<StoredFile, 'owner' | 'dept'> }) {
-  return (
-    <TableCell>
-      <div>{item.owner.displayName}</div>
-      {item.dept && <div className="text-xs text-muted-foreground">{item.dept.name}</div>}
-    </TableCell>
-  );
-}
-
-function RowMenu({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex justify-end">
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          aria-label={label}
-          className={buttonVariants({ variant: 'ghost', size: 'icon-sm' })}
-        >
-          <Ellipsis />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-36">
-          {children}
-        </DropdownMenuContent>
-      </DropdownMenu>
     </div>
   );
 }
