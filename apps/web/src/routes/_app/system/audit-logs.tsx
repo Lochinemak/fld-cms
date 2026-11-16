@@ -283,7 +283,7 @@ function AuditLogDialog({ log, onClosed }: { log: AuditLog; onClosed: () => void
           <DialogTitle>{AUDIT_ACTIONS[log.action].label}</DialogTitle>
           <DialogDescription>{formatAuditTime(log.createdAt)}</DialogDescription>
         </DialogHeader>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-4 gap-y-2">
           <dt className="text-muted-foreground">操作人</dt>
           <dd>
             {!actor
@@ -320,9 +320,15 @@ function AuditLogDialog({ log, onClosed }: { log: AuditLog; onClosed: () => void
               <TableBody>
                 {log.changes.map((change) => (
                   <TableRow key={change.field}>
-                    <TableCell className="text-muted-foreground">{change.field}</TableCell>
-                    <TableCell className="whitespace-normal">{change.from ?? '—'}</TableCell>
-                    <TableCell className="whitespace-normal">{change.to ?? '—'}</TableCell>
+                    <TableCell className="align-top text-muted-foreground">
+                      {change.field}
+                    </TableCell>
+                    <TableCell className="align-top whitespace-normal">
+                      {change.from ?? '—'}
+                    </TableCell>
+                    <TableCell className="align-top whitespace-normal">
+                      {change.to ?? '—'}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
