@@ -66,3 +66,20 @@ export function requestContext(req: Request, res: Response, next: NextFunction):
 export function currentRequest(): RequestContext | undefined {
   return storage.getStore();
 }
+
+/** What a queued job keeps of the request that queued it: its id, address and browser. */
+export type RequestOrigin = Pick<RequestContext, 'requestId' | 'ip' | 'userAgent'>;
+
+/** The current request's origin, to queue with a job; undefined outside a request. */
+export function requestOrigin(): RequestOrigin | undefined {
+  const request = storage.getStore();
+  return request && { requestId: request.requestId, ip: request.ip, userAgent: request.userAgent };
+}
+
+/**
+ * Runs a job's work as part of the request that queued it, so that its audit records and logs
+ * carry that request's id, address and browser. Without an origin, the work runs as it is.
+ */
+export function runInRequest<R>(origin: RequestOrigin | undefined, work: () => R): R {
+  return origin ? storage.run({ ...origin }, work) : work();
+}

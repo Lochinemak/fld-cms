@@ -28,6 +28,7 @@ import { AuditService } from '../audit/audit.service.js';
 import type { Principal } from '../auth/principal.js';
 import { RunAsRefusedError, RunAsService } from '../auth/run-as.service.js';
 import { TENANT_PRISMA, tenantIdOf, type TenantPrisma } from '../authz/tenant-prisma.js';
+import { requestOrigin, type RequestOrigin } from '../common/request-context.js';
 import { contentDisposition, sendFileContent } from '../files/file-content.js';
 import { removeUpload, type UploadedTempFile } from '../files/upload.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -41,6 +42,15 @@ import { SpreadsheetRegistry, type ImportRow, type SheetColumn } from './spreads
 export const SPREADSHEETS_QUEUE = 'spreadsheets';
 export const RUN_SPREADSHEET_TASK = 'run';
 export const REMOVE_EXPIRED_SPREADSHEETS = 'remove-expired-spreadsheets';
+
+/**
+ * A queued export or import, with the request that asked for it, for its audit record. Jobs queued
+ * before the request was kept have none.
+ */
+export interface RunSpreadsheetTaskJob {
+  taskId: string;
+  request?: RequestOrigin;
+}
 
 const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const DAY = 86_400_000;
@@ -470,14 +480,11 @@ export class SpreadsheetsService {
       select: taskSelect,
     });
     // Once: a failure is reported, and the member tries again if they want to.
-    await this.queue.add(
-      RUN_SPREADSHEET_TASK,
-      { taskId: id.toString() },
-      {
-        jobId: `task-${id}`,
-        attempts: 1,
-      },
-    );
+    const job: RunSpreadsheetTaskJob = { taskId: id.toString(), request: requestOrigin() };
+    await this.queue.add(RUN_SPREADSHEET_TASK, job, {
+      jobId: `task-${id}`,
+      attempts: 1,
+    });
     return toTask(row);
   }
 

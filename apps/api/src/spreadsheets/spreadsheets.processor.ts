@@ -2,6 +2,7 @@ import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Job, Queue } from 'bullmq';
+import { runInRequest } from '../common/request-context.js';
 import type { Env } from '../config/env.js';
 import { scheduleEvery } from '../jobs/schedule.js';
 import {
@@ -9,6 +10,7 @@ import {
   RUN_SPREADSHEET_TASK,
   SPREADSHEETS_QUEUE,
   SpreadsheetsService,
+  type RunSpreadsheetTaskJob,
 } from './spreadsheets.service.js';
 
 /** Runs exports and imports, and removes those older than 7 days once a day. */
@@ -29,10 +31,10 @@ export class SpreadsheetsProcessor extends WorkerHost implements OnApplicationBo
     await scheduleEvery(this.queue, REMOVE_EXPIRED_SPREADSHEETS, 24 * 60 * 60 * 1000, nodeEnv);
   }
 
-  async process(job: Job<{ taskId?: string }>): Promise<unknown> {
+  async process(job: Job<Partial<RunSpreadsheetTaskJob>>): Promise<unknown> {
     switch (job.name) {
       case RUN_SPREADSHEET_TASK:
-        await this.spreadsheets.run(BigInt(job.data.taskId!));
+        await runInRequest(job.data.request, () => this.spreadsheets.run(BigInt(job.data.taskId!)));
         return null;
       case REMOVE_EXPIRED_SPREADSHEETS: {
         const removed = await this.spreadsheets.removeExpired();

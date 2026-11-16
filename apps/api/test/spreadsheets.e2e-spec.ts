@@ -285,9 +285,19 @@ describe('Spreadsheets and notifications (e2e)', () => {
     await viewer.post('/api/spreadsheets/exports').send({ entity: 'crm.customer' }).expect(403);
     const res = await admin
       .post('/api/spreadsheets/exports')
+      .set('User-Agent', 'xl-export-browser')
       .send({ entity: 'crm.customer', query: { level: 'A' } })
       .expect(201);
     const task = await finished(admin, spreadsheetTaskSchema.parse(res.body).id);
+    // Recorded by the job, with the address, browser and id of the request that asked for it.
+    const record = await prisma.auditLog.findFirstOrThrow({
+      where: { tenantId: acmeId, action: 'data.export', targetId: BigInt(task.id) },
+    });
+    expect(record).toMatchObject({
+      userAgent: 'xl-export-browser',
+      requestId: res.get('X-Request-Id'),
+    });
+    expect(record.ip).toMatch(/^(127\.0\.0\.1|::1)$/);
     expect(task).toMatchObject({ status: 'DONE', rowCount: 1, downloadable: true });
 
     // Someone else's export isn't theirs to download.
