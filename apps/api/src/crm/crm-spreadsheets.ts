@@ -13,12 +13,7 @@ import { AuthenticationContext } from '@nestjs/authentication';
 import type { Principal } from '../auth/principal.js';
 import { CustomFieldsService } from '../custom-fields/custom-fields.service.js';
 import { DictionariesService } from '../custom-fields/dictionaries.service.js';
-import {
-  customCell,
-  customFromCell,
-  customColumn,
-  type CellValue,
-} from '../spreadsheets/cells.js';
+import { customCell, customFromCell, customColumn, type CellValue } from '../spreadsheets/cells.js';
 import {
   SpreadsheetRegistry,
   type ImportRow,
